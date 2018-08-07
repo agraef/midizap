@@ -819,7 +819,7 @@ start_translation(translation *tr, char *which_key)
 	is_keystroke = 1;
       } else {
 	// pb (step up, down)
-	first_stroke = &(tr->pb[chan][incr]);
+	first_stroke = &(tr->pbs[chan][incr]);
       }
       break;
     default:

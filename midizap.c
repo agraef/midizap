@@ -170,6 +170,8 @@ fetch_stroke(translation *tr, int status, int chan, int data, int index, int inc
     return NULL;
 }
 
+static char *note_names[] = { "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B" };
+
 void
 send_strokes(translation *tr, int status, int chan, int data, int index, int incr)
 {
@@ -182,7 +184,34 @@ send_strokes(translation *tr, int status, int chan, int data, int index, int inc
   }
 
   if (debug_keys && s) {
-    print_stroke_sequence(tr->name, (index<0)?"":(index>0)?"U":"D", s);
+    char name[100] = "??", *suffix = "";
+    switch (status) {
+    case 0x90:
+      sprintf(name, "%s%d-%d", note_names[data % 12], data / 12, chan+1);
+      break;
+    case 0xb0:
+      if (!incr)
+	suffix = "";
+      else if (tr->is_incr)
+	suffix = (incr<0)?"<":">";
+      else
+	suffix = (incr<0)?"-":"+";
+      sprintf(name, "CC%d-%d%s", data, chan+1, suffix);
+      break;
+    case 0xc0:
+      sprintf(name, "PC%d-%d", data, chan+1);
+      break;
+    case 0xe0:
+      if (!incr)
+	suffix = "";
+      else
+	suffix = (incr<0)?"-":"+";
+      sprintf(name, "PB-%d%s", chan+1, suffix);
+      break;
+    default: // this can't happen
+      break;
+    }
+    print_stroke_sequence(name, incr?"":index?"U":"D", s);
   }
   while (s) {
     if (s->keysym) {
@@ -366,16 +395,16 @@ handle_event(uint8_t *msg)
     case 0xe0: {
       int bend = ((msg[2] << 14) | msg[1]) - 8192;
       if (bend)
-	send_strokes(tr, status, chan, msg[1], 0, 0);
+	send_strokes(tr, status, chan, 0, 0, 0);
       else
-	send_strokes(tr, status, chan, msg[1], 1, 0);
+	send_strokes(tr, status, chan, 0, 1, 0);
       if (inpbvalue[chan] - 8192 != bend) {
 	int incr = inpbvalue[chan] - 8192 > bend ? -1 : 1;
 	while (inpbvalue[chan] - 8192 != bend) {
 	  int d = abs(inpbvalue[chan] - 8192 - bend);
 	  // scaled to ca. 7 steps in either direction, like on output
 	  if (d > 1170) d = 1170;
-	  send_strokes(tr, status, chan, msg[1], 0, incr);
+	  send_strokes(tr, status, chan, 0, 0, incr);
 	  inpbvalue[chan] += incr*d;
 	}
       }
