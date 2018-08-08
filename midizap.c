@@ -75,7 +75,7 @@ static int16_t pbvalue[16] =
    8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192};
 
 void
-send_midi(int status, int data, int index, int incr)
+send_midi(int status, int data, int index, int incr, int step)
 {
   if (!enable_jack_output) return; // MIDI output not enabled
   uint8_t msg[3];
@@ -112,13 +112,15 @@ send_midi(int status, int data, int index, int incr)
     // range (0..16383, with 8192 being the center value)
     int pbval = 0;
     if (incr) {
+      if (!step) return;
+      incr *= step;
       if (incr > 0) {
 	if (pbvalue[chan] >= 16383) return;
-	pbvalue[chan] += 1170;
+	pbvalue[chan] += incr;
 	if (pbvalue[chan] > 16383) pbvalue[chan] = 16383;
       } else {
 	if (pbvalue[chan] == 0) return;
-	pbvalue[chan] -= 1170;
+	pbvalue[chan] += incr;
 	if (pbvalue[chan] < 0) pbvalue[chan] = 0;
       }
       pbval = pbvalue[chan];
@@ -218,7 +220,7 @@ send_strokes(translation *tr, int status, int chan, int data, int index, int inc
       send_key(s->keysym, s->press);
       nkeys++;
     } else {
-      send_midi(s->status, s->data, index, incr);
+      send_midi(s->status, s->data, index, incr, s->step);
     }
     s = s->next;
   }
@@ -336,6 +338,7 @@ static int16_t inpbvalue[16] =
   {8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192,
    8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192};
 
+static uint8_t notedown[16][128];
 static uint8_t inccdown[16][128];
 static uint8_t inpbdown[16];
 
@@ -380,10 +383,17 @@ handle_event(uint8_t *msg)
       send_strokes(tr, status, chan, msg[1], 1, 0);
       break;
     case 0x90:
-      if (msg[2])
-	send_strokes(tr, status, chan, msg[1], 0, 0);
-      else
-	send_strokes(tr, status, chan, msg[1], 1, 0);
+      if (msg[2]) {
+	if (!notedown[chan][msg[1]]) {
+	  send_strokes(tr, status, chan, msg[1], 0, 0);
+	  notedown[chan][msg[1]] = 1;
+	}
+      } else {
+	if (notedown[chan][msg[1]]) {
+	  send_strokes(tr, status, chan, msg[1], 1, 0);
+	  notedown[chan][msg[1]] = 0;
+	}
+      }
       break;
     case 0xb0:
       if (msg[2]) {
@@ -398,12 +408,24 @@ handle_event(uint8_t *msg)
 	}
       }
       if (check_incr(tr, chan, msg[1])) {
-	// incremental controller a la MCU XXXTODO: maybe we should handle
-	// speed of control changes here?
+	// Incremental controller a la MCU. NB: This assumed a signed bit
+	// representation (values above 0x40 indicate counter-clockwise
+	// rotation), which seems to be what most DAWs expect nowadays.
+	// But some DAWs may also have it the other way round, so that you may
+	// have to swap the actions for increment and decrement. XXXTODO:
+	// Maybe the encoding should be a configurable parameter?
 	if (msg[2] < 64) {
-	  send_strokes(tr, status, chan, msg[1], 0, 1);
+	  int d = msg[2];
+	  while (d) {
+	    send_strokes(tr, status, chan, msg[1], 0, 1);
+	    d--;
+	  }
 	} else if (msg[2] > 64) {
-	  send_strokes(tr, status, chan, msg[1], 0, -1);
+	  int d = msg[2]-64;
+	  while (d) {
+	    send_strokes(tr, status, chan, msg[1], 0, -1);
+	    d--;
+	  }
 	}
       } else if (inccvalue[chan][msg[1]] != msg[2]) {
 	int incr = inccvalue[chan][msg[1]] > msg[2] ? -1 : 1;
@@ -429,13 +451,15 @@ handle_event(uint8_t *msg)
       }
       if (check_pbs(tr, chan) && inpbvalue[chan] - 8192 != bend) {
 	int incr = inpbvalue[chan] - 8192 > bend ? -1 : 1;
-	while (inpbvalue[chan] - 8192 != bend) {
-	  int d = abs(inpbvalue[chan] - 8192 - bend);
-	  // scaled to ca. 7 steps in either direction, like on output
-	  if (d > 1170) d = 1170;
-	  if (d < 1170) break;
-	  send_strokes(tr, status, chan, 0, 0, incr);
-	  inpbvalue[chan] += incr*d;
+	int step = tr->step[chan][incr>0];
+	if (step) {
+	  while (inpbvalue[chan] - 8192 != bend) {
+	    int d = abs(inpbvalue[chan] - 8192 - bend);
+	    if (d > step) d = step;
+	    if (d < step) break;
+	    send_strokes(tr, status, chan, 0, 0, incr);
+	    inpbvalue[chan] += incr*d;
+	  }
 	}
       }
       break;
@@ -449,10 +473,10 @@ handle_event(uint8_t *msg)
 
 void help(char *progname)
 {
-  fprintf(stderr, "Usage: %s [-h] [-j] [-r rcfile] [-d[rsk]]\n", progname);
+  fprintf(stderr, "Usage: %s [-h] [-t] [-r rcfile] [-d[rskj]]\n", progname);
   fprintf(stderr, "-h print this message\n");
-  fprintf(stderr, "-j enable Jack MIDI output\n");
-  fprintf(stderr, "-r config file name (default: SHUTTLE_CONFIG_FILE variable or ~/.shuttlerc)\n");
+  fprintf(stderr, "-t enable MIDI output\n");
+  fprintf(stderr, "-r config file name (default: MIDIZAP_CONFIG_FILE variable or ~/.midizaprc)\n");
   fprintf(stderr, "-d debug (r = regex, s = strokes, k = keys, j = jack; default: all)\n");
 }
 
@@ -469,12 +493,12 @@ main(int argc, char **argv)
   uint8_t msg[3];
   int opt;
 
-  while ((opt = getopt(argc, argv, "hjd::r:")) != -1) {
+  while ((opt = getopt(argc, argv, "htd::r:")) != -1) {
     switch (opt) {
     case 'h':
       help(argv[0]);
       exit(0);
-    case 'j':
+    case 't':
       enable_jack_output = 1;
       break;
     case 'd':

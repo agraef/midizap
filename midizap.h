@@ -49,6 +49,7 @@ typedef struct _stroke {
   int press; // zero -> release, non-zero -> press
   // keysym == 0 => MIDI event
   int status, data; // status and, if applicable, first data byte
+  int step; // step size for pitch bends (1 by default)
   // the dirty bit indicates a MIDI event for which a release event still
   // needs to be generated in key events
   int dirty;
@@ -70,6 +71,7 @@ typedef struct _translation {
   stroke *ccs[NUM_CHAN][NUM_KEYS][2];
   stroke *pb[NUM_CHAN][2];
   stroke *pbs[NUM_CHAN][2];
+  int step[NUM_CHAN][2]; // step size for pitch bends (1 by default)
 } translation;
 
 extern translation *get_translation(char *win_title, char *win_class);
