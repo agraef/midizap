@@ -69,8 +69,8 @@ send_key(KeySym key, int press)
 }
 
 // cached controller and pitch bend values
-static int ccvalue[16][128];
-static int pbvalue[16] =
+static int8_t ccvalue[16][128];
+static int16_t pbvalue[16] =
   {8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192,
    8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192};
 
@@ -114,11 +114,11 @@ send_midi(int status, int data, int index, int incr)
     if (incr) {
       if (incr > 0) {
 	if (pbvalue[chan] >= 16383) return;
-	pbvalue[chan] += 128;
+	pbvalue[chan] += 1170;
 	if (pbvalue[chan] > 16383) pbvalue[chan] = 16383;
       } else {
 	if (pbvalue[chan] == 0) return;
-	pbvalue[chan] -= 128;
+	pbvalue[chan] -= 1170;
 	if (pbvalue[chan] < 0) pbvalue[chan] = 0;
       }
       pbval = pbvalue[chan];
@@ -331,10 +331,13 @@ get_focused_window_translation()
   return last_window_translation;
 }
 
-static int inccvalue[16][128];
-static int inpbvalue[16] =
+static int8_t inccvalue[16][128];
+static int16_t inpbvalue[16] =
   {8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192,
    8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192};
+
+static uint8_t inccdown[16][128];
+static uint8_t inpbdown[16];
 
 int
 check_incr(translation *tr, int chan, int data)
@@ -344,6 +347,17 @@ check_incr(translation *tr, int chan, int data)
   tr = default_translation;
   if (tr->ccs[chan][data][0] || tr->ccs[chan][data][1])
     return tr->is_incr;
+  return 0;
+}
+
+int
+check_pbs(translation *tr, int chan)
+{
+  if (tr->pbs[chan][0] || tr->pbs[chan][1])
+    return 1;
+  tr = default_translation;
+  if (tr->pbs[chan][0] || tr->pbs[chan][1])
+    return 1;
   return 0;
 }
 
@@ -372,10 +386,17 @@ handle_event(uint8_t *msg)
 	send_strokes(tr, status, chan, msg[1], 1, 0);
       break;
     case 0xb0:
-      if (msg[2])
-	send_strokes(tr, status, chan, msg[1], 0, 0);
-      else
-	send_strokes(tr, status, chan, msg[1], 1, 0);
+      if (msg[2]) {
+	if (!inccdown[chan][msg[1]]) {
+	  send_strokes(tr, status, chan, msg[1], 0, 0);
+	  inccdown[chan][msg[1]] = 1;
+	}
+      } else {
+	if (inccdown[chan][msg[1]]) {
+	  send_strokes(tr, status, chan, msg[1], 1, 0);
+	  inccdown[chan][msg[1]] = 0;
+	}
+      }
       if (check_incr(tr, chan, msg[1])) {
 	// incremental controller a la MCU XXXTODO: maybe we should handle
 	// speed of control changes here?
@@ -393,17 +414,26 @@ handle_event(uint8_t *msg)
       }
       break;
     case 0xe0: {
-      int bend = ((msg[2] << 14) | msg[1]) - 8192;
-      if (bend)
-	send_strokes(tr, status, chan, 0, 0, 0);
-      else
-	send_strokes(tr, status, chan, 0, 1, 0);
-      if (inpbvalue[chan] - 8192 != bend) {
+      int bend = ((msg[2] << 7) | msg[1]) - 8192;
+      //fprintf(stderr, "pb %d\n", bend);
+      if (bend) {
+	if (!inpbdown[chan]) {
+	  send_strokes(tr, status, chan, 0, 0, 0);
+	  inpbdown[chan] = 1;
+	}
+      } else {
+	if (inpbdown[chan]) {
+	  send_strokes(tr, status, chan, 0, 1, 0);
+	  inpbdown[chan] = 0;
+	}
+      }
+      if (check_pbs(tr, chan) && inpbvalue[chan] - 8192 != bend) {
 	int incr = inpbvalue[chan] - 8192 > bend ? -1 : 1;
 	while (inpbvalue[chan] - 8192 != bend) {
 	  int d = abs(inpbvalue[chan] - 8192 - bend);
 	  // scaled to ca. 7 steps in either direction, like on output
 	  if (d > 1170) d = 1170;
+	  if (d < 1170) break;
 	  send_strokes(tr, status, chan, 0, 0, incr);
 	  inpbvalue[chan] += incr*d;
 	}

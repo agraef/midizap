@@ -803,7 +803,7 @@ start_translation(translation *tr, char *which_key)
       if (incr == -1) {
 	// cc on/off
 	first_stroke = &(tr->cc[chan][data][0]);
-	release_first_stroke = &(tr->cc[chan][data][0]);
+	release_first_stroke = &(tr->cc[chan][data][1]);
 	is_keystroke = 1;
       } else {
 	// cc (step up, down)

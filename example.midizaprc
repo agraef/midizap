@@ -256,3 +256,6 @@
  E5  XK_Button_3
  C#5 XK_Scroll_Up
  D#5 XK_Scroll_Down
+
+ PB- XK_Scroll_Up
+ PB+ XK_Scroll_Down
