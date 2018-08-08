@@ -5,18 +5,22 @@
 # Lines in this file starting with # are comments.
 
 # This program works pretty much like Eric Messick's shuttlepro program,
-# except that input comes from Jack MIDI.  It creates a Jack MIDI client
-# named "midizap" with a single input port, which you'll have to connect
-# to your MIDI controller (e.g., using a patchbay program like qjackctl;
-# non-Jack ALSA MIDI inputs can be accommodated using a2jmidid).
+# but it translates MIDI input rather than input events from the Contour
+# Design Shuttle devices.  The program creates a Jack MIDI client named
+# "midizap" with a single input port, which you'll have to connect to
+# the MIDI controller that you want to use (e.g., using a patchbay
+# program like qjackctl; non-Jack ALSA MIDI inputs can be accommodated
+# using a2jmidid).
 
-# Each section in the file (starting with a name in brackets and a regex
-# to be matched against the window class and name) specifies the
-# bindings for one application.  A section at the end without regex
-# provides default bindings if none of the other sections are matched.
-# Within each section, bindings are introduced with the name of the MIDI
-# message being assigned, followed by a sequence of X KeySyms and other
-# MIDI messages to be output when the MIDI message is received.
+# Other than the input being MIDI instead of the Shuttle's key and wheel
+# events, the program works exactly the same. Each section in the file
+# (starting with a name in brackets and a regex to be matched against
+# the window class and name) specifies the bindings for one application.
+# A section at the end without regex provides default bindings if none
+# of the other sections are matched.  Within each section, bindings are
+# introduced with the name of the MIDI message being assigned, followed
+# by a sequence of X KeySyms and/or MIDI messages to be output when the
+# MIDI message is received.
 
 # Here is a brief rundown of the supported notation for MIDI messages
 # (please check the documentation for more details).
@@ -31,9 +35,9 @@
 
 # The program distinguishes between messages on different MIDI
 # channels. By default, messages are assumed to be on MIDI channel 1,
-# but the MIDI channel can also be specified explicitly following a dash
-# at the end of the message token. E.g., a message on MIDI channel 10
-# would be denoted, e.g., CC7-10 or C#3-10.
+# but the MIDI channel can be specified explicitly following a dash at
+# the end of the message token. E.g., a message on MIDI channel 10 would
+# be denoted, e.g., CC7-10 or C#3-10.
 
 # Each of these messages can be either "on" or "off", and so they can
 # have different "press" and "release" keystrokes associated with them.
@@ -43,7 +47,7 @@
 # keyboard. The same holds true for control change messages (here any
 # non-zero controller value means "on", zero "off"), and pitch bends
 # (here the center value of the pitch wheel means "off", any other value
-# means "on"). The program change messages plays a somewhat special role
+# means "on"). The program change messages play a somewhat special role
 # in that they don't actually have any "off" messages associated with
 # them, so to keep in line with the other kinds of MIDI messages we
 # consider them as being "pressed" and then "released" immediately
@@ -63,14 +67,14 @@
 # encoders, such as the jog wheels on Mackie-like devices.)
 
 # As already mentioned, translations can also contain other MIDI
-# messages, in order to translate MIDI input to other MIDI data.  In
-# fact, X KeySyms and MIDI messages can be mixed freely in the output.
-# To enable this, invoke the program with the '-t' option.  This creates
-# a MIDI output port, which can then be hooked up to other Jack MIDI
-# applications.  (Otherwise, MIDI messages in the translations will just
-# be ignored.)
+# messages, in order to translate MIDI input to be passed on to to other
+# MIDI devices and applications.  In fact, X KeySyms and MIDI messages
+# can be mixed freely in the output.  To enable this, invoke the program
+# with the '-t' option.  This creates a MIDI output port, which can then
+# be hooked up to other Jack MIDI applications.  (Otherwise, MIDI
+# messages in the translations will just be ignored.)
 
-# Debugging options. You want to run the program in a terminal window to
+# Debugging options: You want to run the program in a terminal window to
 # see its output when using these. The following line, when uncommented,
 # prints the section recognized for the window in focus:
 
@@ -93,23 +97,22 @@
 # without any option letter turns on all debugging options.
 
 
-# Some convenient bindings for video editing and mouse emulation. These
-# assume a Mackie MCU-like device. We use this as an example throughout,
-# since they are standard gear in many studios, and offer a bunch of
-# useful controls. If you don't have one of these lying around, there
-# are inexpensive MCU emulations in software (such as the TouchDAW app
-# on Android).
+# Sample bindings for video editing and mouse emulation.
 
-# MCU-like equipment usually offers an abundance of (more or less)
-# standard controls which can be put to good use with many applications.
-# On most MCU devices there are some playback controls and cursor keys
-# which generate various note events, and a jog wheel which generates
-# CC60 messages. The latter are in a somewhat peculiar form, encoding
-# relative control changes in so-called "sign bit" format which is also
-# understood by many DAW programs. The special CC60< and CC60>
-# translations shown in the examples below will usually interpret these
-# correctly, although you may have to swap the increment/decrement
-# actions on some devices.
+# These mostly assume a Mackie MCU-like DAW controller device. We use
+# this as an example throughout, since devices of this kind are standard
+# gear in many studios, and they offer an abundance of useful controls.
+# If you don't have one of these lying around, there are inexpensive MCU
+# emulations in software (such as the TouchDAW app on Android).
+
+# On most MCU-style devices there are some playback controls and cursor
+# keys which generate various note events, and a jog wheel which
+# generates CC60 messages. We put all of these to good use here. Note
+# that the CC60 control requires use of the aforementioned special
+# incremental mode for endless rotary encoders (while the CC60< and
+# CC60> translations shown in the examples below should work most of the
+# time, you may have to swap the increment/decrement actions on some
+# devices).
 
 
 # Shotcut (WM_CLASS is "shotcut")
@@ -117,9 +120,9 @@
 
 [Shotcut] ^shotcut$
 
-# Shotcut uses the customary J-K-L shortcuts, each successive J or L key then
-# increments the playback speed in the corresponding direction. We assign
-# these to the MCU Rewind and Forward controls.
+# Shotcut uses the customary J-K-L shortcuts, each successive J or L key
+# decrements or increments the playback speed. We assign these to the
+# MCU Rewind and Forward controls.
 
 # playback controls
  A#7 XK_space    # Play/Pause
@@ -128,18 +131,18 @@
  G#7 "L"         # Forward
 
 # punch in/out (sets in and out points)
-# Note that depending on your MCU device, you may not have these, or they
-# may be labeled differently, so we provide an alternative binding below.
+# Note that your device may not have these, or they may be labeled
+# differently, so we provide an alternative binding below.
  D#7 "I"         # Set In
  E7  "O"         # Set Out
-
-# left/right cursor movement
- D8  XK_Home     # Beginning
- D#8 XK_End      # End
 
 # up/down cursor movement (alternate binding for set in/out)
  C8  "I"         # Set In
  C#8 "O"         # Set Out
+
+# left/right cursor movement
+ D8  XK_Home     # Beginning
+ D#8 XK_End      # End
 
 # the jog wheel moves single frames to the left or the right
  CC60< XK_Left    # Frame reverse
@@ -160,12 +163,13 @@
  D#7 "I"         # Set In
  E7  "O"         # Set Out
 
-# cursor movement
- D8  XK_Home     # Beginning
- D#8 XK_End      # End
-# alternate binding for set in/out
+# alternate binding for set in/out (cursor up/down)
  C8  "I"         # Set In
  C#8 "O"         # Set Out
+
+# cursor left/right
+ D8  XK_Home     # Beginning
+ D#8 XK_End      # End
 
 # jog wheel
  CC60< XK_Left    # Frame reverse
@@ -183,6 +187,20 @@
  CC60< CC7
  CC60> CC7
 
+# The following translations should work on any MIDI keyboard. The first
+# four white keys (C, D, E and F) in the middle octave are mapped to a
+# little drumkit on MIDI channel 10, and the modulation wheel (CC1) is
+# bound to the volume controller on that channel. Hook this up to a
+# GM-compatible software synthesizer such as Fluidsynth/Qsynth to get
+# sound.
+
+ C5    C3-10
+ D5    C#3-10
+ E5    D3-10
+ F5    D#3-10
+
+ CC1+  CC7-10
+ CC1-  CC7-10
 
 # Default section (cursor and mouse emulation)
 
@@ -199,8 +217,26 @@
  A#7   XK_Button_2
  B7    XK_Button_3
 
-# the jog wheel emulates the scroll wheel of the mouse (note that these
-# bindings will only be active when the [MIDI] default section above
-# isn't used)
+# the jog wheel emulates the scroll wheel of the mouse
  CC60< XK_Scroll_Up
  CC60> XK_Scroll_Down
+
+# The following bindings should work on any MIDI keyboard. The C, D and
+# E keys in the middle octave are bound to the three mouse buttons, and
+# the modulation wheel (CC1) emulates the mouse wheel. The F, G, A and B
+# keys in the middle octave are mapped to the cursor keys (Left, Up,
+# Down, Right). Please note that most of these bindings, as well as the
+# CC60 bindings above, will only be active when the [MIDI] default
+# section above isn't used (invoke midizap without the -t option).
+
+ C5    XK_Button_1
+ D5    XK_Button_2
+ E5    XK_Button_3
+
+ F5    XK_Left
+ G5    XK_Up
+ A5    XK_Down
+ B5    XK_Right
+
+ CC1+  XK_Scroll_Up
+ CC1-  XK_Scroll_Down
