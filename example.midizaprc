@@ -1,261 +1,206 @@
 
 # Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)
+# Copyright 2018 Albert Graef <aggraef@gmail.com>
 #
 # Lines in this file starting with # are comments.
 
-# This file is divided into paragraphs, each specifying the bindings to
-# be used when the keyboard focus is on a specific window.  The
-# paragraph is introduced with a line starting with [.  That line
-# contains the paragraph name (which is only used for debugging output
-# to help you in editing this file) followed by ], followed by a regular
-# expression.  When the class or name of the focused window matches the
-# regular expression (see regex(7)), the bindings in the paragraph will
-# be in effect.  The program tries these regular expressions in order,
-# and the first match is used.  It first tries to match the class
-# (WM_CLASS property) of the window, since that usually provides the
-# better clues for identifying an application. If that fails, it will
-# then also try to match the window's title (WM_NAME property).
+# This program works pretty much like Eric Messick's shuttlepro program,
+# except that input comes from Jack MIDI.  It creates a Jack MIDI client
+# named "midizap" with a single input port, which you'll have to connect
+# to your MIDI controller (e.g., using a patchbay program like qjackctl;
+# non-Jack ALSA MIDI inputs can be accommodated using a2jmidid).
 
-# NB: Try to be as specific with the regular expression as possible, in
-# order to prevent accidental matches.  Often an application uses its
-# name as the class name or in its title bar, in which case finding a
-# suitable regex should be relatively easy.  See below for some
-# examples.
+# Each section in the file (starting with a name in brackets and a regex
+# to be matched against the window class and name) specifies the
+# bindings for one application.  A section at the end without regex
+# provides default bindings if none of the other sections are matched.
+# Within each section, bindings are introduced with the name of the MIDI
+# message being assigned, followed by a sequence of X KeySyms and other
+# MIDI messages to be output when the MIDI message is received.
 
-# If there is no regex on the line, like the [Default] line near the
-# bottom, the paragraph acts as a default.  Any window class and title
-# which does not match any regex will use the default bindings.  Any
-# keys which are not specified in the paragraph which does match will
-# use the default bindings for those keys.
+# Here is a brief rundown of the supported notation for MIDI messages
+# (please check the documentation for more details).
 
-# While you are working on regular expressions to match your window
-# names, is is useful to see the window names and classes, as well as
-# the paragraph names which the program finds as you generate ShuttlePRO
-# events.  Run the shuttle program in a terminal window and remove the
-# comment character from the following line:
+# CC<0..127>: control change message for the given controller
+# PC<0..127>: program change message
+# PB: pitch bend message
+# <A..G><#b><0..10> (MIDI notes): MIDI note (on or off); note names use
+# the customary MIDI notation, with # and b denoting accidentals; the
+# number at the end denotes the MIDI octave in the range 0..10 (C5 is
+# middle C)
+
+# The program distinguishes between messages on different MIDI
+# channels. By default, messages are assumed to be on MIDI channel 1,
+# but the MIDI channel can also be specified explicitly following a dash
+# at the end of the message token. E.g., a message on MIDI channel 10
+# would be denoted, e.g., CC7-10 or C#3-10.
+
+# Each of these messages can be either "on" or "off", and so they can
+# have different "press" and "release" keystrokes associated with them.
+# E.g., a "note on" message with non-zero velocity emulates a button
+# press, while the corresponding "note off" emulates a button release,
+# just as if the MIDI keys were just ordinary keys on a computer
+# keyboard. The same holds true for control change messages (here any
+# non-zero controller value means "on", zero "off"), and pitch bends
+# (here the center value of the pitch wheel means "off", any other value
+# means "on"). The program change messages plays a somewhat special role
+# in that they don't actually have any "off" messages associated with
+# them, so to keep in line with the other kinds of MIDI messages we
+# consider them as being "pressed" and then "released" immediately
+# afterwards.
+
+# In addition, control change and pitch bend messages can also be
+# interpreted as incremental changes, and have associated key bindings
+# which are executed each time the controller or pitch bend value
+# increases or decreases, respectively. Such bindings are indicated with
+# the suffixes "+" and "-". Thus, e.g., a key sequence bound to CC7+
+# will be executed each time the value of controller 7 increases, and
+# CC7- will be executed each time it decreases. PB+ and PB- do they same
+# for pitch bends. (There are also some other special modes for the
+# incremental bindings, please check the documentation for details. In
+# particular, the suffixes "<" and ">" can be used in lieu of "+" and
+# "-" to properly interpret the control values of endless rotary
+# encoders, such as the jog wheels on Mackie-like devices.)
+
+# As already mentioned, translations can also contain other MIDI
+# messages, in order to translate MIDI input to other MIDI data.  In
+# fact, X KeySyms and MIDI messages can be mixed freely in the output.
+# To enable this, invoke the program with the '-t' option.  This creates
+# a MIDI output port, which can then be hooked up to other Jack MIDI
+# applications.  (Otherwise, MIDI messages in the translations will just
+# be ignored.)
+
+# Debugging options. You want to run the program in a terminal window to
+# see its output when using these. The following line, when uncommented,
+# prints the section recognized for the window in focus:
 
 #DEBUG_REGEX
 
-# Within a paragraph, key bindings are introduced with the name of the
-# key or event being defined.  Keys are named K1 through K15.  Positions
-# of the shuttle wheel are named S-7 through S-1 for counter-clockwise
-# positions, S0 for the rest position in the center, and S1 through S7
-# for the clockwise positions.  The jog wheel emits two events named JL
-# and JR, for counter-clockwise and clockwise rotations respectively.
-
-# Some programs may expect the shuttle wheel to work like a secondary
-# jog wheel.  To accommodate these, key bindings can also be specified
-# using the incremental shuttle events IL and IR, which indicate
-# counter-clockwise and clockwise rotations, and work in the same
-# fashion as the jog wheel (albeit with a limited range of -7 .. 7).
-
-# The keys on the Contour Shuttle Pro v2 are arranged like this:
-#
-#          K1  K2  K3  K4
-#        K5  K6  K7  K8  K9
-#
-#        K14     Jog    K15
-#
-#          K10        K11
-#         K12          K13
-
-# After the name of the key being bound, the remainder of the line is
-# the sequence of X KeySyms which will be generated when that event is
-# received.  Look up the KeySyms in /usr/include/X11/keysymdef.h.  In
-# addition to the KeySym names found there, you can also use XK_Button_1
-# for the left mouse button, XK_Button_2 for the middle mouse button,
-# XK_Button_3 for the right mouse button, XK_Scroll_Up and
-# XK_Scroll_Down for mouse scroll wheel events.  For sequences of one or
-# more printable characters, you can just enclose them in double quotes.
-
-# Each KeySym you specify will be pressed and released before the next
-# KeySym is pressed.  If you wish a key to be held down, you can add a
-# /D to the end of the KeySym.  For example:  XK_Shift_L/D,
-# XK_Control_L/D or XK_Alt_L/D.  Such keys will be held down until you
-# specify they should be released with a /U on the same KeySym name.
-# They will all be released at the end of the binding anyway, so you
-# usually won't have to use /U.
-
-# Key bindings, whose names start with a K, allow for some extra
-# options.  Since they generate separate events when pressed and
-# released, you can control that as well.  Each non-modifier key is
-# pressed and released in sequence except for the last which is not
-# released until the shuttle key is released.  If you want to press more
-# keys during the release sequence, you can put them after the special
-# word "RELEASE".  Modifier keys specified with /D are released at the
-# end of the press sequence, and re-pressed if there are any keys to be
-# pressed after RELEASE.  If you don't want the modifier keys to be
-# released (you want to use a ShuttlePRO key as Shift, for example) you
-# can follow it with a /H instead of /D.
-
-# aggraef@gmail.com Fri Aug 3 11:01:32 CEST 2018: It's now also possible
-# to translate events to MIDI messages, and output them via Jack MIDI.
-# To these ends, just invoke the program with the -j (Jack) option.
-# This will start Jack if it's not already running, and create a Jack
-# MIDI client named "shuttlepro" with a single MIDI output port, which
-# can be hooked up to other Jack MIDI applications in the usual way
-# (e.g., using a patchbay program like qjackctl; non-Jack ALSA MIDI
-# applications can be accommodated using a2jmidid).  In the
-# translations, MIDI messages can be freely mixed with keypresses; the
-# MIDI messages will be simply ignored if Jack MIDI output is not enabled.
-
-# Here is a brief rundown of the supported MIDI messages (a more detailed
-# account with examples can be found in readconfig.c):
-
-# CH<1..16>: sets the default output channel for subsequent MIDI messages
-# CC<0..127>: outputs a control change message for the given controller
-# PC<0..127>: outputs a program change message
-# PB: outputs a pitch bend message
-# <A..G><#b><0..10> (MIDI notes): outputs the given MIDI note (note on
-# when pressed, note off when released); note names use the customary
-# MIDI notation, with # and b denoting accidentals; the number at the
-# end denotes the MIDI octave in the range 0..10 (C5 is middle C)
-
-# You can also set the MIDI channel of a single message directly as a
-# suffix, separating message and channel number with a dash, e.g.:
-# CC7-10. (This MIDI channel suffix only applies to a single message,
-# other messages without a suffix will still use the default MIDI
-# channel set with CH.)
-
-# PC and note messages can only be bound to key events (they will be
-# ignored otherwise). CC and PB also work with the jog wheel and the
-# shuttle; if they are bound to key events, pressing the key will
-# produce the maximum controller or pitch bend value, releasing it
-# resets it to zero, or -- for PB -- the center value.
-
-# If you want to see exactly how this file is parsed and converted into
-# KeySym strokes and MIDI messages, run the shuttle program in a
-# terminal window and remove the comment character from the following
-# line:
+# This option prints the contents of the entire configuration file, as
+# parsed by the program, in a human-readable format:
 
 #DEBUG_STROKES
 
-# You can also use the following option to have the recognized key
-# bindings printed out as the program executes them, in the same format
-# as DEBUG_STROKES:
+# You can also use the following option to have the recognized
+# translations printed out as the program executes them, in the same
+# format as DEBUG_STROKES:
 
 #DEBUG_KEYS
 
 # NOTE: The debugging options can also be specified on the command line
 # using -d in conjunction with any of the letters r, s and k (or the
-# letter j if you also want debugging output from Jack, if it is
-# enabled).  Just -d without any option letter turns on all debugging
-# options.
+# letter j if you also want debugging output from Jack).  Just -d
+# without any option letter turns on all debugging options.
 
 
-# As one of the main reasons to use a ShuttlePRO is video editing, I've
-# included a sample set of bindings for Cinelerra as an example.
+# Some convenient bindings for video editing and mouse emulation. These
+# assume a Mackie MCU-like device. We use this as an example throughout,
+# since they are standard gear in many studios, and offer a bunch of
+# useful controls. If you don't have one of these lying around, there
+# are inexpensive MCU emulations in software (such as the TouchDAW app
+# on Android).
 
-[Cinelerra Resources] ^Cinelerra: Resources$
- # use [Default], avoiding main Cinelerra rule
+# MCU-like equipment usually offers an abundance of (more or less)
+# standard controls which can be put to good use with many applications.
+# On most MCU devices there are some playback controls and cursor keys
+# which generate various note events, and a jog wheel which generates
+# CC60 messages. The latter are in a somewhat peculiar form, encoding
+# relative control changes in so-called "sign bit" format which is also
+# understood by many DAW programs. The special CC60< and CC60>
+# translations shown in the examples below will usually interpret these
+# correctly, although you may have to swap the increment/decrement
+# actions on some devices.
 
-[Cinelerra Load] ^Cinelerra: Load$
- # use [Default], avoiding main Cinelerra rule
-
-[Cinelerra] ^Cinelerra: [^[:space:]]*$
-
- G#3 XK_KP_0     # Stop
- A3  XK_KP_3     # Play
- Bb3 XK_Home     # Beginning
- B3  XK_End      # End
- C4  "["         # Toggle in
- C#4 "]"         # Toggle out
-
- C5  XK_KP_Add   # Fast reverse
- D5  XK_KP_6     # Play reverse
- E5  XK_KP_5     # Slow reverse
- F5  XK_KP_0     # Stop
- G5  XK_KP_2     # Slow forward
- A5  XK_KP_3     # Play forward
- B5  XK_KP_Enter # Fast forward
- 
- CC1- XK_KP_4    # Frame reverse
- CC1+ XK_KP_1    # Frame forward
-
-
-# AG <aggraef@gmail.com>: Here are some of the bindings that I use. They are
-# for the Shuttle Xpress, so they use only a limited set of buttons.
 
 # Shotcut (WM_CLASS is "shotcut")
 # see https://www.shotcut.org/howtos/keyboard-shortcuts/
 
 [Shotcut] ^shotcut$
 
- G#3 XK_space    # Play/Pause
- Bb3 XK_Home     # Beginning
- B3  XK_End      # End
- C4  "I"         # Set In
- C#4 "O"         # Set Out
-
 # Shotcut uses the customary J-K-L shortcuts, each successive J or L key then
-# increments the playback speed in the corresponding direction. Thus we can
-# simply treat the shuttle like a secondary jog wheel here.
- PB- "J"         # Rewind
- PB+ "L"         # Forward
+# increments the playback speed in the corresponding direction. We assign
+# these to the MCU Rewind and Forward controls.
 
-# The jog wheel moves single frames to the left or the right.
- CC1- XK_Left    # Frame reverse
- CC1+ XK_Right   # Frame forward
+# playback controls
+ A#7 XK_space    # Play/Pause
+ A7  "K"         # Stop
+ G7  "J"         # Rewind
+ G#7 "L"         # Forward
+
+# punch in/out (sets in and out points)
+# Note that depending on your MCU device, you may not have these, or they
+# may be labeled differently, so we provide an alternative binding below.
+ D#7 "I"         # Set In
+ E7  "O"         # Set Out
+
+# left/right cursor movement
+ D8  XK_Home     # Beginning
+ D#8 XK_End      # End
+
+# up/down cursor movement (alternate binding for set in/out)
+ C8  "I"         # Set In
+ C#8 "O"         # Set Out
+
+# the jog wheel moves single frames to the left or the right
+ CC60< XK_Left    # Frame reverse
+ CC60> XK_Right   # Frame forward
 
 
-# Kdenlive has its own built-in support for the Shuttle, but as the
-# shuttlepro program blocks the device when it's running, we include
-# some sensible bindings here anyway (pretty much the same as Shotcut
-# above, but the shuttle has to be treated a little differently).
+# Kdenlive (same bindings as above)
 
 [Kdenlive] ^kdenlive$
 
- G#3 XK_space    # Play/Pause
- Bb3 XK_Home     # Beginning
- B3  XK_End      # End
- C4  "I"         # Set In
- C#4 "O"         # Set Out
+# playback controls
+ A#7 XK_space    # Play/Pause
+ A7  "K"         # Stop
+ G7  "J"         # Rewind
+ G#7 "L"         # Forward
 
- C5  "KJJJ"      # Rewind+2
- D5  "KJJ"       # Rewind+1
- E5  "KJ"        # Rewind
- F5  "K"         # Stop
- G5  "KL"        # Forward
- A5  "KLL"       # Forward+1
- B5  "KLLL"      # Forward+2
+# punch in/out (sets in and out points)
+ D#7 "I"         # Set In
+ E7  "O"         # Set Out
 
- CC1- XK_Left    # Frame reverse
- CC1+ XK_Right   # Frame forward
+# cursor movement
+ D8  XK_Home     # Beginning
+ D#8 XK_End      # End
+# alternate binding for set in/out
+ C8  "I"         # Set In
+ C#8 "O"         # Set Out
 
+# jog wheel
+ CC60< XK_Left    # Frame reverse
+ CC60> XK_Right   # Frame forward
 
-# AG <aggraef@gmail.com>: The special "MIDI" default section is only
-# active when MIDI support is enabled (shuttlepro -j).
 
 [MIDI]
 
-# This is just a little drumkit example.  You need to hook up the
-# shuttlepro MIDI output to a GM-compatible MIDI synthesizer like
-# Fluidsynth to get sound.
+# The special "MIDI" default section is only active when MIDI output is
+# enabled (midizap -t). This allows you to translate midizap's MIDI
+# input for use with other MIDI devices and applications. Here's a
+# simple example for illustration purposes, which shows how to map the
+# MCU jog wheel to CC7, so that it can be used as a volume control.
 
-# CH 10 switches to MIDI channel 10, the drumkit channel.  Keys K5..K9
-# are used to play MIDI notes B2..D#3 here, which should give you some
-# drum sounds.
-
- G#3 CH10 C3
- A3  CH10 C#3
- Bb3 CH10 D3
- B3  CH10 D#3
-
-# Also, for illustration, we assign the jog wheel to CC7 which lets you
-# control the volume.
-
- CC7- CH10 CC7
- CC7+ CH10 CC7
+ CC60< CC7
+ CC60> CC7
 
 
-# Default (mouse emulation)
+# Default section (cursor and mouse emulation)
 
 [Default]
- C5  XK_Button_1
- D5  XK_Button_2
- E5  XK_Button_3
- C#5 XK_Scroll_Up
- D#5 XK_Scroll_Down
 
- PB- XK_Scroll_Up
- PB+ XK_Scroll_Down
+# cursor movement
+ D8    XK_Left
+ D#8   XK_Right
+ C8    XK_Up
+ C#8   XK_Down
+
+# stop/play/rec are assigned to the left/middle/right mouse buttons
+ A7    XK_Button_1
+ A#7   XK_Button_2
+ B7    XK_Button_3
+
+# the jog wheel emulates the scroll wheel of the mouse (note that these
+# bindings will only be active when the [MIDI] default section above
+# isn't used)
+ CC60< XK_Scroll_Up
+ CC60> XK_Scroll_Down
