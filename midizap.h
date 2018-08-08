@@ -63,8 +63,10 @@ typedef struct _translation {
   char *name;
   int is_default, is_incr;
   regex_t regex;
-  // XXFIXME: This is really inefficient, we should rather use some kind of
-  // dictionary here.
+  // XXXFIXME: This way of storing the translation tables is easy to
+  // construct, but wastes quite a lot of memory (needs some 128 KB per
+  // translation section even if most of the entries are NULL pointers). We
+  // should rather use some kind of dictionary here.
   stroke *pc[NUM_CHAN][NUM_KEYS][2];
   stroke *note[NUM_CHAN][NUM_KEYS][2];
   stroke *cc[NUM_CHAN][NUM_KEYS][2];
