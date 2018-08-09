@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <stdint.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,10 +53,10 @@ typedef struct _stroke {
   int step; // step size for pitch bends (1 by default)
   // the incremental bit indicates an incremental control change (typically
   // used with endless rotary encoders) to be represented as a sign bit value
-  int incr;
+  uint8_t incr;
   // the dirty bit indicates a MIDI event for which a release event still
   // needs to be generated in key events
-  int dirty;
+  uint8_t dirty;
 } stroke;
 
 #define NUM_KEYS 128
@@ -64,12 +65,13 @@ typedef struct _stroke {
 typedef struct _translation {
   struct _translation *next;
   char *name;
-  int is_default, is_incr[NUM_CHAN][NUM_KEYS];
+  int is_default;
   regex_t regex;
   // XXXFIXME: This way of storing the translation tables is easy to
   // construct, but wastes quite a lot of memory (needs some 128 KB per
   // translation section even if most of the entries are NULL pointers). We
   // should rather use some kind of dictionary here.
+  uint8_t is_incr[NUM_CHAN][NUM_KEYS];
   stroke *pc[NUM_CHAN][NUM_KEYS][2];
   stroke *note[NUM_CHAN][NUM_KEYS][2];
   stroke *cc[NUM_CHAN][NUM_KEYS][2];
