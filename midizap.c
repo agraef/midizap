@@ -75,7 +75,7 @@ static int16_t pbvalue[16] =
    8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192};
 
 void
-send_midi(int status, int data, int index, int incr, int step)
+send_midi(int status, int data, int step, int incr, int index, int dir)
 {
   if (!enable_jack_output) return; // MIDI output not enabled
   uint8_t msg[3];
@@ -91,15 +91,20 @@ send_midi(int status, int data, int index, int incr, int step)
     }
     break;
   case 0xb0:
-    if (incr) {
-      // increment (incr==1) or decrement (incr==-1) the current value,
-      // clamping it to the 0..127 data byte range
-      if (incr > 0) {
-	if (ccvalue[chan][data] >= 127) return;
-	msg[2] = ++ccvalue[chan][data];
+    if (dir) {
+      if (incr) {
+	// incremental controller, simply spit out a relative sign bit value
+	msg[2] = dir>0?1:65;
       } else {
-	if (ccvalue[chan][data] == 0) return;
-	msg[2] = --ccvalue[chan][data];
+	// increment (dir==1) or decrement (dir==-1) the current value,
+	// clamping it to the 0..127 data byte range
+	if (dir > 0) {
+	  if (ccvalue[chan][data] >= 127) return;
+	  msg[2] = ++ccvalue[chan][data];
+	} else {
+	  if (ccvalue[chan][data] == 0) return;
+	  msg[2] = --ccvalue[chan][data];
+	}
       }
     } else if (!index) {
       msg[2] = 127;
@@ -111,16 +116,16 @@ send_midi(int status, int data, int index, int incr, int step)
     // pitch bends are treated similarly to a controller, but with a 14 bit
     // range (0..16383, with 8192 being the center value)
     int pbval = 0;
-    if (incr) {
+    if (dir) {
       if (!step) return;
-      incr *= step;
-      if (incr > 0) {
+      dir *= step;
+      if (dir > 0) {
 	if (pbvalue[chan] >= 16383) return;
-	pbvalue[chan] += incr;
+	pbvalue[chan] += dir;
 	if (pbvalue[chan] > 16383) pbvalue[chan] = 16383;
       } else {
 	if (pbvalue[chan] == 0) return;
-	pbvalue[chan] += incr;
+	pbvalue[chan] += dir;
 	if (pbvalue[chan] < 0) pbvalue[chan] = 0;
       }
       pbval = pbvalue[chan];
@@ -147,7 +152,8 @@ send_midi(int status, int data, int index, int incr, int step)
 }
 
 stroke *
-fetch_stroke(translation *tr, int status, int chan, int data, int index, int incr)
+fetch_stroke(translation *tr, int status, int chan, int data,
+	     int index, int dir)
 {
   if (tr != NULL) {
     switch (status) {
@@ -156,13 +162,13 @@ fetch_stroke(translation *tr, int status, int chan, int data, int index, int inc
     case 0xc0:
       return tr->pc[chan][data][index];
     case 0xb0:
-      if (incr)
-	return tr->ccs[chan][data][incr>0];
+      if (dir)
+	return tr->ccs[chan][data][dir>0];
       else
 	return tr->cc[chan][data][index];
     case 0xe0:
-      if (incr)
-	return tr->pbs[chan][incr>0];
+      if (dir)
+	return tr->pbs[chan][dir>0];
       else
 	return tr->pb[chan][index];
     default:
@@ -175,14 +181,15 @@ fetch_stroke(translation *tr, int status, int chan, int data, int index, int inc
 static char *note_names[] = { "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B" };
 
 void
-send_strokes(translation *tr, int status, int chan, int data, int index, int incr)
+send_strokes(translation *tr, int status, int chan, int data,
+	     int index, int dir)
 {
   int nkeys = 0;
-  stroke *s = fetch_stroke(tr, status, chan, data, index, incr);
+  stroke *s = fetch_stroke(tr, status, chan, data, index, dir);
 
   if (s == NULL) {
     tr = default_translation;
-    s = fetch_stroke(tr, status, chan, data, index, incr);
+    s = fetch_stroke(tr, status, chan, data, index, dir);
   }
 
   if (debug_keys && s) {
@@ -192,35 +199,35 @@ send_strokes(translation *tr, int status, int chan, int data, int index, int inc
       sprintf(name, "%s%d-%d", note_names[data % 12], data / 12, chan+1);
       break;
     case 0xb0:
-      if (!incr)
+      if (!dir)
 	suffix = "";
-      else if (tr->is_incr)
-	suffix = (incr<0)?"<":">";
+      else if (tr->is_incr[chan][data])
+	suffix = (dir<0)?"<":">";
       else
-	suffix = (incr<0)?"-":"+";
+	suffix = (dir<0)?"-":"+";
       sprintf(name, "CC%d-%d%s", data, chan+1, suffix);
       break;
     case 0xc0:
       sprintf(name, "PC%d-%d", data, chan+1);
       break;
     case 0xe0:
-      if (!incr)
+      if (!dir)
 	suffix = "";
       else
-	suffix = (incr<0)?"-":"+";
+	suffix = (dir<0)?"-":"+";
       sprintf(name, "PB-%d%s", chan+1, suffix);
       break;
     default: // this can't happen
       break;
     }
-    print_stroke_sequence(name, incr?"":index?"U":"D", s);
+    print_stroke_sequence(name, dir?"":index?"U":"D", s);
   }
   while (s) {
     if (s->keysym) {
       send_key(s->keysym, s->press);
       nkeys++;
     } else {
-      send_midi(s->status, s->data, index, incr, s->step);
+      send_midi(s->status, s->data, s->step, s->incr, index, dir);
     }
     s = s->next;
   }
@@ -346,10 +353,10 @@ int
 check_incr(translation *tr, int chan, int data)
 {
   if (tr->ccs[chan][data][0] || tr->ccs[chan][data][1])
-    return tr->is_incr;
+    return tr->is_incr[chan][data];
   tr = default_translation;
   if (tr->ccs[chan][data][0] || tr->ccs[chan][data][1])
-    return tr->is_incr;
+    return tr->is_incr[chan][data];
   return 0;
 }
 
@@ -408,7 +415,7 @@ handle_event(uint8_t *msg)
 	}
       }
       if (check_incr(tr, chan, msg[1])) {
-	// Incremental controller a la MCU. NB: This assumed a signed bit
+	// Incremental controller a la MCU. NB: This assumes a signed bit
 	// representation (values above 0x40 indicate counter-clockwise
 	// rotation), which seems to be what most DAWs expect nowadays.
 	// But some DAWs may also have it the other way round, so that you may
@@ -428,10 +435,10 @@ handle_event(uint8_t *msg)
 	  }
 	}
       } else if (inccvalue[chan][msg[1]] != msg[2]) {
-	int incr = inccvalue[chan][msg[1]] > msg[2] ? -1 : 1;
+	int dir = inccvalue[chan][msg[1]] > msg[2] ? -1 : 1;
 	while (inccvalue[chan][msg[1]] != msg[2]) {
-	  send_strokes(tr, status, chan, msg[1], 0, incr);
-	  inccvalue[chan][msg[1]] += incr;
+	  send_strokes(tr, status, chan, msg[1], 0, dir);
+	  inccvalue[chan][msg[1]] += dir;
 	}
       }
       break;
@@ -450,15 +457,15 @@ handle_event(uint8_t *msg)
 	}
       }
       if (check_pbs(tr, chan) && inpbvalue[chan] - 8192 != bend) {
-	int incr = inpbvalue[chan] - 8192 > bend ? -1 : 1;
-	int step = tr->step[chan][incr>0];
+	int dir = inpbvalue[chan] - 8192 > bend ? -1 : 1;
+	int step = tr->step[chan][dir>0];
 	if (step) {
 	  while (inpbvalue[chan] - 8192 != bend) {
 	    int d = abs(inpbvalue[chan] - 8192 - bend);
 	    if (d > step) d = step;
 	    if (d < step) break;
-	    send_strokes(tr, status, chan, 0, 0, incr);
-	    inpbvalue[chan] += incr*d;
+	    send_strokes(tr, status, chan, 0, 0, dir);
+	    inpbvalue[chan] += dir*d;
 	  }
 	}
       }

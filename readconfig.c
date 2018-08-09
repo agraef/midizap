@@ -504,7 +504,7 @@ print_stroke(stroke *s)
 	printf("%s%d-%d ", note_names[s->data % 12], s->data / 12, channel);
 	break;
       case 0xb0:
-	printf("CC%d-%d ", s->data, channel);
+	printf("CC%d-%d%s ", s->data, channel, s->incr?"~":"");
 	break;
       case 0xc0:
 	printf("PC%d-%d ", s->data, channel);
@@ -556,7 +556,7 @@ append_stroke(KeySym sym, int press)
   s->next = NULL;
   s->keysym = sym;
   s->press = press;
-  s->status = s->data = s->step = s->dirty = 0;
+  s->status = s->data = s->step = s->incr = s->dirty = 0;
   if (*first_stroke) {
     last_stroke->next = s;
   } else {
@@ -566,7 +566,7 @@ append_stroke(KeySym sym, int press)
 }
 
 void
-append_midi(int status, int data, int step)
+append_midi(int status, int data, int step, int incr)
 {
   stroke *s = (stroke *)allocate(sizeof(stroke));
 
@@ -576,6 +576,7 @@ append_midi(int status, int data, int step)
   s->status = status;
   s->data = data;
   s->step = step;
+  s->incr = incr;
   // if this is a keystroke event, for all messages but program change (which
   // has no "on" and "off" states), mark the event as "dirty" so that the
   // corresponding "off" event gets added later to the "release" strokes
@@ -662,19 +663,19 @@ re_press_temp_modifiers(void)
    tok  ::= ( note | msg ) [number] [ "-" number] [incr]
    note ::= ( "a" | ... | "g" ) [ "#" | "b" ]
    msg  ::= "ch" | "pb" [ "[" number "]" ] | "pc" | "cc"
-   incr ::= "-" | "+" | "<" | ">"
+   incr ::= "-" | "+" | "<" | ">" | "~"
 
    Numbers are always in decimal. The meaning of the first number depends on
    the context (octave number for notes, the actual data byte for other
    messages). If present, the suffix with the second number (after the dash)
    denotes the MIDI channel, otherwise the default MIDI channel is used. Note
    that not all combinations are possible -- "pb" is *not* followed by a data
-   byte, but may be followed by a step size in brackets; and "ch" may *not*
-   have a channel number suffix on it. (In fact, "ch" is no real MIDI message
-   at all; it just sets the default MIDI channel for subsequent messages.) The
-   incr flag is only permitted in the first token of a translation, and only
-   in conjunction with "pb" or "cc", whereas "ch" must *not* occur as the
-   first token. */
+   byte, but may be followed by a step size in brackets; and "ch" must *not*
+   occur as the first token and must *not* have a channel number suffix on
+   it. (In fact, "ch" is no real MIDI message at all; it just sets the default
+   MIDI channel for subsequent messages in the output sequence.) The incr flag
+   is only permitted in conjunction with "pb" or "cc", and it takes on a
+   different form in the first token of a translation. */
 
 static int note_number(char c, char b, int k)
 {
@@ -690,7 +691,8 @@ static int note_number(char c, char b, int k)
 }
 
 int
-parse_midi(char *tok, char *s, int *incr, int *step, int *status, int *data)
+parse_midi(char *tok, char *s, int lhs,
+	   int *status, int *data, int *step, int *incr)
 {
   char *p = tok, *t;
   int n, m = -1, k = midi_channel, l;
@@ -734,19 +736,29 @@ parse_midi(char *tok, char *s, int *incr, int *step, int *status, int *data)
       return 0;
     }
   }
-  if (*p && incr && strchr("+-<>", *p)) {
-    // increment flag ("pb" and "cc" only)
+  if (*p && strchr("+-<>~", *p)) {
+    // incremental flag ("pb" and "cc" only)
     if (strcmp(s, "pb") && strcmp(s, "cc")) return 0;
-    if ((*p == '<' || *p == '>') && strcmp(s, "cc")) return 0;
-    *incr = (*p == '-')?0:(*p == '+')?1:(*p == '<')?2:3;
+    if ((*p == '<' || *p == '>' || *p == '~') && strcmp(s, "cc")) return 0;
+    // Only the "~" form is permitted in output messages, and the other forms
+    // are only permitted on the lhs of a translation. XXXFIXME: This is
+    // confusing; incr is just a single bit in output messages, whereas it can
+    // take on various different values on the lhs.
+    if (lhs) {
+      if (*p == '~') return 0;
+      *incr = (*p == '-')?0:(*p == '+')?1:(*p == '<')?2:3;
+    } else {
+      if (*p != '~') return 0;
+      *incr = 1;
+    }
     p++;
-  } else if (incr) {
-    *incr = -1;
+  } else {
+    *incr = lhs?-1:0;
   }
   // check for trailing garbage
   if (*p) return 0;
   if (strcmp(s, "ch") == 0) {
-    if (incr) return 0;
+    if (lhs) return 0;
     // we return a bogus status of 0 here, along with the MIDI channel in the
     // data byte; also check that the MIDI channel is in the proper range
     if (m < 1 || m > 16) return 0;
@@ -780,7 +792,7 @@ parse_midi(char *tok, char *s, int *incr, int *step, int *status, int *data)
 int
 start_translation(translation *tr, char *which_key)
 {
-  int status, data, incr, step;
+  int status, data, step, incr;
   char buf[100];
 
   //printf("start_translation(%s)\n", which_key);
@@ -796,7 +808,7 @@ start_translation(translation *tr, char *which_key)
   regular_key_down = 0;
   modifier_count = 0;
   midi_channel = 0;
-  if (parse_midi(which_key, buf, &incr, &step, &status, &data)) {
+  if (parse_midi(which_key, buf, 1, &status, &data, &step, &incr)) {
     int chan = status & 0x0f;
     switch (status & 0xf0) {
     case 0x90:
@@ -823,7 +835,7 @@ start_translation(translation *tr, char *which_key)
 	is_keystroke = 1;
       } else {
 	// cc (step up, down)
-	tr->is_incr = incr/2 != 0;
+	tr->is_incr[chan][data] = incr/2 != 0;
 	first_stroke = &(tr->ccs[chan][data][incr%2]);
       }
       break;
@@ -905,7 +917,7 @@ add_release(int all_keys)
       stroke *s = *press_first_stroke;
       while (s) {
 	if (!s->keysym && s->dirty) {
-	  append_midi(s->status, s->data, s->step);
+	  append_midi(s->status, s->data, s->step, s->incr);
 	  s->dirty = 0;
 	}
 	s = s->next;
@@ -950,16 +962,16 @@ add_string(char *str)
 void
 add_midi(char *tok)
 {
-  int status, data, step = 0;
+  int status, data, step, incr = 0;
   char buf[100];
-  if (parse_midi(tok, buf, NULL, &step, &status, &data)) {
+  if (parse_midi(tok, buf, 0, &status, &data, &step, &incr)) {
     if (status == 0) {
       // 'ch' token; this doesn't actually generate any output, it just sets
       // the default MIDI channel
       midi_channel = data;
     } else {
       if ((status & 0xf0) != 0xe0 || step != 0)
-	append_midi(status, data, step);
+	append_midi(status, data, step, incr);
       else
 	fprintf(stderr, "zero step size not permitted: %s\n", tok);
     }
