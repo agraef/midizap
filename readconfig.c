@@ -2,20 +2,19 @@
 /*
 
   Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)
+  Copyright 2018 Albert Graef <aggraef@gmail.com>
 
-  Copyright 2018 Albert Graef <aggraef@gmail.com>, various improvements
-
-  Read and process the configuration file ~/.shuttlepro
+  Read and process the configuration file ~/.midizaprc
 
   Lines starting with # are comments.
 
   Sequence of sections defining translation classes, each section is:
 
   [name] regex
-  K<1..15> output
-  S<-7..7> output
-  I<LR> output
-  J<LR> output
+  CC<0..127> output         # control change
+  PC<0..127> output         # program change
+  PB output                 # pitch bend
+  <A-G>[#b]<0..11> output   # note
 
   When focus is on a window whose class or title matches regex, the
   following translation class is in effect.  An empty regex for the last
@@ -23,24 +22,50 @@
   sequences not bound in a matched section will be loaded from the
   default section if they are bound there.
 
-  Each "[name] regex" line introduces the list of key and shuttle
+  Each "[name] regex" line introduces the list of MIDI message
   translations for the named translation class.  The name is only used
   for debugging output, and needn't be unique.  The following lines
-  with K, S, I and J labels indicate what output should be produced for
-  the given keypress, shuttle position, shuttle direction, or jog direction.
+  indicate what output should be produced for the given MIDI messages.
+
+  Note that not all MIDI message types are supported right now (no
+  aftertouch, no system messages), but that subset should be enough to
+  handle most common use cases.  (In any case, adding more message types
+  should be a piece of cake.)
+
+  Note messages are specified using the cutomary notation (note name
+  A..G, optionally followed by an accidental, # or b, followed by a
+  (zero-based) MIDI octave number. Note that all MIDI octaves start at
+  the note C, so B0 comes before C1. C5 denotes middle C, A5 is the
+  chamber pitch (usually at 440 Hz).
+
+  MIDI messages are on channel 1 by default; a suffix of the form
+  -<1..16> can be used to specify a different MIDI channel.  E.g., C3-10
+  denotes note C3 on MIDI channel 10.
+
+  By default, all messages are interpreted in the same way as keys on a
+  computer keyboard, i.e., they can be "on" ("pressed") or "off"
+  ("released").  For notes, a nonzero velocity means "pressed", zero
+  "released".  Similarly, for control changes any nonzero value
+  indicates "pressed".  Same goes for pitch bends, but in this case 0
+  denotes the center value (considering pitch bend values as signed
+  quantities in the range -8192..8191).  Again, any nonzero (positive or
+  negative) value means "pressed", and 0 (the center value) "released".
+  Finally, while program changes don't actually come in "on"/"off"
+  pairs, they are treated in the same key-like fashion, assuming that
+  they are "pressed" and then "released" immediately afterwards.
 
   output is a sequence of one or more key codes with optional up/down
   indicators, or strings of printable characters enclosed in double
-  quotes, separated by whitespace.  Sequences bound to keys may have
-  separate press and release sequences, separated by the word RELEASE.
+  quotes, separated by whitespace.  Sequences may have separate press
+  and release sequences, separated by the word RELEASE.
 
   Examples:
 
-  K1 "qwer"
-  K2 XK_Right
-  K3 XK_Alt_L/D XK_Right
-  K4 "V" XK_Left XK_Page_Up "v"
-  K5 XK_Alt_L/D "v" XK_Alt_L/U "x" RELEASE "q"
+  C5 "qwer"
+  D5 XK_Right
+  E5 XK_Alt_L/D XK_Right
+  F5 "V" XK_Left XK_Page_Up "v"
+  G5 XK_Alt_L/D "v" XK_Alt_L/U "x" RELEASE "q"
 
   Any keycode can be followed by an optional /D, /U, or /H, indicating
   that the key is just going down (without being released), going up,
@@ -51,136 +76,74 @@
   requires different sets of modifiers for different keycodes, /U can
   be used to release a modifier that was previously pressed with /D.
 
-  At the end of shuttle and jog sequences, all down keys will be
-  released.
+  By default, MIDI messages translate to separate press and release
+  sequences.  At the end of the press sequence, all down keys marked by
+  /D will be released, and the last key not marked by /D, /U, or /H will
+  remain pressed.  The release sequence will begin by releasing the last
+  held key.  If keys are to be pressed as part of the release sequence,
+  then any keys marked with /D will be repressed before continuing the
+  sequence.  Keycodes marked with /H remain held between the press and
+  release sequences.
 
-  Keypresses translate to separate press and release sequences.
+  By marking CC (control change) and PB (pitch bend) messages with a
+  trailing "+" or "-", they can also be used to report incremental
+  changes.  These work a bit differently from the key press semantics.
+  Instead of providing separate press and release sequences, the output
+  of such translations is executed whenever the controller increases or
+  decreases, respectively.  At the end of such sequences, all down keys
+  will be released.  For instance, the following translations output the
+  letter "a" whenever the volume controller (CC7) is increased, and the
+  letter "b" if it is decreased.  Also, the number of times one of these
+  keys is output corresponds to the actual change in the controller
+  value.  (Thus, if in the example CC7 increases by 32, say, 32 "a"s
+  will be output).
 
-  At the end of the press sequence for key sequences, all down keys
-  marked by /D will be released, and the last key not marked by /D,
-  /U, or /H will remain pressed.  The release sequence will begin by
-  releasing the last held key.  If keys are to be pressed as part of
-  the release sequence, then any keys marked with /D will be repressed
-  before continuing the sequence.  Keycodes marked with /H remain held
-  between the press and release sequences.
+  CC7+ "a"
+  CC7+ "b"
 
-  JACK MIDI support (added by aggraef@gmail.com Fri Aug 3 11:01:32 CEST 2018):
+  CC also has an alternative "incremental" mode which handles relative
+  control changes encoded in "sign bit" format.  Here, a value < 64
+  denotes an increase, and a value > 64 a decrease (thus the 7th bit is
+  the sign of the value change).  The lower 6 bits then denote the
+  amount of change (e.g., 2 increments the control by 2, whereas 66
+  decrements by 2).  This format is often used with endless rotary
+  encoders, such as the jog wheel on some DAW controllers like the
+  Mackie MCU.  It is denoted by using "<" and ">" in lieu of "-" and "+"
+  as the suffix of the CC message. Example:
 
-  The MIDI output option is useful if you want to be able to send control
-  messages from a Shuttle device to any kind of MIDI-capable program, such as
-  a synthesizer or a DAW. Also, if you put the MIDI translations into a
-  special "MIDI" default section of the shuttlerc file, then the target
-  application will be able to receive data from the device no matter which
-  window has the keyboard focus. (This special "MIDI" section will only be
-  active if Jack MIDI support is actually enabled with the -j option, see
-  below. This allows you to have another default section after the MIDI
-  section for non-MIDI operation.)
+  CC60< XK_Left
+  CC60> XK_Right
 
-  To enable MIDI output, add the -j option when invoking the program (also,
-  the -dj option can be used to get verbose output from Jack if needed). This
-  causes a Jack client named "shuttlepro" with a single MIDI output port to be
-  created, and will also start up Jack if it is not already running. Any MIDI
-  messages in the translations will be sent on that port. You can then use any
-  Jack patchbay such as qjackctl to connect the output to any other Jack MIDI
-  client (use the a2jmidid program to connect to non-Jack ALSA MIDI
-  applications).
+  Furthermore, PB (pitch bends) can have a step size associated with
+  them.  The default step size is 1.  To indicate a different step size,
+  the notation PB[<step size>] is used.  E.g., PB[1170] will give you
+  about 7 steps up and down, which is useful to emulate a shuttle wheel
+  such as those on the Contour Design devices.  Example:
 
-  Here is the complete list of tokens recognized as MIDI messages, with an
-  explanation of how they work. Note that not all MIDI messages are supported
-  right now (no aftertouch, no system messages), but that subset should be
-  enough to handle most common use cases. (In any case, adding more message
-  types should be a piece of cake.) Also note that bindings can involve as
-  many MIDI messages as you want, and these can be combined freely with
-  keypress events in any order. There's no limitation on the type or number of
-  MIDI messages that you can put into a binding (except that program change
-  and note messages can only be bound to key inputs).
+  PB[1170]- "j"
+  PB[1170]+ "l"
 
-  CCn: Generates a MIDI control change message for controller number n, where
-  n must be in the range 0..127. These can be bound to any kind of input event
-  (key, jog, or shuttle). In the case of jog or shuttle, the controller value
-  will correspond to the jog/shuttle position, clamped to the 0..127 (single
-  data byte) range. For key input, the control change message will be sent
-  once with a value of 127 when the key is pressed, and then again with a
-  value of 0 when the key is released.
+  Most of the notations for MIDI messages also carry over to the output
+  side, in order to translate MIDI input to MIDI output.  To make this
+  work, you need to invoke the midizap program with the -t option, which
+  equips the program with an additional MIDI output port, to which the
+  translated MIDI messages are sent.  (Otherwise, MIDI messages in the
+  output translations will be ignored.)
 
-  Example: CC7 generates a MIDI message to change the volume controller
-  (controller #7). You can bind this, e.g., to the jog wheel or a key as
-  follows:
+  Note that on output, the "+" and "-" suffixes aren't supported,
+  because the *input* message determines whether it is a key press or
+  value change type of event, and which direction it goes in the latter
+  case.  Also, "~" is used in lieu of "<" or ">" to indicate an
+  incremental CC message in sign bit encoding.  Finally, there's a
+  special token of the form CH<1..16>.  This doesn't actually generate
+  any MIDI message.  Rather, it sets the default MIDI channel for
+  subsequent MIDI messages in the same output sequence, which is
+  convenient if multiple messages are output to the same MIDI channel.
 
-  JL CC7
-  JR CC7
-  K5 CC1
-
-  PB: Generates a MIDI pitch bend message. This works pretty much like a MIDI
-  control change message, but with an extended range of 0..16383, where 8192
-  denotes the center value. Obviously, this message is best bound to the
-  shuttle (albeit with a resolution limited to 14 steps), but it also works
-  with the jog wheel (with each tick representing 1/128th of the full pitch
-  bend range) and even key input (in this case, 8192 is used as the "off"
-  value, so the pitch only bends up, never down).
-
-  Example: Just PB generates a pitch bend message. You usually want to bind
-  this to the shuttle (in incremental mode), so the corresponding translations
-  would normally look like this:
-
-  IL PB
-  IR PB
-
-  PCn: This generates a MIDI program change message for the given program
-  number n, which must be in the 0..127 range. This type of message only works
-  with key input, it will be ignored in jog and shuttle assignments. Also, by
-  default the PC message is generated only at the time the key is pressed. To
-  have another PC message generated at key release time, it must be put
-  explicitly into the RELEASE part of the key binding.
-
-  Example: The following will output a change to program 5 when K5 is pressed,
-  and another change to program 0 when the key is released (note that if you
-  leaved away the "RELEASE PC0" part, then only the PC5 will be output when
-  pressing the key, nothing happens when the key is released):
-
-  K5 PC5 RELEASE PC0
-
-  C0..G10 (MIDI notes): This uses the customary MIDI note names, consisting of
-  the letters A..G (denoting the seven white keys in an octave, in either
-  upper- or lowercase), optionally followed by b or # (denoting accidentals,
-  flat and sharp), and terminated with an octave number (0..10). Middle C is
-  denoted C5. Like PC messages, these can only be bound to key inputs; they
-  will be ignored when used with jog or shuttle. The note starts (sending a
-  note on MIDI message) when pressing the key, and finishes (sending the
-  corresponding note off message) when releasing the key.
-
-  Example: The following binds key K6 to a C-7 chord in the middle octave:
-
-  K6 C5 E5 G5 Bb5
-
-  CHk: This doesn't actually output any MIDI message, but merely changes the
-  default MIDI channel for all subsequent MIDI messages. k denotes the MIDI
-  channel, which must be in the range 1..16. By default (if the CH command
-  isn't used), MIDI messages will be sent on MIDI channel 1.
-
-  Example: CH10 C3 outputs the note C3 (MIDI note 36) on MIDI channel 10
-  (usually the drum channel). Here's how you can assign keys K5..K9 to play a
-  little drumkit:
-
-  K5 CH10 B2
-  K6 CH10 C3
-  K7 CH10 C#3
-  K8 CH10 D3
-  K9 CH10 D#3
-
-  Instead of using "CH", you can also specify the MIDI channel of a single
-  message directly as a suffix, separating message and channel number with a
-  dash, like so:
-
-  K5 B2-10
-  K6 C3-10
-  K7 C#3-10
-  K8 D3-10
-  K9 D#3-10
-
-  This is also the format used when printing MIDI messages in translations.
-  Note that the MIDI channel suffix only applies to a single message, other
-  messages without a suffix will still use the default MIDI channel.
+  Bindings can involve as many MIDI messages as you want, and these can
+  be combined freely with keypress events in any order.  There's no
+  limitation on the type or number of MIDI messages that you can put
+  into a binding.
 
  */
 

@@ -109,10 +109,7 @@
 # keys which generate various note events, and a jog wheel which
 # generates CC60 messages. We put all of these to good use here. Note
 # that the CC60 control requires use of the aforementioned special
-# incremental mode for endless rotary encoders (while the CC60< and
-# CC60> translations shown in the examples below should work most of the
-# time, you may have to swap the increment/decrement actions on some
-# devices).
+# incremental mode for endless rotary encoders.
 
 
 # Shotcut (WM_CLASS is "shotcut")
