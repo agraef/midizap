@@ -36,7 +36,7 @@ After installation the system-wide default configuration file will be in /etc/mi
 
 The ~/.midizaprc file, if it exists, takes priority over /etc/midizaprc, so it becomes your personal `midizap` configuration. You can edit this file as you see fit, in order to customize existing or add your own application configurations for the MIDI controller that you have. (If you create any new entries which might be useful to other users of this program, please consider submitting them so that they can be included in future releases.)
 
-**NOTE:** The program re-reads the midizaprc file whenever it notices that the file has been changed, but in the current implementation it only checks when a MIDI message is sent with a different window focused from the previous message. Thus you can edit the file while the program keeps running, but you'll have to switch windows *and* operate the MIDI controller to have the changes take effect.
+**NOTE:** The program automatically reloads the midizaprc file whenever it notices that the file has been changed. Thus you can edit the file while the program keeps running, and have the changes take effect immediately without having to restart the program. When working on new translations, you may want to run the program in a terminal, and employ some or all of the debugging options explained below to see exactly how your translations are being processed.
 
 ## Basic Usage
 
@@ -70,14 +70,14 @@ To test the waters, you can hook up just about any MIDI keyboard and give it a t
  CC1-  XK_Scroll_Down
 ~~~
 
-It should be fairly obvious that these translations map the white keys of the middle octave (MIDI notes `C5` thru `B5`) to some mouse buttons and cursor commands. Switch the keyboard focus to some window with text in it, such as a terminal or an editor window. Pressing the keys C, D and E should click the mouse buttons, while F thru B should perform various cursor movements. Also, moving the modulation wheel (`CC1`) on your keyboard should scroll the window up and down.
+It should be fairly obvious that these translations map the white keys of the middle octave (MIDI notes `C5` thru `B5`) to some mouse buttons and cursor commands. Switch the keyboard focus to some window with text in it, such as a terminal or an editor window. Pressing the keys C, D and E should click the mouse buttons, while F thru B should perform various cursor movements. Also, moving the modulation wheel (`CC1`) on your keyboard should scroll the window contents up and down.
 
 One useful feature is that you can invoke the program with various debugging options to get more verbose output as the program recognizes events from the device and translates them to corresponding mouse actions or key presses. E.g., try running `midizap -drk` to have the program print the recognized configuration sections and translations as they are executed. Now press some of the keys and move the modulation wheel. You should see something like:
 
 ~~~
 $ midizap -drk
-Loading configuration: /home/foo/.midizaprc
-translation: Default for foo : bash (class konsole)
+Loading configuration: /home/user/.midizaprc
+translation: Default for emacs@hostname (class emacs)
 CC1-1-[]: XK_Scroll_Down/D XK_Scroll_Down/U 
 CC1-1-[]: XK_Scroll_Down/D XK_Scroll_Down/U 
 G5-1[D]: XK_Up/D 
@@ -86,11 +86,11 @@ A5-1[D]: XK_Down/D
 A5-1[U]: XK_Down/U 
 ~~~
 
-It goes without saying that these debugging options will be very helpful when you start developing your own bindings.
+It goes without saying that these debugging options will be very helpful when you start developing your own bindings. The `-d` option can be combined with various option characters to choose exactly which kinds of debugging output you want; `r` ("regex") prints the matched translation sections along with the window name and class of the focused window; `s` ("strokes") prints the parsed contents of the configuration file in a human-readable form whenever the file is loaded; `k` ("keys") shows the recognized translations as the program executes them, in the same format as `s`; and `j` adds some debugging output from the Jack driver. You can also just use `-d` to enable all debugging output.
+
+It's also possible to use alternative configuration files, by specifying the midizaprc file to be used with the `-r` option. Also, try `midizap -h` which prints a short help message with the available options and a brief description.
 
 Most of the other translations in the distributed midizaprc file assume a Mackie-like device with standard playback controls and a jog wheel. Any standard DAW controller which can be switched into Mackie mode should work with these. Otherwise, you'll have to edit the configuration file to make them work.
-
-It's also possible to use alternative configuration files, by specifying the midizaprc file to be used with the `-r` option. Also, try `midizap -h` which prints a help message with the available options and a brief description.
 
 More information about the available configurations and on how to actually create your own configurations can be found in the example.midizaprc file. This also contains a brief explanation of the syntax used to denote the MIDI messages to be translated. You may also want to look at the comments at the top of readconfig.c for further technical details.
 
@@ -98,9 +98,9 @@ More information about the available configurations and on how to actually creat
 
 As already mentioned, the `midizap` program can also be used to translate MIDI input to MIDI output. To these ends, MIDI messages can be translated to sequences of other MIDI messages.
 
-You enable MIDI output by running the program as `midizap -t`. This will equip the `midizap` Jack MIDI client with an additional output port named `midi_out` (visible on the left side of QJackCtl's Connection window). 
+You enable MIDI output by running the program as `midizap -o`. This will equip the `midizap` Jack MIDI client with an additional output port named `midi_out` (visible on the left side of QJackCtl's Connection window). 
 
-The example.midizaprc file comes with a sample configuration in the `[MIDI]` section for illustration purposes. You can try it and test that it works by running `midizap -t`, firing up a MIDI synthesizer such as [FluidSynth][] or its graphical front-end [Qsynth][], and connecting the two. In the sample configuration, the notes `C5` thru `F5` in the middle octave have been set up so that they play some MIDI notes, and the modulation wheel (`CC1`) can be used as a MIDI volume controller (`CC7`). The configuration entry looks as follows:
+The example.midizaprc file comes with a sample configuration in the `[MIDI]` section for illustration purposes. You can try it and test that it works by running `midizap -o`, firing up a MIDI synthesizer such as [FluidSynth][] or its graphical front-end [Qsynth][], and connecting the two. In the sample configuration, the notes `C5` thru `F5` in the middle octave have been set up so that they play some MIDI notes, and the modulation wheel (`CC1`) can be used as a MIDI volume controller (`CC7`). The configuration entry looks as follows:
 
 [FluidSynth]: http://www.fluidsynth.org/
 [Qsynth]: https://qsynth.sourceforge.io/
@@ -117,8 +117,8 @@ The example.midizaprc file comes with a sample configuration in the `[MIDI]` sec
  CC1-  CC7-10
 ~~~
 
-**NOTE:** The special `[MIDI]` default section being used here will only be active if the program is run with the `-t` option. This allows MIDI output to be sent to any connected applications, no matter which window currently has the keyboard focus. This is probably the most common way to use this feature, but of course it is also possible to have application-specific MIDI translations, in the same way as with X11 key bindings. In fact, you can freely mix mouse actions, key presses and MIDI messages in all translations.
+**NOTE:** The special `[MIDI]` default section being used here is only active if the program is run with the `-o` option. This allows MIDI output to be sent to any connected applications, no matter which window currently has the keyboard focus. This is probably the most common way to use this feature, but of course it is also possible to have application-specific MIDI translations, in the same way as with X11 key bindings. In fact, you can freely mix mouse actions, key presses and MIDI messages in all translations.
 
-Note that the `-10` suffix on the output messages in the above example indicates that output goes to MIDI channel 10 (the drum channel). E.g., `C3-10`, which is bound to `C5`, is the note C in the third MIDI octave, which on channel 10 will produce the sound of a bass drum, at least on GM (General MIDI) compatible synthesizers like Fluidsynth. The bindings for the modulation wheel at the end of the entry send control changes for controller 7 (`CC7-10`), which is the MIDI volume controller, so by turning the modulation wheel you can dial in the volume that you want. The program keeps track of the values of both input and output controllers on all MIDI channels internally, so all that happens automagically.
+Note that the `-10` suffix on the output messages in the above example indicates that output goes to MIDI channel 10 (the drum channel). E.g., `C3-10`, which is bound to `C5`, is the note C in the third MIDI octave, which on channel 10 will produce the sound of a bass drum, at least on GM (General MIDI) compatible synthesizers like Fluidsynth. The bindings for the modulation wheel at the end of the entry send control changes for controller 7 on the same channel (`CC7-10`). This is the MIDI volume controller, so by turning the modulation wheel you can dial in the volume on the drum channel that you want. The program keeps track of the values of both input and output controllers on all MIDI channels internally, so all that happens automagically.
 
-Besides MIDI notes and control change (`CC`) messages, the `midizap` program also supports receiving and sending program change (`PC`) and pitch bend (`PB`) messages. Other messages (in particular, aftertouch and system messages) are not supported right now, but may be added in the future. Again, please refer to the example.midizaprc file and the beginning of readconfig.c for further details.
+Besides MIDI notes and control change (`CC`) messages, the `midizap` program also supports receiving and sending program change (`PC`) and pitch bend (`PB`) messages. This should cover most common use cases. Other messages (in particular, aftertouch and system messages) are not supported right now, but may be added in the future. Again, please refer to the example.midizaprc file and the beginning of readconfig.c for further details.
