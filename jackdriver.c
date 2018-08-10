@@ -50,7 +50,7 @@ typedef struct _MidiMessage
     uint8_t	data[3];
 } MidiMessage;
 
-#define RINGBUFFER_SIZE		256*sizeof(MidiMessage)
+#define RINGBUFFER_SIZE		16384*sizeof(MidiMessage)
 
 /* Will emit a warning if time between jack callbacks is longer than this. */
 #define MAX_TIME_BETWEEN_CALLBACKS	0.1
