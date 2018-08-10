@@ -125,7 +125,7 @@
 
   Most of the notations for MIDI messages also carry over to the output
   side, in order to translate MIDI input to MIDI output.  To make this
-  work, you need to invoke the midizap program with the -t option, which
+  work, you need to invoke the midizap program with the -o option, which
   equips the program with an additional MIDI output port, to which the
   translated MIDI messages are sent.  (Otherwise, MIDI messages in the
   output translations will be ignored.)

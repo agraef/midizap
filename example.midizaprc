@@ -70,7 +70,7 @@
 # messages, in order to translate MIDI input to be passed on to to other
 # MIDI devices and applications.  In fact, X KeySyms and MIDI messages
 # can be mixed freely in the output.  To enable this, invoke the program
-# with the '-t' option.  This creates a MIDI output port, which can then
+# with the '-o' option.  This creates a MIDI output port, which can then
 # be hooked up to other Jack MIDI applications.  (Otherwise, MIDI
 # messages in the translations will just be ignored.)
 
@@ -176,7 +176,7 @@
 [MIDI]
 
 # The special "MIDI" default section is only active when MIDI output is
-# enabled (midizap -t). This allows you to translate midizap's MIDI
+# enabled (midizap -o). This allows you to translate midizap's MIDI
 # input for use with other MIDI devices and applications. Here's a
 # simple example for illustration purposes, which shows how to map the
 # MCU jog wheel to CC7, so that it can be used as a volume control.
@@ -224,7 +224,7 @@
 # keys in the middle octave are mapped to the cursor keys (Left, Up,
 # Down, Right). Please note that most of these bindings, as well as the
 # CC60 bindings above, will only be active when the [MIDI] default
-# section above isn't used (invoke midizap without the -t option).
+# section above isn't used (invoke midizap without the -o option).
 
  C5    XK_Button_1
  D5    XK_Button_2

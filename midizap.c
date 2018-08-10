@@ -480,9 +480,9 @@ handle_event(uint8_t *msg)
 
 void help(char *progname)
 {
-  fprintf(stderr, "Usage: %s [-h] [-t] [-r rcfile] [-d[rskj]]\n", progname);
+  fprintf(stderr, "Usage: %s [-h] [-o] [-r rcfile] [-d[rskj]]\n", progname);
   fprintf(stderr, "-h print this message\n");
-  fprintf(stderr, "-t enable MIDI output\n");
+  fprintf(stderr, "-o enable MIDI output\n");
   fprintf(stderr, "-r config file name (default: MIDIZAP_CONFIG_FILE variable or ~/.midizaprc)\n");
   fprintf(stderr, "-d debug (r = regex, s = strokes, k = keys, j = jack; default: all)\n");
 }
@@ -506,12 +506,12 @@ main(int argc, char **argv)
   uint8_t msg[3];
   int opt, count = 0;
 
-  while ((opt = getopt(argc, argv, "htd::r:")) != -1) {
+  while ((opt = getopt(argc, argv, "hod::r:")) != -1) {
     switch (opt) {
     case 'h':
       help(argv[0]);
       exit(0);
-    case 't':
+    case 'o':
       enable_jack_output = 1;
       break;
     case 'd':
