@@ -181,8 +181,7 @@
 # simple example for illustration purposes, which shows how to map the
 # MCU jog wheel to CC7, so that it can be used as a volume control.
 
- CC60< CC7
- CC60> CC7
+ CC60~ CC7-10
 
 # The following translations should work on any MIDI keyboard. The first
 # four white keys (C, D, E and F) in the middle octave are mapped to a
@@ -196,8 +195,7 @@
  E5    D3-10
  F5    D#3-10
 
- CC1+  CC7-10
- CC1-  CC7-10
+ CC1=  CC7-10
 
 # Default section (cursor and mouse emulation)
 
