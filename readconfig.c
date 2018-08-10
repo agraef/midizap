@@ -655,7 +655,7 @@ static int note_number(char c, char b, int k)
 
 int
 parse_midi(char *tok, char *s, int lhs,
-	   int *status, int *data, int *step, int *incr)
+	   int *status, int *data, int *step, int *incr, int *dir)
 {
   char *p = tok, *t;
   int n, m = -1, k = midi_channel, l;
@@ -704,19 +704,18 @@ parse_midi(char *tok, char *s, int lhs,
     if (strcmp(s, "pb") && strcmp(s, "cc")) return 0;
     if ((*p == '<' || *p == '>' || *p == '~') && strcmp(s, "cc")) return 0;
     // Only the "~" form is permitted in output messages, and the other forms
-    // are only permitted on the lhs of a translation. XXXFIXME: This is
-    // confusing; incr is just a single bit in output messages, whereas it can
-    // take on various different values on the lhs.
+    // are only permitted on the lhs of a translation.
     if (lhs) {
       if (*p == '~') return 0;
-      *incr = (*p == '-')?0:(*p == '+')?1:(*p == '<')?2:3;
+      *incr = (*p == '-' || *p == '+')? 1 : 2;
+      *dir = (*p == '-' || *p == '<') ? -1 : 1;
     } else {
       if (*p != '~') return 0;
-      *incr = 1;
+      *incr = 2; *dir = 0;
     }
     p++;
   } else {
-    *incr = lhs?-1:0;
+    *incr = *dir = 0;
   }
   // check for trailing garbage
   if (*p) return 0;
@@ -755,7 +754,7 @@ parse_midi(char *tok, char *s, int lhs,
 int
 start_translation(translation *tr, char *which_key)
 {
-  int status, data, step, incr;
+  int status, data, step, incr, dir;
   char buf[100];
 
   //printf("start_translation(%s)\n", which_key);
@@ -771,7 +770,7 @@ start_translation(translation *tr, char *which_key)
   regular_key_down = 0;
   modifier_count = 0;
   midi_channel = 0;
-  if (parse_midi(which_key, buf, 1, &status, &data, &step, &incr)) {
+  if (parse_midi(which_key, buf, 1, &status, &data, &step, &incr, &dir)) {
     int chan = status & 0x0f;
     switch (status & 0xf0) {
     case 0x90:
@@ -791,19 +790,19 @@ start_translation(translation *tr, char *which_key)
       is_keystroke = 1;
       break;
     case 0xb0:
-      if (incr == -1) {
+      if (!incr) {
 	// cc on/off
 	first_stroke = &(tr->cc[chan][data][0]);
 	release_first_stroke = &(tr->cc[chan][data][1]);
 	is_keystroke = 1;
       } else {
 	// cc (step up, down)
-	tr->is_incr[chan][data] = incr/2 != 0;
-	first_stroke = &(tr->ccs[chan][data][incr%2]);
+	tr->is_incr[chan][data] = incr>1;
+	first_stroke = &(tr->ccs[chan][data][dir>0]);
       }
       break;
     case 0xe0:
-      if (incr == -1) {
+      if (!incr) {
 	// pb on/off
 	first_stroke = &(tr->pb[chan][0]);
 	release_first_stroke = &(tr->pb[chan][1]);
@@ -814,8 +813,8 @@ start_translation(translation *tr, char *which_key)
 	  fprintf(stderr, "zero or negative step size not permitted here: [%s]%s\n", current_translation, which_key);
 	  return 1;
 	}
-	first_stroke = &(tr->pbs[chan][incr]);
-	tr->step[chan][incr] = step;
+	first_stroke = &(tr->pbs[chan][dir>0]);
+	tr->step[chan][dir>0] = step;
       }
       break;
     default:
@@ -925,16 +924,16 @@ add_string(char *str)
 void
 add_midi(char *tok)
 {
-  int status, data, step, incr = 0;
+  int status, data, step, incr, dir = 0;
   char buf[100];
-  if (parse_midi(tok, buf, 0, &status, &data, &step, &incr)) {
+  if (parse_midi(tok, buf, 0, &status, &data, &step, &incr, &dir)) {
     if (status == 0) {
       // 'ch' token; this doesn't actually generate any output, it just sets
       // the default MIDI channel
       midi_channel = data;
     } else {
       if ((status & 0xf0) != 0xe0 || step != 0)
-	append_midi(status, data, step, incr);
+	append_midi(status, data, step, incr!=0);
       else
 	fprintf(stderr, "zero step size not permitted: %s\n", tok);
     }
