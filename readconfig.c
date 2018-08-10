@@ -8,7 +8,8 @@
 
   Lines starting with # are comments.
 
-  Sequence of sections defining translation classes, each section is:
+  The file is a sequence of sections defining translation classes. Each
+  section takes the following form:
 
   [name] regex
   CC<0..127> output         # control change
@@ -69,7 +70,7 @@
 
   Any keycode can be followed by an optional /D, /U, or /H, indicating
   that the key is just going down (without being released), going up,
-  or going down and being held until the shuttlepro key is released.
+  or going down and being held until the "off" event is received.
 
   So, in general, modifier key codes will be followed by /D, and
   precede the keycodes they are intended to modify.  If a sequence
@@ -96,7 +97,7 @@
   letter "b" if it is decreased.  Also, the number of times one of these
   keys is output corresponds to the actual change in the controller
   value.  (Thus, if in the example CC7 increases by 32, say, 32 "a"s
-  will be output).
+  will be output.)
 
   CC7+ "a"
   CC7+ "b"
@@ -114,6 +115,25 @@
   CC60< XK_Left
   CC60> XK_Right
 
+  If the "up" and "down" sequences for controller and pitch bend changes
+  are the same, the notation "=" can be used to indicate that the same
+  sequence should be output in either case. This most commonly arises in
+  pure MIDI translations. For instance, to map the modulation wheel
+  (CC1) to the volume controller (CC7):
+
+  CC1= CC7
+
+  Which is exactly the same as the two translations:
+
+  CC1+ CC7
+  CC1- CC7
+
+  The same goes for "<"/">" and "~" in incremental mode. E.g., CC1~ CC7
+  is exactly the same as:
+
+  CC1< CC7
+  CC1> CC7
+
   Furthermore, PB (pitch bends) can have a step size associated with
   them.  The default step size is 1.  To indicate a different step size,
   the notation PB[<step size>] is used.  E.g., PB[1170] will give you
@@ -130,20 +150,22 @@
   translated MIDI messages are sent.  (Otherwise, MIDI messages in the
   output translations will be ignored.)
 
-  Note that on output, the "+" and "-" suffixes aren't supported,
-  because the *input* message determines whether it is a key press or
-  value change type of event, and which direction it goes in the latter
-  case.  Also, "~" is used in lieu of "<" or ">" to indicate an
-  incremental CC message in sign bit encoding.  Finally, there's a
-  special token of the form CH<1..16>.  This doesn't actually generate
-  any MIDI message.  Rather, it sets the default MIDI channel for
-  subsequent MIDI messages in the same output sequence, which is
-  convenient if multiple messages are output to the same MIDI channel.
-
   Bindings can involve as many MIDI messages as you want, and these can
   be combined freely with keypress events in any order.  There's no
   limitation on the type or number of MIDI messages that you can put
   into a binding.
+
+  Note that on output, the +-=<> suffixes aren't supported, because the
+  *input* message determines whether it is a key press or value change
+  type of event, and which direction it goes in the latter case.  Only
+  the "~" suffix can be used to indicate an incremental CC message in
+  sign bit encoding.
+
+  Finally, on the output side there's a special token of the form
+  CH<1..16>, which doesn't actually generate any MIDI message.  Rather,
+  it sets the default MIDI channel for subsequent MIDI messages in the
+  same output sequence, which is convenient if multiple messages are
+  output to the same MIDI channel.
 
  */
 
@@ -497,7 +519,7 @@ stroke **first_stroke;
 stroke *last_stroke;
 stroke **press_first_stroke;
 stroke **release_first_stroke;
-int is_keystroke;
+int is_keystroke, is_bidirectional;
 int is_midi;
 char *current_translation;
 char *key_name;
@@ -623,22 +645,42 @@ re_press_temp_modifiers(void)
 
 /* Parser for the MIDI message syntax. The syntax we actually parse here is:
 
-   tok  ::= ( note | msg ) [number] [ "-" number] [incr]
+   tok  ::= ( note | msg ) [ number ] [ "-" number] [ incr ]
    note ::= ( "a" | ... | "g" ) [ "#" | "b" ]
    msg  ::= "ch" | "pb" [ "[" number "]" ] | "pc" | "cc"
-   incr ::= "-" | "+" | "<" | ">" | "~"
+   incr ::= "-" | "+" | "=" | "<" | ">" | "~"
 
    Numbers are always in decimal. The meaning of the first number depends on
    the context (octave number for notes, the actual data byte for other
    messages). If present, the suffix with the second number (after the dash)
-   denotes the MIDI channel, otherwise the default MIDI channel is used. Note
-   that not all combinations are possible -- "pb" is *not* followed by a data
-   byte, but may be followed by a step size in brackets; and "ch" must *not*
-   occur as the first token and must *not* have a channel number suffix on
-   it. (In fact, "ch" is no real MIDI message at all; it just sets the default
-   MIDI channel for subsequent messages in the output sequence.) The incr flag
-   is only permitted in conjunction with "pb" or "cc", and it takes on a
-   different form in the first token of a translation. */
+   denotes the MIDI channel, otherwise the default MIDI channel is used.
+
+   Note that not all combinations are possible -- "pb" has no data byte, but
+   may be followed by a step size in brackets; and "ch" must *not* occur as
+   the first token and is followed by just a channel number. (In fact, "ch" is
+   no real MIDI message at all; it just sets the default MIDI channel for
+   subsequent messages in the output sequence.)
+
+   The incr flag indicates an "incremental" controller or pitch bend value
+   which responds to up ("+") and down ("-") changes; it is only permitted in
+   conjunction with "cc" and "pb", and (with one exception, see below) only on
+   the left-hand side of a translation. In addition, "<" and ">" can be used
+   in lieu of "-" and "-" to indicate a relative controller in "sign bit"
+   representation, where controller values > 64 denote down, and values < 64
+   up changes. This notation is only permitted with "cc". It is used for
+   endless rotary encoders, jog wheels and the like, as can be found, e.g., on
+   Mackie-like units.
+
+   Finally, the flags "=" and "~" are used in lieu of "+"/"-" or "<"/">",
+   respectively, to denote a "bidirectional" translation which applies to both
+   positive and negative changes of the controller or pitch bend value. Since
+   bidirectional translations cannot have distinct keystroke sequences for up
+   and down changes associated with them, this makes most sense with pure MIDI
+   translations.
+
+   The only incr flag which is also permitted on the right-hand side of a
+   translation, and only with "cc", is the "~" flag, which is used to denote a
+   relative (sign bit) controller change on output. */
 
 static int note_number(char c, char b, int k)
 {
@@ -699,17 +741,21 @@ parse_midi(char *tok, char *s, int lhs,
       return 0;
     }
   }
-  if (*p && strchr("+-<>~", *p)) {
+  if (*p && strchr("+-=<>~", *p)) {
     // incremental flag ("pb" and "cc" only)
     if (strcmp(s, "pb") && strcmp(s, "cc")) return 0;
-    if ((*p == '<' || *p == '>' || *p == '~') && strcmp(s, "cc")) return 0;
-    // Only the "~" form is permitted in output messages, and the other forms
-    // are only permitted on the lhs of a translation.
+    // these are only permitted with "cc"
+    if (strchr("<>~", *p) && strcmp(s, "cc")) return 0;
     if (lhs) {
-      if (*p == '~') return 0;
-      *incr = (*p == '-' || *p == '+')? 1 : 2;
-      *dir = (*p == '-' || *p == '<') ? -1 : 1;
+      // *incr = 2 indicates an endless, sign-bit controller
+      *incr = strchr("+-=", *p) ? 1 : 2;
+      // *dir is -1 or +1 for down and up changes, but can also be zero for
+      // *bidirectional translations ("=" and "~")
+      *dir = (*p == '-' || *p == '<') ? -1 :
+	(*p == '+' || *p == '>') ? 1 : 0;
     } else {
+      // only the "~" form is permitted in output messages, where it indicates
+      // an endless, sign-bit controller
       if (*p != '~') return 0;
       *incr = 2; *dir = 0;
     }
@@ -765,7 +811,7 @@ start_translation(translation *tr, char *which_key)
   }
   current_translation = tr->name;
   key_name = which_key;
-  is_keystroke = is_midi = 0;
+  is_keystroke = is_bidirectional = is_midi = 0;
   first_release_stroke = 0;
   regular_key_down = 0;
   modifier_count = 0;
@@ -783,8 +829,8 @@ start_translation(translation *tr, char *which_key)
       // pc: To make our live easier and for consistency with the other
       // messages, we treat this exactly like a note/cc on/off, even though
       // this message has no off state. Thus, when we receive a pc, it's
-      // supposed to be treated as a "down" sequence immediately followed by
-      // the corresponding "up" sequence.
+      // supposed to be treated as a "press" sequence immediately followed by
+      // the corresponding "release" sequence.
       first_stroke = &(tr->pc[chan][data][0]);
       release_first_stroke = &(tr->pc[chan][data][1]);
       is_keystroke = 1;
@@ -799,6 +845,17 @@ start_translation(translation *tr, char *which_key)
 	// cc (step up, down)
 	tr->is_incr[chan][data] = incr>1;
 	first_stroke = &(tr->ccs[chan][data][dir>0]);
+	if (!dir) {
+	  // This is a bidirectional translation (=, ~). We first fill in the
+	  // "down" part (pointed to by first_stroke). When finishing off the
+	  // translation, we then create an exact duplicate of the sequence
+	  // for the "up" part. Note that we (ab)use the release_first_stroke
+	  // variable, which normally records the release part of a key
+	  // translation, here to remember the "up" part of the translation,
+	  // so that we can fill in that part later.
+	  is_bidirectional = 1;
+	  release_first_stroke = &(tr->ccs[chan][data][1]);
+	}
       }
       break;
     case 0xe0:
@@ -815,6 +872,10 @@ start_translation(translation *tr, char *which_key)
 	}
 	first_stroke = &(tr->pbs[chan][dir>0]);
 	tr->step[chan][dir>0] = step;
+	if (!dir) {
+	  is_bidirectional = 1;
+	  release_first_stroke = &(tr->pbs[chan][1]);
+	}
       }
       break;
     default:
@@ -826,7 +887,8 @@ start_translation(translation *tr, char *which_key)
     fprintf(stderr, "bad message name: [%s]%s\n", current_translation, which_key);
     return 1;
   }
-  if (*first_stroke != NULL) {
+  if (*first_stroke != NULL ||
+      (is_bidirectional && *release_first_stroke != NULL)) {
     fprintf(stderr, "can't redefine message: [%s]%s\n", current_translation, which_key);
     return 1;
   }
@@ -891,6 +953,19 @@ add_release(int all_keys)
   }
   regular_key_down = 0;
   first_release_stroke = 1;
+  if (all_keys && is_bidirectional) {
+    // create a duplicate for bidirectional translations (=, ~)
+    stroke *s = *press_first_stroke;
+    first_stroke = release_first_stroke;
+    while (s) {
+      if (s->keysym) {
+	append_stroke(s->keysym, s->press);
+      } else {
+	append_midi(s->status, s->data, s->step, s->incr);
+      }
+      s = s->next;
+    }
+  }
 }
 
 void
