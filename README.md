@@ -14,9 +14,9 @@ midizap provides you with a way to hook up just about any MIDI controller and us
 
 ## Description
 
-The `midizap` program translates MIDI input into X keystrokes, mouse button presses, scroll wheel events, or, as an option, MIDI output. It does this by checking the (name and class of the) window which has keyboard focus and picking a suitable set of translations from its configuration (midizaprc) file. Default translations for programs not explicitly specified in the configuration file can be given as well.
+The `midizap` program translates Jack MIDI input into X keystrokes, mouse button presses, scroll wheel events, or, as an option, MIDI output. It does this by matching the (name and class of the) focused window against the regular expressions for each application section in its configuration (midizaprc) file, and using a matching set of translations if available. Default translations for applications not explicitly matching any of the sections in the configuration file can be given as well.
 
-Incoming MIDI messages can generate sequences of multiple keystrokes, including the pressing and releasing of modifier keys. In addition, MIDI messages can be generated and output using Jack MIDI.
+By these means incoming MIDI messages can be translated to sequences of multiple mouse actions and keystrokes, including the pressing and releasing of modifier keys. In addition, MIDI messages can be generated and output using Jack MIDI.
 
 The midizaprc file is just an ordinary text file which you can edit to configure the program for use with any kind of application taking keyboard, mouse or MIDI input. An example.midizaprc file containing sample configurations for some  applications is included in the sources.
 
@@ -86,7 +86,7 @@ A5-1[D]: XK_Down/D
 A5-1[U]: XK_Down/U 
 ~~~
 
-It goes without saying that these debugging options will be very helpful when you start developing your own bindings. The `-d` option can be combined with various option characters to choose exactly which kinds of debugging output you want; `r` ("regex") prints the matched translation sections along with the window name and class of the focused window; `s` ("strokes") prints the parsed contents of the configuration file in a human-readable form whenever the file is loaded; `k` ("keys") shows the recognized translations as the program executes them, in the same format as `s`; and `j` adds some debugging output from the Jack driver. You can also just use `-d` to enable all debugging output.
+It goes without saying that these debugging options will be very helpful when you start developing your own bindings. The `-d` option can be combined with various option characters to choose exactly which kinds of debugging output you want; `r` ("regex") prints the matched translation section along with the window name and class of the focused window; `s` ("strokes") prints the parsed contents of the configuration file in a human-readable form whenever the file is loaded; `k` ("keys") shows the recognized translations as the program executes them, in the same format as `s`; and `j` adds some debugging output from the Jack driver. You can also just use `-d` to enable all debugging output.
 
 It's also possible to use alternative configuration files, by specifying the midizaprc file to be used with the `-r` option. Also, try `midizap -h` which prints a short help message with the available options and a brief description.
 
