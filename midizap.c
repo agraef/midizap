@@ -69,7 +69,7 @@ send_key(KeySym key, int press)
 }
 
 // cached controller and pitch bend values
-static int8_t ccvalue[16][128];
+static int16_t ccvalue[16][128];
 static int16_t pbvalue[16] =
   {8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192,
    8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192};
@@ -98,13 +98,18 @@ send_midi(int status, int data, int step, int incr, int index, int dir)
       } else {
 	// increment (dir==1) or decrement (dir==-1) the current value,
 	// clamping it to the 0..127 data byte range
+	if (!step) return;
+	dir *= step;
 	if (dir > 0) {
 	  if (ccvalue[chan][data] >= 127) return;
-	  msg[2] = ++ccvalue[chan][data];
+	  ccvalue[chan][data] += dir;
+	  if (ccvalue[chan][data] > 127) ccvalue[chan][data] = 127;
 	} else {
 	  if (ccvalue[chan][data] == 0) return;
-	  msg[2] = --ccvalue[chan][data];
+	  ccvalue[chan][data] += dir;
+	  if (ccvalue[chan][data] < 0) ccvalue[chan][data] = 0;
 	}
+	msg[2] = ccvalue[chan][data];
       }
     } else if (!index) {
       msg[2] = 127;
@@ -198,25 +203,35 @@ send_strokes(translation *tr, int status, int chan, int data,
     case 0x90:
       sprintf(name, "%s%d-%d", note_names[data % 12], data / 12, chan+1);
       break;
-    case 0xb0:
+    case 0xb0: {
+      int step = tr->cc_step[chan][data][dir>0];
       if (!dir)
 	suffix = "";
       else if (tr->is_incr[chan][data])
 	suffix = (dir<0)?"<":">";
       else
 	suffix = (dir<0)?"-":"+";
-      sprintf(name, "CC%d-%d%s", data, chan+1, suffix);
+      if (dir && step != 1)
+	sprintf(name, "CC%d[%d]-%d%s", data, step, chan+1, suffix);
+      else
+	sprintf(name, "CC%d-%d%s", data, chan+1, suffix);
       break;
+    }
     case 0xc0:
       sprintf(name, "PC%d-%d", data, chan+1);
       break;
-    case 0xe0:
+    case 0xe0: {
+      int step = tr->pb_step[chan][dir>0];
       if (!dir)
 	suffix = "";
       else
 	suffix = (dir<0)?"-":"+";
-      sprintf(name, "PB-%d%s", chan+1, suffix);
+      if (dir && step != 1)
+	sprintf(name, "PB[%d]-%d%s", step, chan+1, suffix);
+      else
+	sprintf(name, "PB-%d%s", chan+1, suffix);
       break;
+    }
     default: // this can't happen
       break;
     }
@@ -436,9 +451,15 @@ handle_event(uint8_t *msg)
 	}
       } else if (inccvalue[chan][msg[1]] != msg[2]) {
 	int dir = inccvalue[chan][msg[1]] > msg[2] ? -1 : 1;
-	while (inccvalue[chan][msg[1]] != msg[2]) {
-	  send_strokes(tr, status, chan, msg[1], 0, dir);
-	  inccvalue[chan][msg[1]] += dir;
+	int step = tr->cc_step[chan][msg[1]][dir>0];
+	if (step) {
+	  while (inccvalue[chan][msg[1]] != msg[2]) {
+	    int d = abs(inccvalue[chan][msg[1]] - msg[2]);
+	    if (d > step) d = step;
+	    if (d < step) break;
+	    send_strokes(tr, status, chan, msg[1], 0, dir);
+	    inccvalue[chan][msg[1]] += dir*d;
+	  }
 	}
       }
       break;
@@ -458,7 +479,7 @@ handle_event(uint8_t *msg)
       }
       if (check_pbs(tr, chan) && inpbvalue[chan] - 8192 != bend) {
 	int dir = inpbvalue[chan] - 8192 > bend ? -1 : 1;
-	int step = tr->step[chan][dir>0];
+	int step = tr->pb_step[chan][dir>0];
 	if (step) {
 	  while (inpbvalue[chan] - 8192 != bend) {
 	    int d = abs(inpbvalue[chan] - 8192 - bend);

@@ -489,13 +489,19 @@ print_stroke(stroke *s)
 	printf("%s%d-%d ", note_names[s->data % 12], s->data / 12, channel);
 	break;
       case 0xb0:
-	printf("CC%d-%d%s ", s->data, channel, s->incr?"~":"");
+	if (s->step != 1)
+	  printf("CC%d[%d]-%d%s ", s->data, s->step, channel, s->incr?"~":"");
+	else
+	  printf("CC%d-%d%s ", s->data, channel, s->incr?"~":"");
 	break;
       case 0xc0:
 	printf("PC%d-%d ", s->data, channel);
 	break;
       case 0xe0:
-	printf("PB-%d ", channel);
+	if (s->step != 1)
+	  printf("PB[%d]-%d ", s->step, channel);
+	else
+	  printf("PB-%d ", channel);
 	break;
       default: // this can't happen
 	break;
@@ -645,21 +651,23 @@ re_press_temp_modifiers(void)
 
 /* Parser for the MIDI message syntax. The syntax we actually parse here is:
 
-   tok  ::= ( note | msg ) [ number ] [ "-" number] [ incr ]
+   tok  ::= ( note | msg ) [ number ] [ "[" number "]" ] [ "-" number] [ incr ]
    note ::= ( "a" | ... | "g" ) [ "#" | "b" ]
-   msg  ::= "ch" | "pb" [ "[" number "]" ] | "pc" | "cc"
+   msg  ::= "ch" | "pb" | "pc" | "cc"
    incr ::= "-" | "+" | "=" | "<" | ">" | "~"
 
    Numbers are always in decimal. The meaning of the first number depends on
    the context (octave number for notes, the actual data byte for other
-   messages). If present, the suffix with the second number (after the dash)
-   denotes the MIDI channel, otherwise the default MIDI channel is used.
+   messages). This can optionally be followed by a number in brackets,
+   denoting a step size. Also optionally, the suffix with the third number
+   (after the dash) denotes the MIDI channel; otherwise the default MIDI
+   channel is used.
 
-   Note that not all combinations are possible -- "pb" has no data byte, but
-   may be followed by a step size in brackets; and "ch" must *not* occur as
-   the first token and is followed by just a channel number. (In fact, "ch" is
-   no real MIDI message at all; it just sets the default MIDI channel for
-   subsequent messages in the output sequence.)
+   Note that not all combinations are possible -- "pb" has no data byte; only
+   "cc" and "pb" may be followed by a step size in brackets; and "ch" must
+   *not* occur as the first token and is followed by just a channel number.
+   (In fact, "ch" is no real MIDI message at all; it just sets the default
+   MIDI channel for subsequent messages in the output sequence.)
 
    The incr flag indicates an "incremental" controller or pitch bend value
    which responds to up ("+") and down ("-") changes; it is only permitted in
@@ -702,7 +710,7 @@ parse_midi(char *tok, char *s, int lhs,
   char *p = tok, *t;
   int n, m = -1, k = midi_channel, l;
   s[0] = 0;
-  while (*p && !isdigit(*p) && !strchr("+-<>[", *p)) p++;
+  while (*p && !isdigit(*p) && !strchr("+-=<>~[", *p)) p++;
   if (p == tok || p-tok > 10) return 0; // no valid token
   // the token by itself
   strncpy(s, tok, p-tok); s[p-tok] = 0;
@@ -715,9 +723,9 @@ parse_midi(char *tok, char *s, int lhs,
   } else if (strcmp(s, "pb")) {
     return 0;
   }
-  // step size ('pb' only)
+  // step size ('cc' and 'pb' only)
   if (*p == '[') {
-    if (strcmp(s, "pb")) return 0;
+    if (strcmp(s, "cc") && strcmp(s, "pb")) return 0;
     if (sscanf(++p, "%d%n", &l, &n) == 1) {
       p += n;
       if (*p != ']') return 0;
@@ -726,7 +734,7 @@ parse_midi(char *tok, char *s, int lhs,
     } else {
       return 0;
     }
-  } else if (strcmp(s, "pb") == 0) {
+  } else {
     *step = 1;
   }
   if (p[0] == '-' && isdigit(p[1])) {
@@ -845,6 +853,7 @@ start_translation(translation *tr, char *which_key)
 	// cc (step up, down)
 	tr->is_incr[chan][data] = incr>1;
 	first_stroke = &(tr->ccs[chan][data][dir>0]);
+	tr->cc_step[chan][data][dir>0] = step;
 	if (!dir) {
 	  // This is a bidirectional translation (=, ~). We first fill in the
 	  // "down" part (pointed to by first_stroke). When finishing off the
@@ -855,6 +864,7 @@ start_translation(translation *tr, char *which_key)
 	  // so that we can fill in that part later.
 	  is_bidirectional = 1;
 	  release_first_stroke = &(tr->ccs[chan][data][1]);
+	  tr->cc_step[chan][data][1] = step;
 	}
       }
       break;
@@ -871,7 +881,7 @@ start_translation(translation *tr, char *which_key)
 	  return 1;
 	}
 	first_stroke = &(tr->pbs[chan][dir>0]);
-	tr->step[chan][dir>0] = step;
+	tr->pb_step[chan][dir>0] = step;
 	if (!dir) {
 	  is_bidirectional = 1;
 	  release_first_stroke = &(tr->pbs[chan][1]);

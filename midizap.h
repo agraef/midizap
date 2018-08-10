@@ -78,7 +78,9 @@ typedef struct _translation {
   stroke *ccs[NUM_CHAN][NUM_KEYS][2];
   stroke *pb[NUM_CHAN][2];
   stroke *pbs[NUM_CHAN][2];
-  int step[NUM_CHAN][2]; // step size for pitch bends (1 by default)
+  // step size for control changes and pitch bend (1 by default)
+  int cc_step[NUM_CHAN][NUM_KEYS][2];
+  int pb_step[NUM_CHAN][2];
 } translation;
 
 extern int read_config_file(void);
