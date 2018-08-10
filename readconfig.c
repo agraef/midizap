@@ -967,7 +967,7 @@ finish_translation(void)
   }
 }
 
-void
+int
 read_config_file(void)
 {
   struct stat buf;
@@ -983,6 +983,7 @@ read_config_file(void)
   translation *tr = NULL;
   FILE *f;
   int config_file_default = 0;
+  static int errors = 0;
 
   if (config_file_name == NULL) {
     config_file_name = getenv("MIDIZAP_CONFIG_FILE");
@@ -997,13 +998,19 @@ read_config_file(void)
   }
   if (stat(config_file_name, &buf) < 0) {
     // AG: Fall back to the system-wide configuration file.
-    if (!config_file_default) perror(config_file_name);
+    if (!config_file_default && !errors) {
+      perror(config_file_name);
+      errors++;
+    }
     config_file_name = "/etc/midizaprc";
     config_file_modification_time = 0;
   }
   if (stat(config_file_name, &buf) < 0) {
-    perror(config_file_name);
-    return;
+    if (!errors) {
+      perror(config_file_name);
+      errors++;
+    }
+    return 0;
   }
   if (buf.st_mtime == 0) {
     buf.st_mtime = 1;
@@ -1016,8 +1023,11 @@ read_config_file(void)
 
     f = fopen(config_file_name, "r");
     if (f == NULL) {
-      perror(config_file_name);
-      return;
+      if (!errors) {
+	perror(config_file_name);
+	errors++;
+      }
+      return 0;
     }
 
     free_all_translations();
@@ -1126,7 +1136,10 @@ read_config_file(void)
     }
 
     fclose(f);
+    return 1;
 
+  } else {
+    return 0;
   }
 }
 

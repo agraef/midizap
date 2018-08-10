@@ -494,11 +494,17 @@ void quitter()
     quit = 1;
 }
 
+// poll interval in microsec (this shouldn't be too large to avoid jitter)
+#define POLL_INTERVAL 1000
+// how often we check the config file per sec (> 0, < 1000000/POLL_INTERVAL)
+#define CONF_FREQ 1
+#define MAX_COUNT (1000000/CONF_FREQ/POLL_INTERVAL)
+
 int
 main(int argc, char **argv)
 {
   uint8_t msg[3];
-  int opt;
+  int opt, count = 0;
 
   while ((opt = getopt(argc, argv, "htd::r:")) != -1) {
     switch (opt) {
@@ -559,11 +565,22 @@ main(int argc, char **argv)
   }
 
   signal(SIGINT, quitter);
+  // force the config file to be loaded initially
+  count = MAX_COUNT;
   while (!quit) {
     while (pop_midi(&seq, msg)) {
       handle_event(msg);
+      count = 0;
     }
-    usleep(1000);
+    usleep(POLL_INTERVAL);
+    if (++count >= MAX_COUNT) {
+      // Check whether to reload the config file if we haven't seen any MIDI
+      // input in a while. Note that if the file *is* reloaded, then we also
+      // need to reset last_focused_window here, so that the translations of
+      // the focused window are recomputed the next time we handle an event.
+      if (read_config_file()) last_focused_window = 0;
+      count = 0;
+    }
   }
   printf(" [exiting]\n");
   close_jack(&seq);
