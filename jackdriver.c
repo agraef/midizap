@@ -127,14 +127,14 @@ queue_message(jack_ringbuffer_t* ringbuffer, MidiMessage *ev)
 
     if (jack_ringbuffer_write_space(ringbuffer) < sizeof(*ev))
     {
-        printf("Not enough space in the ringbuffer, MIDI LOST.");
+        fprintf(stderr, "Not enough space in the ringbuffer, MIDI LOST.\n");
         return;
     }
 
     written = jack_ringbuffer_write(ringbuffer, (char *)ev, sizeof(*ev));
 
     if (written != sizeof(*ev))
-        printf("jack_ringbuffer_write failed, MIDI LOST.");
+        fprintf(stderr, "jack_ringbuffer_write failed, MIDI LOST.\n");
 }
 
 void
@@ -148,7 +148,7 @@ process_midi_input(JACK_SEQ* seq,jack_nframes_t nframes)
     port_buffer = jack_port_get_buffer(seq->input_port, nframes);
     if (port_buffer == NULL)
     {
-        printf("jack_port_get_buffer failed, cannot receive anything.");
+        fprintf(stderr, "jack_port_get_buffer failed, cannot receive anything.\n");
         return;
     }
 
@@ -201,7 +201,7 @@ process_midi_output(JACK_SEQ* seq,jack_nframes_t nframes)
     port_buffer = jack_port_get_buffer(seq->output_port, nframes);
     if (port_buffer == NULL)
     {
-        printf("jack_port_get_buffer failed, cannot send anything.");
+        fprintf(stderr, "jack_port_get_buffer failed, cannot send anything.\n");
         return;
     }
 
@@ -257,7 +257,7 @@ process_callback(jack_nframes_t nframes, void *seqq)
     JACK_SEQ* seq = (JACK_SEQ*)seqq;
 #ifdef MEASURE_TIME
     if (get_delta_time() > MAX_TIME_BETWEEN_CALLBACKS)
-        printf("Had to wait too long for JACK callback; scheduling problem?");
+        fprintf(stderr, "Had to wait too long for JACK callback; scheduling problem?\n");
 #endif
 
     if(seq->usein)
@@ -267,7 +267,7 @@ process_callback(jack_nframes_t nframes, void *seqq)
 
 #ifdef MEASURE_TIME
     if (get_delta_time() > MAX_PROCESSING_TIME)
-        printf("Processing took too long; scheduling problem?");
+        fprintf(stderr, "Processing took too long; scheduling problem?\n");
 #endif
 
     return (0);
@@ -373,7 +373,7 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
 
     if (seq->jack_client == NULL)
     {
-      printf("Could not connect to the JACK server; run jackd first?\n");
+      fprintf(stderr, "Could not connect to the JACK server; run jackd first?\n");
       return 0;
     }
 
@@ -381,7 +381,7 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
     err = jack_set_process_callback(seq->jack_client, process_callback, (void*)seq);
     if (err)
     {
-      printf("Could not register JACK process callback.\n");
+      fprintf(stderr, "Could not register JACK process callback.\n");
       return 0;
     }
 
@@ -394,7 +394,7 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
 
       if (seq->ringbuffer_in == NULL)
       {
-	printf("Cannot create JACK ringbuffer.\n");
+	fprintf(stderr, "Cannot create JACK ringbuffer.\n");
 	return 0;
       }
 
@@ -406,7 +406,7 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
 
       if (seq->input_port == NULL)
       {
-	printf("Could not register JACK port.\n");
+	fprintf(stderr, "Could not register JACK port.\n");
 	return 0;
       }
     }
@@ -419,7 +419,7 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
 
       if (seq->ringbuffer_out == NULL)
       {
-        printf("Cannot create JACK ringbuffer.\n");
+        fprintf(stderr, "Cannot create JACK ringbuffer.\n");
         return 0;
       }
 
@@ -431,14 +431,14 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
 
       if (seq->output_port == NULL)
       {
-        printf("Could not register JACK port.\n");
+        fprintf(stderr, "Could not register JACK port.\n");
         return 0;
       }
     }
 
     if (jack_activate(seq->jack_client))
     {
-        printf("Cannot activate JACK client.\n");
+        fprintf(stderr, "Cannot activate JACK client.\n");
         return 0;
     }
     return 1;
