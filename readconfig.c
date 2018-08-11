@@ -33,15 +33,39 @@
   handle most common use cases.  (In any case, adding more message types
   should be a piece of cake.)
 
+  MIDI messages are on channel 1 by default; a suffix of the form
+  -<1..16> can be used to specify a different MIDI channel.  E.g., C3-10
+  denotes note C3 on MIDI channel 10.
+
   Note messages are specified using the cutomary notation (note name
   A..G, optionally followed by an accidental, # or b, followed by a
   (zero-based) MIDI octave number. Note that all MIDI octaves start at
   the note C, so B0 comes before C1. C5 denotes middle C, A5 is the
-  chamber pitch (usually at 440 Hz).
+  chamber pitch (usually at 440 Hz).  Enharmonic spellings are
+  equivalent, so, e.g., D# and Eb denote exactly the same MIDI note.
 
-  MIDI messages are on channel 1 by default; a suffix of the form
-  -<1..16> can be used to specify a different MIDI channel.  E.g., C3-10
-  denotes note C3 on MIDI channel 10.
+  *NOTE:* There are various different standards for numbering octaves,
+  and different programs use different standards, which can be rather
+  confusing.  There's the Helmholtz standard, which is still widely
+  used, but only in German-speaking countries, and the ASA standard
+  where middle C is C4 (one less than zero-based octave numbers, so the
+  sub-contra octave starts at C-1).  At least two standards exist for
+  MIDI octave numbering, one in which middle C is C3 (so the sub-contra
+  octave starts at C-2), and zero-based octave numbers, where the
+  sub-contra octave starts at C0 a.k.a. MIDI note 0.  The latter is what
+  we use here, as it probably appeals most to mathematically-inclined
+  and computer-science people like myself.  It also relates nicely to
+  MIDI note numbers, since the octave number is just the MIDI note
+  number divided by 12, with the remainder of the division telling you
+  which note in the octave it is (0 = C, 1 = C#, ..., 10 = Bb, 11 = B).
+
+  Thus, if you use some MIDI monitoring software to figure out which
+  notes to put in your midizaprc file, first check how the program
+  prints middle C, so that you know how to adjust the octave numbers
+  reported by the monitoring program.
+
+  More details on the syntax of MIDI messages can be found in the
+  comments preceding the parse_midi() routine below.
 
   By default, all messages are interpreted in the same way as keys on a
   computer keyboard, i.e., they can be "on" ("pressed") or "off"
@@ -134,11 +158,21 @@
   CC1< CC7
   CC1> CC7
 
-  Furthermore, PB (pitch bends) can have a step size associated with
-  them.  The default step size is 1.  To indicate a different step size,
-  the notation PB[<step size>] is used.  E.g., PB[1170] will give you
-  about 7 steps up and down, which is useful to emulate a shuttle wheel
-  such as those on the Contour Design devices.  Example:
+  Furthermore, incremental CC and PB messages can have a step size
+  associated with them, which enable you to scale controller and pitch
+  bend changes.  The default step size is 1 (no scaling).  To change it,
+  the desired step size is written in brackets immediately after the
+  message token, but before the increment suffix.  Thus, e.g., CC1[2]=
+  denotes a sequence to be executed once whenever the controller changes
+  by an amount of 2.  For instance, the following translation scales
+  down the values of a controller, effectively dividing them by 2, so
+  that the output range becomes 0..63 (127/2, rounded down):
+
+  CC1[2]= CC1
+
+  As another example, PB[1170] will give you 7 steps up and down, which
+  is useful to emulate a shuttle wheel such as those on the Contour
+  Design devices.  Example:
 
   PB[1170]- "j"
   PB[1170]+ "l"
@@ -159,7 +193,9 @@
   *input* message determines whether it is a key press or value change
   type of event, and which direction it goes in the latter case.  Only
   the "~" suffix can be used to indicate an incremental CC message in
-  sign bit encoding.
+  sign bit encoding.  Specifying step sizes with incremental CC and PB
+  messages works as well, but scales the values *up* rather than down on
+  the output side.
 
   Finally, on the output side there's a special token of the form
   CH<1..16>, which doesn't actually generate any MIDI message.  Rather,
@@ -267,8 +303,7 @@ read_line(FILE *f, char *name)
 
 static translation *first_translation_section = NULL;
 static translation *last_translation_section = NULL;
-
-translation *default_translation;
+translation *default_translation, *default_midi_translation[2];
 
 translation *
 new_translation_section(char *name, char *regex)
@@ -284,7 +319,13 @@ new_translation_section(char *name, char *regex)
   ret->name = alloc_strcat(name, NULL);
   if (regex == NULL || *regex == '\0') {
     ret->is_default = 1;
-    default_translation = ret;
+    if (!strcmp(name, "MIDI"))
+      default_midi_translation[0] = ret;
+    else if (!strcmp(name, "MIDI2")) {
+      default_midi_translation[1] = ret;
+      ret->portno = 1;
+    } else
+      default_translation = ret;
   } else {
     ret->is_default = 0;
     err = regcomp(&ret->regex, regex, REG_NOSUB);
@@ -361,6 +402,8 @@ free_all_translations(void)
   }
   first_translation_section = NULL;
   last_translation_section = NULL;
+  default_translation = default_midi_translation[0] =
+    default_midi_translation[1] = NULL;
 }
 
 char *config_file_name = NULL;
@@ -656,12 +699,12 @@ re_press_temp_modifiers(void)
    msg  ::= "ch" | "pb" | "pc" | "cc"
    incr ::= "-" | "+" | "=" | "<" | ">" | "~"
 
-   Numbers are always in decimal. The meaning of the first number depends on
-   the context (octave number for notes, the actual data byte for other
-   messages). This can optionally be followed by a number in brackets,
-   denoting a step size. Also optionally, the suffix with the third number
-   (after the dash) denotes the MIDI channel; otherwise the default MIDI
-   channel is used.
+   Case is insignificant. Numbers are always in decimal. The meaning of
+   the first number depends on the context (octave number for notes, the
+   actual data byte for other messages). This can optionally be followed
+   by a number in brackets, denoting a step size. Also optionally, the
+   suffix with the third number (after the dash) denotes the MIDI
+   channel; otherwise the default MIDI channel is used.
 
    Note that not all combinations are possible -- "pb" has no data byte; only
    "cc" and "pb" may be followed by a step size in brackets; and "ch" must
@@ -885,6 +928,7 @@ start_translation(translation *tr, char *which_key)
 	if (!dir) {
 	  is_bidirectional = 1;
 	  release_first_stroke = &(tr->pbs[chan][1]);
+	  tr->pb_step[chan][1] = step;
 	}
       }
       break;
@@ -1115,6 +1159,7 @@ read_config_file(void)
     }
 
     free_all_translations();
+    reload_callback();
     debug_regex = default_debug_regex;
     debug_strokes = default_debug_strokes;
     debug_keys = default_debug_keys;
@@ -1235,18 +1280,15 @@ get_translation(char *win_title, char *win_class)
   read_config_file();
   tr = first_translation_section;
   while (tr != NULL) {
-    extern int enable_jack_output;
-    if (tr->is_default &&
-	(strcmp(tr->name, "MIDI") || enable_jack_output)) {
-      return tr;
-    } else if (!tr->is_default) {
+    if (!tr->is_default) {
       // AG: We first try to match the class name, since it usually provides
       // better identification clues.
       if (win_class && *win_class &&
 	  regexec(&tr->regex, win_class, 0, NULL, 0) == 0) {
 	return tr;
       }
-      if (regexec(&tr->regex, win_title, 0, NULL, 0) == 0) {
+      if (win_title && *win_title &&
+	  regexec(&tr->regex, win_title, 0, NULL, 0) == 0) {
 	return tr;
       }
     }

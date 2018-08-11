@@ -5,18 +5,18 @@
 
 typedef struct _jseq
 {
-  jack_ringbuffer_t *ringbuffer_out;
-  jack_ringbuffer_t *ringbuffer_in;
+  jack_ringbuffer_t **ringbuffer_out;
+  jack_ringbuffer_t **ringbuffer_in;
   jack_client_t	*jack_client;
-  jack_port_t	*output_port;
-  jack_port_t	*input_port;
-  uint8_t usein;
-  uint8_t useout;
+  jack_port_t	**output_port;
+  jack_port_t	**input_port;
+  uint8_t n_in;
+  uint8_t n_out;
 } JACK_SEQ;
 
 int init_jack(JACK_SEQ* seq, uint8_t verbose);
 void close_jack(JACK_SEQ* seq);
-void queue_midi(void* seqq, uint8_t msg[]);
-int pop_midi(void* seqq, uint8_t msg[]);
+void queue_midi(void* seqq, uint8_t msg[], uint8_t port_no);
+int pop_midi(void* seqq, uint8_t msg[], uint8_t *port_no);
 
 #endif

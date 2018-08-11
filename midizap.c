@@ -20,13 +20,6 @@
 
 typedef struct input_event EV;
 
-extern int debug_regex;
-extern translation *default_translation;
-
-unsigned short jogvalue = 0xffff;
-int shuttlevalue = 0xffff;
-struct timeval last_shuttle;
-int need_synthetic_shuttle;
 Display *display;
 
 JACK_SEQ seq;
@@ -75,7 +68,7 @@ static int16_t pbvalue[16] =
    8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192};
 
 void
-send_midi(int status, int data, int step, int incr, int index, int dir)
+send_midi(uint8_t portno, int status, int data, int step, int incr, int index, int dir)
 {
   if (!enable_jack_output) return; // MIDI output not enabled
   uint8_t msg[3];
@@ -153,14 +146,14 @@ send_midi(int status, int data, int step, int incr, int index, int dir)
   default:
     return;
   }
-  queue_midi(&seq, msg);
+  queue_midi(&seq, msg, portno);
 }
 
 stroke *
-fetch_stroke(translation *tr, int status, int chan, int data,
+fetch_stroke(translation *tr, uint8_t portno, int status, int chan, int data,
 	     int index, int dir)
 {
-  if (tr != NULL) {
+  if (tr && tr->portno == portno) {
     switch (status) {
     case 0x90:
       return tr->note[chan][data][index];
@@ -183,18 +176,54 @@ fetch_stroke(translation *tr, int status, int chan, int data,
     return NULL;
 }
 
+#define MAX_WINNAME_SIZE 1024
+static char last_window_name[MAX_WINNAME_SIZE];
+static char last_window_class[MAX_WINNAME_SIZE];
+static Window last_focused_window = 0;
+static translation *last_window_translation = NULL, *last_translation = NULL;
+static int have_window = 0;
+
+void reload_callback(void)
+{
+  last_focused_window = 0;
+  last_window_translation = last_translation = NULL;
+  have_window = 0;
+}
+
 static char *note_names[] = { "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B" };
 
 void
-send_strokes(translation *tr, int status, int chan, int data,
+send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
 	     int index, int dir)
 {
   int nkeys = 0;
-  stroke *s = fetch_stroke(tr, status, chan, data, index, dir);
+  stroke *s = fetch_stroke(tr, portno, status, chan, data, index, dir);
 
-  if (s == NULL) {
+  if (!s && enable_jack_output) {
+    // fall back to default MIDI translation
+    tr = default_midi_translation[portno];
+    s = fetch_stroke(tr, portno, status, chan, data, index, dir);
+    // Ignore all MIDI input on the second port if no translation was found in
+    // the [MIDI2] section (or the section is missing altogether).
+    if (portno && !s) return;
+  }
+
+  if (!s) {
+    // fall back to the default translation
     tr = default_translation;
-    s = fetch_stroke(tr, status, chan, data, index, dir);
+    s = fetch_stroke(tr, portno, status, chan, data, index, dir);
+  }
+
+  if (s && debug_regex && (!have_window || tr != last_translation)) {
+    last_translation = tr;
+    have_window = 1;
+    if (tr != NULL) {
+      printf("translation: %s for %s (class %s)\n",
+	     tr->name, last_window_name, last_window_class);
+    } else {
+      printf("no translation found for %s (class %s)\n",
+	     last_window_name, last_window_class);
+    }
   }
 
   if (debug_keys && s) {
@@ -242,7 +271,7 @@ send_strokes(translation *tr, int status, int chan, int data,
       send_key(s->keysym, s->press);
       nkeys++;
     } else {
-      send_midi(s->status, s->data, s->step, s->incr, index, dir);
+      send_midi(portno, s->status, s->data, s->step, s->incr, index, dir);
     }
     s = s->next;
   }
@@ -316,34 +345,29 @@ walk_window_tree(Window win, char **window_class)
   return NULL;
 }
 
-static Window last_focused_window = 0;
-static translation *last_window_translation = NULL;
-
 translation *
 get_focused_window_translation()
 {
   Window focus;
   int revert_to;
   char *window_name = NULL, *window_class = NULL;
-  char *name;
 
   XGetInputFocus(display, &focus, &revert_to);
   if (focus != last_focused_window) {
     last_focused_window = focus;
     window_name = walk_window_tree(focus, &window_class);
-    if (window_name == NULL) {
-      name = "-- Unlabeled Window --";
+    last_window_translation = get_translation(window_name, window_class);
+    if (window_name && *window_name) {
+      strncpy(last_window_name, window_name, MAX_WINNAME_SIZE);
+      last_window_name[MAX_WINNAME_SIZE-1] = 0;
     } else {
-      name = window_name;
+      strcpy(last_window_name, "Unnamed");;
     }
-    last_window_translation = get_translation(name, window_class);
-    if (debug_regex) {
-      if (last_window_translation != NULL) {
-	printf("translation: %s for %s (class %s)\n",
-	       last_window_translation->name, name, window_class);
-      } else {
-	printf("no translation found for %s (class %s)\n", name, window_class);
-      }
+    if (window_class && *window_class) {
+      strncpy(last_window_class, window_class, MAX_WINNAME_SIZE);
+      last_window_class[MAX_WINNAME_SIZE-1] = 0;
+    } else {
+      strcpy(last_window_name, "Unnamed");;
     }
     if (window_name != NULL) {
       XFree(window_name);
@@ -355,155 +379,201 @@ get_focused_window_translation()
   return last_window_translation;
 }
 
-static int8_t inccvalue[16][128];
-static int16_t inpbvalue[16] =
-  {8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192,
-   8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192};
+static int8_t inccvalue[2][16][128];
+static int16_t inpbvalue[2][16] =
+  {{8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192,
+    8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192},
+   {8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192,
+    8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192}};
 
-static uint8_t notedown[16][128];
-static uint8_t inccdown[16][128];
-static uint8_t inpbdown[16];
+static uint8_t notedown[2][16][128];
+static uint8_t inccdown[2][16][128];
+static uint8_t inpbdown[2][16];
 
 int
-check_incr(translation *tr, int chan, int data)
+check_incr(translation *tr, uint8_t portno, int chan, int data)
 {
-  if (tr->ccs[chan][data][0] || tr->ccs[chan][data][1])
+  if (tr && tr->portno == portno &&
+      (tr->ccs[chan][data][0] || tr->ccs[chan][data][1]))
+    return tr->is_incr[chan][data];
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      (tr->ccs[chan][data][0] || tr->ccs[chan][data][1]))
     return tr->is_incr[chan][data];
   tr = default_translation;
-  if (tr->ccs[chan][data][0] || tr->ccs[chan][data][1])
+  if (tr && tr->portno == portno &&
+      (tr->ccs[chan][data][0] || tr->ccs[chan][data][1]))
     return tr->is_incr[chan][data];
   return 0;
 }
 
 int
-check_pbs(translation *tr, int chan)
+get_cc_step(translation *tr, uint8_t portno, int chan, int data, int dir)
 {
-  if (tr->pbs[chan][0] || tr->pbs[chan][1])
+  if (tr && tr->portno == portno &&
+      tr->ccs[chan][data][dir>0])
+    return tr->cc_step[chan][data][dir>0];
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      tr->ccs[chan][data][dir>0])
+    return tr->cc_step[chan][data][dir>0];
+  tr = default_translation;
+  if (tr && tr->portno == portno &&
+      tr->ccs[chan][data][dir>0])
+    return tr->cc_step[chan][data][dir>0];
+  return 1;
+}
+
+int
+check_pbs(translation *tr, uint8_t portno, int chan)
+{
+  if (tr && tr->portno == portno &&
+      (tr->pbs[chan][0] || tr->pbs[chan][1]))
+    return 1;
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      (tr->pbs[chan][0] || tr->pbs[chan][1]))
     return 1;
   tr = default_translation;
-  if (tr->pbs[chan][0] || tr->pbs[chan][1])
+  if (tr && tr->portno == portno &&
+      (tr->pbs[chan][0] || tr->pbs[chan][1]))
     return 1;
   return 0;
+}
+
+int
+get_pb_step(translation *tr, uint8_t portno, int chan, int dir)
+{
+  if (tr && tr->portno == portno &&
+      tr->pbs[chan][dir>0])
+    return tr->pb_step[chan][dir>0];
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      tr->pbs[chan][dir>0])
+    return tr->pb_step[chan][dir>0];
+  tr = default_translation;
+  if (tr && tr->portno == portno &&
+      tr->pbs[chan][dir>0])
+    return tr->pb_step[chan][dir>0];
+  return 1;
 }
 
 void
-handle_event(uint8_t *msg)
+handle_event(uint8_t *msg, uint8_t portno)
 {
   translation *tr = get_focused_window_translation();
 
-  //fprintf(stderr, "midi: %0x %0x %0x\n", msg[0], msg[1], msg[2]);
-  if (tr != NULL) {
-    int status = msg[0] & 0xf0, chan = msg[0] & 0x0f;
-    if (status == 0x80) {
-      status = 0x90;
-      msg[0] = status | chan;
-      msg[2] = 0;
+  //fprintf(stderr, "midi [%d]: %0x %0x %0x\n", portno, msg[0], msg[1], msg[2]);
+  int status = msg[0] & 0xf0, chan = msg[0] & 0x0f;
+  if (status == 0x80) {
+    status = 0x90;
+    msg[0] = status | chan;
+    msg[2] = 0;
+  }
+  switch (status) {
+  case 0xc0:
+    send_strokes(tr, portno, status, chan, msg[1], 0, 0);
+    send_strokes(tr, portno, status, chan, msg[1], 1, 0);
+    break;
+  case 0x90:
+    if (msg[2]) {
+      if (!notedown[portno][chan][msg[1]]) {
+	send_strokes(tr, portno, status, chan, msg[1], 0, 0);
+	notedown[portno][chan][msg[1]] = 1;
+      }
+    } else {
+      if (notedown[portno][chan][msg[1]]) {
+	send_strokes(tr, portno, status, chan, msg[1], 1, 0);
+	notedown[portno][chan][msg[1]] = 0;
+      }
     }
-    switch (status) {
-    case 0xc0:
-      send_strokes(tr, status, chan, msg[1], 0, 0);
-      send_strokes(tr, status, chan, msg[1], 1, 0);
-      break;
-    case 0x90:
-      if (msg[2]) {
-	if (!notedown[chan][msg[1]]) {
-	  send_strokes(tr, status, chan, msg[1], 0, 0);
-	  notedown[chan][msg[1]] = 1;
-	}
-      } else {
-	if (notedown[chan][msg[1]]) {
-	  send_strokes(tr, status, chan, msg[1], 1, 0);
-	  notedown[chan][msg[1]] = 0;
-	}
+    break;
+  case 0xb0:
+    if (msg[2]) {
+      if (!inccdown[portno][chan][msg[1]]) {
+	send_strokes(tr, portno, status, chan, msg[1], 0, 0);
+	inccdown[portno][chan][msg[1]] = 1;
       }
-      break;
-    case 0xb0:
-      if (msg[2]) {
-	if (!inccdown[chan][msg[1]]) {
-	  send_strokes(tr, status, chan, msg[1], 0, 0);
-	  inccdown[chan][msg[1]] = 1;
-	}
-      } else {
-	if (inccdown[chan][msg[1]]) {
-	  send_strokes(tr, status, chan, msg[1], 1, 0);
-	  inccdown[chan][msg[1]] = 0;
-	}
+    } else {
+      if (inccdown[portno][chan][msg[1]]) {
+	send_strokes(tr, portno, status, chan, msg[1], 1, 0);
+	inccdown[portno][chan][msg[1]] = 0;
       }
-      if (check_incr(tr, chan, msg[1])) {
-	// Incremental controller a la MCU. NB: This assumes a signed bit
-	// representation (values above 0x40 indicate counter-clockwise
-	// rotation), which seems to be what most DAWs expect nowadays.
-	// But some DAWs may also have it the other way round, so that you may
-	// have to swap the actions for increment and decrement. XXXTODO:
-	// Maybe the encoding should be a configurable parameter?
-	if (msg[2] < 64) {
-	  int d = msg[2];
-	  while (d) {
-	    send_strokes(tr, status, chan, msg[1], 0, 1);
-	    d--;
-	  }
-	} else if (msg[2] > 64) {
-	  int d = msg[2]-64;
-	  while (d) {
-	    send_strokes(tr, status, chan, msg[1], 0, -1);
-	    d--;
-	  }
-	}
-      } else if (inccvalue[chan][msg[1]] != msg[2]) {
-	int dir = inccvalue[chan][msg[1]] > msg[2] ? -1 : 1;
-	int step = tr->cc_step[chan][msg[1]][dir>0];
-	if (step) {
-	  while (inccvalue[chan][msg[1]] != msg[2]) {
-	    int d = abs(inccvalue[chan][msg[1]] - msg[2]);
-	    if (d > step) d = step;
-	    if (d < step) break;
-	    send_strokes(tr, status, chan, msg[1], 0, dir);
-	    inccvalue[chan][msg[1]] += dir*d;
-	  }
-	}
-      }
-      break;
-    case 0xe0: {
-      int bend = ((msg[2] << 7) | msg[1]) - 8192;
-      //fprintf(stderr, "pb %d\n", bend);
-      if (bend) {
-	if (!inpbdown[chan]) {
-	  send_strokes(tr, status, chan, 0, 0, 0);
-	  inpbdown[chan] = 1;
-	}
-      } else {
-	if (inpbdown[chan]) {
-	  send_strokes(tr, status, chan, 0, 1, 0);
-	  inpbdown[chan] = 0;
-	}
-      }
-      if (check_pbs(tr, chan) && inpbvalue[chan] - 8192 != bend) {
-	int dir = inpbvalue[chan] - 8192 > bend ? -1 : 1;
-	int step = tr->pb_step[chan][dir>0];
-	if (step) {
-	  while (inpbvalue[chan] - 8192 != bend) {
-	    int d = abs(inpbvalue[chan] - 8192 - bend);
-	    if (d > step) d = step;
-	    if (d < step) break;
-	    send_strokes(tr, status, chan, 0, 0, dir);
-	    inpbvalue[chan] += dir*d;
-	  }
-	}
-      }
-      break;
     }
-    default:
-      // ignore everything else
-      break;
+    if (check_incr(tr, portno, chan, msg[1])) {
+      // Incremental controller a la MCU. NB: This assumes a signed bit
+      // representation (values above 0x40 indicate counter-clockwise
+      // rotation), which seems to be what most DAWs expect nowadays.
+      // But some DAWs may also have it the other way round, so that you may
+      // have to swap the actions for increment and decrement. XXXTODO:
+      // Maybe the encoding should be a configurable parameter?
+      if (msg[2] < 64) {
+	int d = msg[2];
+	while (d) {
+	  send_strokes(tr, portno, status, chan, msg[1], 0, 1);
+	  d--;
+	}
+      } else if (msg[2] > 64) {
+	int d = msg[2]-64;
+	while (d) {
+	  send_strokes(tr, portno, status, chan, msg[1], 0, -1);
+	  d--;
+	}
+      }
+    } else if (inccvalue[portno][chan][msg[1]] != msg[2]) {
+      int dir = inccvalue[portno][chan][msg[1]] > msg[2] ? -1 : 1;
+      int step = get_cc_step(tr, portno, chan, msg[1], dir);
+      if (step) {
+	while (inccvalue[portno][chan][msg[1]] != msg[2]) {
+	  int d = abs(inccvalue[portno][chan][msg[1]] - msg[2]);
+	  if (d > step) d = step;
+	  if (d < step) break;
+	  send_strokes(tr, portno, status, chan, msg[1], 0, dir);
+	  inccvalue[portno][chan][msg[1]] += dir*d;
+	}
+      }
     }
+    break;
+  case 0xe0: {
+    int bend = ((msg[2] << 7) | msg[1]) - 8192;
+    //fprintf(stderr, "pb %d\n", bend);
+    if (bend) {
+      if (!inpbdown[portno][chan]) {
+	send_strokes(tr, portno, status, chan, 0, 0, 0);
+	inpbdown[portno][chan] = 1;
+      }
+    } else {
+      if (inpbdown[portno][chan]) {
+	send_strokes(tr, portno, status, chan, 0, 1, 0);
+	inpbdown[portno][chan] = 0;
+      }
+    }
+    if (check_pbs(tr, portno, chan) && inpbvalue[portno][chan] - 8192 != bend) {
+      int dir = inpbvalue[portno][chan] - 8192 > bend ? -1 : 1;
+      int step = get_pb_step(tr, portno, chan, dir);
+      if (step) {
+	while (inpbvalue[portno][chan] - 8192 != bend) {
+	  int d = abs(inpbvalue[portno][chan] - 8192 - bend);
+	  if (d > step) d = step;
+	  if (d < step) break;
+	  send_strokes(tr, portno, status, chan, 0, 0, dir);
+	  inpbvalue[portno][chan] += dir*d;
+	}
+      }
+    }
+    break;
+  }
+  default:
+    // ignore everything else
+    break;
   }
 }
 
 void help(char *progname)
 {
-  fprintf(stderr, "Usage: %s [-h] [-o] [-r rcfile] [-d[rskj]]\n", progname);
+  fprintf(stderr, "Usage: %s [-h] [-o[2]] [-r rcfile] [-d[rskj]]\n", progname);
   fprintf(stderr, "-h print this message\n");
-  fprintf(stderr, "-o enable MIDI output\n");
+  fprintf(stderr, "-o enable MIDI output (add 2 for a second pair of ports)\n");
   fprintf(stderr, "-r config file name (default: MIDIZAP_CONFIG_FILE variable or ~/.midizaprc)\n");
   fprintf(stderr, "-d debug (r = regex, s = strokes, k = keys, j = jack; default: all)\n");
 }
@@ -521,19 +591,31 @@ void quitter()
 #define CONF_FREQ 1
 #define MAX_COUNT (1000000/CONF_FREQ/POLL_INTERVAL)
 
+int n_ports = 1;
+
 int
 main(int argc, char **argv)
 {
   uint8_t msg[3];
   int opt, count = 0;
 
-  while ((opt = getopt(argc, argv, "hod::r:")) != -1) {
+  while ((opt = getopt(argc, argv, "ho::d::r:")) != -1) {
     switch (opt) {
     case 'h':
       help(argv[0]);
       exit(0);
     case 'o':
       enable_jack_output = 1;
+      if (optarg && *optarg) {
+	const char *a = optarg;
+	if (*a == '2') {
+	  n_ports = 2;
+	} else if (*a && *a != '1') {
+	  fprintf(stderr, "%s: wrong port number (-o), must be 1 or 2\n", argv[0]);
+	  fprintf(stderr, "Try -h for help.\n");
+	  exit(1);
+	}
+      }
       break;
     case 'd':
       if (optarg && *optarg) {
@@ -580,7 +662,7 @@ main(int argc, char **argv)
 
   initdisplay();
 
-  seq.usein = 1; seq.useout = enable_jack_output;
+  seq.n_in = n_ports; seq.n_out = enable_jack_output?n_ports:0;
   if (!init_jack(&seq, debug_jack)) {
     exit(1);
   }
@@ -589,8 +671,9 @@ main(int argc, char **argv)
   // force the config file to be loaded initially
   count = MAX_COUNT;
   while (!quit) {
-    while (pop_midi(&seq, msg)) {
-      handle_event(msg);
+    uint8_t portno;
+    while (pop_midi(&seq, msg, &portno)) {
+      handle_event(msg, portno);
       count = 0;
     }
     usleep(POLL_INTERVAL);

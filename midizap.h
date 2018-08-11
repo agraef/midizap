@@ -67,6 +67,7 @@ typedef struct _translation {
   char *name;
   int is_default;
   regex_t regex;
+  uint8_t portno;
   // XXXFIXME: This way of storing the translation tables is easy to
   // construct, but wastes quite a lot of memory (needs some 128 KB per
   // translation section even if most of the entries are NULL pointers). We
@@ -83,9 +84,12 @@ typedef struct _translation {
   int pb_step[NUM_CHAN][2];
 } translation;
 
+extern void reload_callback(void);
 extern int read_config_file(void);
 extern translation *get_translation(char *win_title, char *win_class);
 extern void print_stroke_sequence(char *name, char *up_or_down, stroke *s);
+extern translation *default_translation, *default_midi_translation[2];
 extern int debug_regex, debug_strokes, debug_keys;
 extern int default_debug_regex, default_debug_strokes, default_debug_keys;
 extern char *config_file_name;
+extern int enable_jack_output;
