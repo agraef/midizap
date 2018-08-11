@@ -195,6 +195,8 @@ int debug_regex = 0;
 int debug_strokes = 0;
 int debug_keys = 0;
 
+int midi_octave = 0;
+
 char *
 allocate(size_t len)
 {
@@ -509,7 +511,8 @@ print_stroke(stroke *s)
       int channel = (s->status & 0x0f) + 1;
       switch (status) {
       case 0x90:
-	printf("%s%d-%d ", note_names[s->data % 12], s->data / 12, channel);
+	printf("%s%d-%d ", note_names[s->data % 12],
+	       s->data / 12 + midi_octave, channel);
 	break;
       case 0xb0:
 	if (s->step != 1)
@@ -740,11 +743,13 @@ parse_midi(char *tok, char *s, int lhs,
   // normalize to lowercase
   for (t = s; *t; t++) *t = tolower(*t);
   // octave number or data byte (not permitted with 'pb', otherwise required)
-  if (isdigit(*p) && sscanf(p, "%d%n", &m, &n) == 1) {
-    if (strcmp(s, "pb") == 0) return 0;
-    p += n;
-  } else if (strcmp(s, "pb")) {
-    return 0;
+  if (strcmp(s, "pb")) {
+    if ((*p == '-' || isdigit(*p)) &&
+	sscanf(p, "%d%n", &m, &n) == 1) {
+      p += n;
+    } else {
+      return 0;
+    }
   }
   // step size ('cc' and 'pb' only)
   if (*p == '[') {
@@ -821,7 +826,7 @@ parse_midi(char *tok, char *s, int lhs,
     // we must be looking at a MIDI note here, with m denoting the octave
     // number; first character is the note name (must be a..g); optionally,
     // the second character may denote an accidental (# or b)
-    n = note_number(s[0], s[1], m);
+    n = note_number(s[0], s[1], m - midi_octave);
     if (n < 0 || n > 127) return 0;
     *status = 0x90 | k; *data = n;
     return 1;
@@ -1143,6 +1148,7 @@ read_config_file(void)
     debug_regex = default_debug_regex;
     debug_strokes = default_debug_strokes;
     debug_keys = default_debug_keys;
+    midi_octave = 0;
 
     while ((line=read_line(f, config_file_name)) != NULL) {
       //printf("line: %s", line);
@@ -1195,6 +1201,16 @@ read_config_file(void)
       }
       if (!strcmp(tok, "DEBUG_KEYS")) {
 	debug_keys = 1;
+	continue;
+      }
+      if (!strncmp(tok, "MIDI_OCTAVE", 11)) {
+	char *a = tok+11;
+	int k, n;
+	if (sscanf(a, "%d%n", &k, &n) == 1 && !a[n]) {
+	  midi_octave = k;
+	} else {
+	  fprintf(stderr, "invalid octave offset: %s\n", a);
+	}
 	continue;
       }
       which_key = tok;

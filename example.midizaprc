@@ -31,11 +31,18 @@
 # <A..G><#b><0..10> (MIDI notes): MIDI note (on or off)
 
 # Note messages are specified using the cutomary notation (note name
-# A..G, optionally followed by an accidental, # or b, followed by a
-# (zero-based) MIDI octave number. Note that all MIDI octaves start at
-# the note C, so B0 comes before C1. C5 denotes middle C, A5 is the
-# chamber pitch (usually at 440 Hz). Enharmonic spellings are
-# equivalent, so, e.g., D# and Eb denote exactly the same MIDI note.
+# A..G, optionally followed by an accidental, # or b, followed by a MIDI
+# octave number. Enharmonic spellings are equivalent, so, e.g., D# and
+# Eb denote exactly the same MIDI note. All MIDI octaves start at the
+# note C, so B0 comes before C1. By default, octave numbers are
+# zero-based, so C0 is MIDI note 0, C5 denotes middle C, A5 is the
+# chamber pitch (usually at 440 Hz), etc. However, you can adjust this
+# to your liking by specifying the offset of the lowest MIDI octave.
+# Two of the most common alternatives are listed below (uncomment one of
+# the following lines to use these):
+
+#MIDI_OCTAVE-1 # ASA (Acoustical Society of America; middle C is C4)
+#MIDI_OCTAVE-2 # alternate MIDI (various manufacturers; middle C is C3)
 
 # The program distinguishes between messages on different MIDI
 # channels. By default, messages are assumed to be on MIDI channel 1,

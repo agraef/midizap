@@ -93,3 +93,4 @@ extern int debug_regex, debug_strokes, debug_keys;
 extern int default_debug_regex, default_debug_strokes, default_debug_keys;
 extern char *config_file_name;
 extern int enable_jack_output;
+extern int midi_octave;

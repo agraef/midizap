@@ -230,7 +230,8 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
     char name[100] = "??", *suffix = "";
     switch (status) {
     case 0x90:
-      sprintf(name, "%s%d-%d", note_names[data % 12], data / 12, chan+1);
+      sprintf(name, "%s%d-%d", note_names[data % 12],
+	      data / 12 + midi_octave, chan+1);
       break;
     case 0xb0: {
       int step = tr->cc_step[chan][data][dir>0];
