@@ -100,7 +100,9 @@ As already mentioned, the `midizap` program can also be used to translate MIDI i
 
 You enable MIDI output by running the program as `midizap -o`. This will equip the `midizap` Jack MIDI client with an additional output port named `midi_out` (visible on the left side of QJackCtl's Connection window). 
 
-The example.midizaprc file comes with a sample configuration in the `[MIDI]` section for illustration purposes. You can try it and test that it works by running `midizap -o`, firing up a MIDI synthesizer such as [FluidSynth][] or its graphical front-end [Qsynth][], and connecting the two. In the sample configuration, the notes `C5` thru `F5` in the middle octave have been set up so that they play some MIDI notes, and the modulation wheel (`CC1`) can be used as a MIDI volume controller (`CC7`). The configuration entry looks as follows:
+The example.midizaprc file comes with a sample configuration in the special `[MIDI]` default section for illustration purposes. This section is only active if the program is run with the `-o` option. It allows MIDI output to be sent to any connected applications, no matter which window currently has the keyboard focus. This is probably the most common way to use this feature, but of course it is also possible to have application-specific MIDI translations, in the same way as with X11 key bindings. In fact, you can freely mix mouse actions, key presses and MIDI messages in all translations.
+
+You can try it and test that it works by running `midizap -o`, firing up a MIDI synthesizer such as [FluidSynth][] or its graphical front-end [Qsynth][], and employing QjackCtl to connect its input it to midizap's output port. In the sample configuration, the notes `C4` thru `F4` in the small octave have been set up so that they play some MIDI notes, and the modulation wheel (`CC1`) can be used as a MIDI volume controller (`CC7`). The relevant excerpt from the configuration entry looks as follows:
 
 [FluidSynth]: http://www.fluidsynth.org/
 [Qsynth]: https://qsynth.sourceforge.io/
@@ -108,16 +110,26 @@ The example.midizaprc file comes with a sample configuration in the `[MIDI]` sec
 ~~~
 [MIDI]
 
- C5    C3-10
- D5    C#3-10
- E5    D3-10
- F5    D#3-10
+ C4    C3-10
+ D4    C#3-10
+ E4    D3-10
+ F4    D#3-10
 
- CC1=  CC7-10
+ CC7=  CC7-10
 ~~~
 
-**NOTE:** The special `[MIDI]` default section being used here is only active if the program is run with the `-o` option. This allows MIDI output to be sent to any connected applications, no matter which window currently has the keyboard focus. This is probably the most common way to use this feature, but of course it is also possible to have application-specific MIDI translations, in the same way as with X11 key bindings. In fact, you can freely mix mouse actions, key presses and MIDI messages in all translations.
+Note the `-10` suffix on the output messages in the above example, which indicates that output goes to MIDI channel 10. In midizaprc syntax, MIDI channels are 1-based, so they are numbered 1..16, and 10 denotes the GM (General MIDI) drum channel.
 
-Note that the `-10` suffix on the output messages in the above example indicates that output goes to MIDI channel 10 (the drum channel). E.g., `C3-10`, which is bound to `C5`, is the note C in the third MIDI octave, which on channel 10 will produce the sound of a bass drum, at least on GM (General MIDI) compatible synthesizers like Fluidsynth. The bindings for the modulation wheel at the end of the entry send control changes for controller 7 on the same channel (`CC7-10`). This is the MIDI volume controller, so by turning the modulation wheel you can dial in the volume on the drum channel that you want. The program keeps track of the values of both input and output controllers on all MIDI channels internally, so all that happens automagically.
+E.g., the input note `C4` is mapped to `C3-10`, the note C in the third MIDI octave, which on channel 10 will produce the sound of a bass drum, at least on GM compatible synthesizers like Fluidsynth. The binding for the volume controller (`CC7`) at the end of the entry sends volume changes to the same drum channel (`CC7-10`), so that you can use the volume control on your keyboard to dial in the volume on the drum channel that you want. The program keeps track of the values of both input and output controllers on all MIDI channels internally, so with the translations above all that happens automagically.
 
-Besides MIDI notes and control change (`CC`) messages, the `midizap` program also supports receiving and sending program change (`PC`) and pitch bend (`PB`) messages. This should cover most common use cases. Other messages (in particular, aftertouch and system messages) are not supported right now, but may be added in the future. Again, please refer to the example.midizaprc file and the beginning of readconfig.c for further details.
+A note on the MIDI octave numbers is in order here. There are various different standards for numbering octaves, and different programs use different standards, which can be rather confusing. There's the Helmholtz standard, which is still widely used, but only in German-speaking countries, and the ASA (Acoustical Society of America) standard where middle C is C4 (one less than zero-based octave numbers, so the sub-contra octave starts at C-1). At least two standards exist for MIDI octave numbering, one in which middle C is C3 (so the sub-contra octave starts at C-2), and zero-based octave numbers, where the sub-contra octave starts at C0. The latter is what we use in the midizaprc file. It probably appeals most to mathematically-inclined and computer-science people, but it also relates nicely to MIDI note numbers in the range 0..127, since the octave number is just the MIDI note number divided by 12, with the remainder of the division telling you which note in the octave it is (0 = C, 1 = C#, ..., 10 = Bb, 11 = B).
+
+Thus, if you use some MIDI monitoring software to figure out which notes to put into your midizaprc file, first check how the program prints middle C, so that you know how to adjust the octave numbers reported by the monitoring program.
+
+Besides MIDI notes and control change (`CC`) messages, the `midizap` program also supports receiving and sending program change (`PC`) and pitch bend (`PB`) messages. This should cover most common use cases. Other messages (in particular, aftertouch and system messages) are not supported right now, but may be added in the future. Again, please refer to the example.midizaprc file and the comments in the readconfig.c for further details.
+
+## Secondary MIDI Ports
+
+Some MIDI controllers need a more elaborate setup than what we've seen so far, because they have motor faders, LEDs and similar controls requiring feedback from the application. To accommodate these, you can use the `-o2` option of `midizap` to create a second pair of MIDI input and output ports, named `midi_input2` and `midi_output2`. Use of this option also activates a second MIDI default section in the midizaprc file, labeled `[MIDI2]`, which is used exclusively for translating MIDI from the second input port and sending the resulting MIDI data to the second output port. Typically, the translations in the `[MIDI2]` section will be the inverse of those in the `[MIDI]` section, or whatever it takes to translate the MIDI feedback from the application back to MIDI data which the controller understands.
+
+You then wire up the controller to the `midi_input` port of midizap and the `midi_output` port to the application as before, but in addition you also connect the application back to midizap's `midi_input2` port, and the `midi_output2` port to the controller. This second path is what is needed to translate the feedback from the application and send it back to the controller. Please check the example.midizaprc file for a simple example illustrating this kind of setup.

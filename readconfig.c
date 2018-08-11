@@ -44,26 +44,6 @@
   chamber pitch (usually at 440 Hz).  Enharmonic spellings are
   equivalent, so, e.g., D# and Eb denote exactly the same MIDI note.
 
-  *NOTE:* There are various different standards for numbering octaves,
-  and different programs use different standards, which can be rather
-  confusing.  There's the Helmholtz standard, which is still widely
-  used, but only in German-speaking countries, and the ASA standard
-  where middle C is C4 (one less than zero-based octave numbers, so the
-  sub-contra octave starts at C-1).  At least two standards exist for
-  MIDI octave numbering, one in which middle C is C3 (so the sub-contra
-  octave starts at C-2), and zero-based octave numbers, where the
-  sub-contra octave starts at C0 a.k.a. MIDI note 0.  The latter is what
-  we use here, as it probably appeals most to mathematically-inclined
-  and computer-science people like myself.  It also relates nicely to
-  MIDI note numbers, since the octave number is just the MIDI note
-  number divided by 12, with the remainder of the division telling you
-  which note in the octave it is (0 = C, 1 = C#, ..., 10 = Bb, 11 = B).
-
-  Thus, if you use some MIDI monitoring software to figure out which
-  notes to put in your midizaprc file, first check how the program
-  prints middle C, so that you know how to adjust the octave numbers
-  reported by the monitoring program.
-
   More details on the syntax of MIDI messages can be found in the
   comments preceding the parse_midi() routine below.
 

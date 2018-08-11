@@ -28,10 +28,14 @@
 # CC<0..127>: control change message for the given controller
 # PC<0..127>: program change message
 # PB: pitch bend message
-# <A..G><#b><0..10> (MIDI notes): MIDI note (on or off); note names use
-# the customary MIDI notation, with # and b denoting accidentals; the
-# number at the end denotes the MIDI octave in the range 0..10 (C5 is
-# middle C)
+# <A..G><#b><0..10> (MIDI notes): MIDI note (on or off)
+
+# Note messages are specified using the cutomary notation (note name
+# A..G, optionally followed by an accidental, # or b, followed by a
+# (zero-based) MIDI octave number. Note that all MIDI octaves start at
+# the note C, so B0 comes before C1. C5 denotes middle C, A5 is the
+# chamber pitch (usually at 440 Hz). Enharmonic spellings are
+# equivalent, so, e.g., D# and Eb denote exactly the same MIDI note.
 
 # The program distinguishes between messages on different MIDI
 # channels. By default, messages are assumed to be on MIDI channel 1,
@@ -186,24 +190,48 @@
 # The special "MIDI" default section is only active when MIDI output is
 # enabled (midizap -o). This allows you to translate midizap's MIDI
 # input for use with other MIDI devices and applications. Here's a
-# simple example for illustration purposes, which shows how to map the
-# MCU jog wheel to CC7, so that it can be used as a volume control.
+# simple example for illustration purposes, which shows how to map both
+# the MCU master fader and the jog wheel to CC7, so that they can be
+# used as volume controls.
 
- CC60~ CC7-10
+# Note that the MCU master fader is PB (on MIDI channel 9), which has
+# 128 times the range of a MIDI controller, so we scale it down
+# accordingly by specifying a step size of 128.
 
-# The following translations should work on any MIDI keyboard. The first
-# four white keys (C, D, E and F) in the middle octave are mapped to a
-# little drumkit on MIDI channel 10, and the modulation wheel (CC1) is
-# bound to the volume controller on that channel. Hook this up to a
-# GM-compatible software synthesizer such as Fluidsynth/Qsynth to get
-# sound.
+ PB[128]-9= CC7
+ CC60~      CC7
 
- C5    C3-10
- D5    C#3-10
- E5    D3-10
- F5    D#3-10
+# Drumkit example. The following translations should work on most MIDI
+# keyboards. We assume that the keyboard is set to MIDI channel 1 (the
+# usual default). The first four white keys (C, D, E and F) in the
+# fourth MIDI octave are mapped to the notes of a little drumkit on MIDI
+# channel 10, and the volume controller (CC7) is bound to the volume
+# controller on the same channel, so that you can change the output
+# volume as you play the drumkit. Note that you need a GM-compatible
+# software synthesizer such as Fluidsynth/Qsynth to make this work.
 
- CC1=  CC7-10
+ C4    C3-10
+ D4    C#3-10
+ E4    D3-10
+ F4    D#3-10
+
+ CC7=  CC7-10
+
+
+[MIDI2]
+
+# Auxiliary MIDI translations. This is only used when midizap is invoked
+# with the -o2 option, so that it creates a second pair of MIDI input
+# and output ports. Input for this section only comes from the second
+# input port, and output goes to the second output port. This is
+# typically used for feedback to controllers featuring motor faders,
+# LEDs and the like, in which case the translations are often the
+# inverse of what's in the [MIDI] section.
+
+# This is the inverse of the translation in the [MIDI] section above,
+# mapping CC7 back to PB-9 (the MCU master fader), appropriately scaled.
+ CC7= PB[128]-9
+
 
 # Default section (cursor and mouse emulation)
 
