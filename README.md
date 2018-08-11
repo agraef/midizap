@@ -113,8 +113,7 @@ The example.midizaprc file comes with a sample configuration in the `[MIDI]` sec
  E5    D3-10
  F5    D#3-10
 
- CC1+  CC7-10
- CC1-  CC7-10
+ CC1=  CC7-10
 ~~~
 
 **NOTE:** The special `[MIDI]` default section being used here is only active if the program is run with the `-o` option. This allows MIDI output to be sent to any connected applications, no matter which window currently has the keyboard focus. This is probably the most common way to use this feature, but of course it is also possible to have application-specific MIDI translations, in the same way as with X11 key bindings. In fact, you can freely mix mouse actions, key presses and MIDI messages in all translations.

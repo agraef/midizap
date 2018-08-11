@@ -60,19 +60,27 @@
 # the suffixes "+" and "-". Thus, e.g., a key sequence bound to CC7+
 # will be executed each time the value of controller 7 increases, and
 # CC7- will be executed each time it decreases. PB+ and PB- do they same
-# for pitch bends. (There are also some other special modes for the
-# incremental bindings, please check the documentation for details. In
-# particular, the suffixes "<" and ">" can be used in lieu of "+" and
-# "-" to properly interpret the control values of endless rotary
-# encoders, such as the jog wheels on Mackie-like devices.)
+# for pitch bends. You can also use the "=" suffix to indicate that the
+# same translation should be applied to both increases and decreases of
+# the controller or pitch bend value. Thus, e.g., CC7= indicates that
+# the same translation applies for both CC7+ and CC7-. This is most
+# commonly used with pure MIDI -> MIDI translations.
+
+# There is also another special mode for the incremental bindings,
+# incremental "bit-sign" mode. The suffixes "<", ">" and"~" can be used
+# in lieu of "+", "-" and "=" with the CC token to properly interpret
+# the control values of endless rotary encoders and jog wheels on
+# Mackie-like devices. These encoders send values < 64 for increases,
+# and > 64 for decreases, where the first 6 bits of the value denote the
+# actual amount of change relative to the current value.
 
 # As already mentioned, translations can also contain other MIDI
-# messages, in order to translate MIDI input to be passed on to to other
-# MIDI devices and applications.  In fact, X KeySyms and MIDI messages
-# can be mixed freely in the output.  To enable this, invoke the program
-# with the '-o' option.  This creates a MIDI output port, which can then
-# be hooked up to other Jack MIDI applications.  (Otherwise, MIDI
-# messages in the translations will just be ignored.)
+# messages, in order to translate MIDI input to MIDI output to be passed
+# on to to other MIDI devices and applications. In fact, X KeySyms and
+# MIDI messages can be mixed freely in the output. To enable this,
+# invoke the program with the '-o' option.  This creates a MIDI output
+# port, which can then be hooked up to other Jack MIDI applications.
+# (Otherwise, MIDI messages in the translations will just be ignored.)
 
 # Debugging options: You want to run the program in a terminal window to
 # see its output when using these. The following line, when uncommented,
