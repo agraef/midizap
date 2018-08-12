@@ -190,7 +190,66 @@ void reload_callback(void)
   have_window = 0;
 }
 
-static char *note_names[] = { "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B" };
+static void debug_section(translation *tr)
+{
+  if (tr && debug_regex && (!have_window || tr != last_translation)) {
+    last_translation = tr;
+    have_window = 1;
+    if (tr != NULL) {
+      printf("translation: %s for %s (class %s)\n",
+	     tr->name, last_window_name, last_window_class);
+    } else {
+      printf("no translation found for %s (class %s)\n",
+	     last_window_name, last_window_class);
+    }
+  }
+}
+
+static char *debug_key(translation *tr, char *name,
+		       int status, int chan, int data, int dir)
+{
+  static char *note_names[] = { "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B" };
+  char *suffix = "";
+  strcpy(name, "??");
+  switch (status) {
+  case 0x90:
+    sprintf(name, "%s%d-%d", note_names[data % 12],
+	    data / 12 + midi_octave, chan+1);
+    break;
+  case 0xb0: {
+    int step = tr->cc_step[chan][data][dir>0];
+    if (!dir)
+      suffix = "";
+    else if (tr->is_incr[chan][data])
+      suffix = (dir<0)?"<":">";
+    else
+      suffix = (dir<0)?"-":"+";
+    if (dir && step != 1)
+      sprintf(name, "CC%d[%d]-%d%s", data, step, chan+1, suffix);
+    else
+      sprintf(name, "CC%d-%d%s", data, chan+1, suffix);
+    break;
+  }
+  case 0xc0:
+    sprintf(name, "PC%d-%d", data, chan+1);
+    break;
+  case 0xe0: {
+    int step = tr->pb_step[chan][dir>0];
+    if (!dir)
+      suffix = "";
+    else
+      suffix = (dir<0)?"-":"+";
+    if (dir && step != 1)
+      sprintf(name, "PB[%d]-%d%s", step, chan+1, suffix);
+    else
+      sprintf(name, "PB-%d%s", chan+1, suffix);
+    break;
+  }
+  default: // this can't happen
+    break;
+  }
+  return name;
+}
 
 void
 send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
@@ -214,58 +273,14 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
     s = fetch_stroke(tr, portno, status, chan, data, index, dir);
   }
 
-  if (s && debug_regex && (!have_window || tr != last_translation)) {
-    last_translation = tr;
-    have_window = 1;
-    if (tr != NULL) {
-      printf("translation: %s for %s (class %s)\n",
-	     tr->name, last_window_name, last_window_class);
-    } else {
-      printf("no translation found for %s (class %s)\n",
-	     last_window_name, last_window_class);
-    }
+  if (tr && debug_regex) {
+    debug_section(tr);
   }
 
-  if (debug_keys && s) {
-    char name[100] = "??", *suffix = "";
-    switch (status) {
-    case 0x90:
-      sprintf(name, "%s%d-%d", note_names[data % 12],
-	      data / 12 + midi_octave, chan+1);
-      break;
-    case 0xb0: {
-      int step = tr->cc_step[chan][data][dir>0];
-      if (!dir)
-	suffix = "";
-      else if (tr->is_incr[chan][data])
-	suffix = (dir<0)?"<":">";
-      else
-	suffix = (dir<0)?"-":"+";
-      if (dir && step != 1)
-	sprintf(name, "CC%d[%d]-%d%s", data, step, chan+1, suffix);
-      else
-	sprintf(name, "CC%d-%d%s", data, chan+1, suffix);
-      break;
-    }
-    case 0xc0:
-      sprintf(name, "PC%d-%d", data, chan+1);
-      break;
-    case 0xe0: {
-      int step = tr->pb_step[chan][dir>0];
-      if (!dir)
-	suffix = "";
-      else
-	suffix = (dir<0)?"-":"+";
-      if (dir && step != 1)
-	sprintf(name, "PB[%d]-%d%s", step, chan+1, suffix);
-      else
-	sprintf(name, "PB-%d%s", chan+1, suffix);
-      break;
-    }
-    default: // this can't happen
-      break;
-    }
-    print_stroke_sequence(name, dir?"":index?"U":"D", s);
+  if (s && debug_keys) {
+    char name[100];
+    print_stroke_sequence(debug_key(tr, name, status, chan, data, dir),
+			  dir?"":index?"U":"D", s);
   }
   while (s) {
     if (s->keysym) {
