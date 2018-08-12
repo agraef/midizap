@@ -50,7 +50,7 @@ typedef struct _stroke {
   int press; // zero -> release, non-zero -> press
   // keysym == 0 => MIDI event
   int status, data; // status and, if applicable, first data byte
-  int step; // step size for pitch bends (1 by default)
+  int step; // step size (1, 127 or 8191 by default, depending on status)
   // the incremental bit indicates an incremental control change (typically
   // used with endless rotary encoders) to be represented as a sign bit value
   uint8_t incr;

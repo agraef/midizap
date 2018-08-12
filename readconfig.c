@@ -175,7 +175,9 @@
   the "~" suffix can be used to indicate an incremental CC message in
   sign bit encoding.  Specifying step sizes with incremental CC and PB
   messages works as well, but scales the values *up* rather than down on
-  the output side.
+  the output side.  In fact, on the output side step sizes also work
+  with keypress-style messages (except PC), where they set the value for
+  the "on" state.
 
   Finally, on the output side there's a special token of the form
   CH<1..16>, which doesn't actually generate any MIDI message.  Rather,
@@ -515,11 +517,15 @@ print_stroke(stroke *s)
       int channel = (s->status & 0x0f) + 1;
       switch (status) {
       case 0x90:
-	printf("%s%d-%d ", note_names[s->data % 12],
-	       s->data / 12 + midi_octave, channel);
+	if (s->step)
+	  printf("%s%d[%d]-%d ", note_names[s->data % 12],
+		 s->data / 12 + midi_octave, s->step, channel);
+	else
+	  printf("%s%d-%d ", note_names[s->data % 12],
+		 s->data / 12 + midi_octave, channel);
 	break;
       case 0xb0:
-	if (s->step != 1)
+	if (s->step)
 	  printf("CC%d[%d]-%d%s ", s->data, s->step, channel, s->incr?"~":"");
 	else
 	  printf("CC%d-%d%s ", s->data, channel, s->incr?"~":"");
@@ -528,7 +534,7 @@ print_stroke(stroke *s)
 	printf("PC%d-%d ", s->data, channel);
 	break;
       case 0xe0:
-	if (s->step != 1)
+	if (s->step)
 	  printf("PB[%d]-%d ", s->step, channel);
 	else
 	  printf("PB-%d ", channel);
@@ -679,7 +685,9 @@ re_press_temp_modifiers(void)
   }
 }
 
-/* Parser for the MIDI message syntax. The syntax we actually parse here is:
+/* Parser for the MIDI message syntax. The same parser is used for both
+   the left-hand side (lhs) and the right-hand side (rhs) of a translation.
+   The syntax we actually parse here is:
 
    tok  ::= ( note | msg ) [ number ] [ "[" number "]" ] [ "-" number] [ incr ]
    note ::= ( "a" | ... | "g" ) [ "#" | "b" ]
@@ -693,32 +701,33 @@ re_press_temp_modifiers(void)
    suffix with the third number (after the dash) denotes the MIDI
    channel; otherwise the default MIDI channel is used.
 
-   Note that not all combinations are possible -- "pb" has no data byte; only
-   "cc" and "pb" may be followed by a step size in brackets; and "ch" must
-   *not* occur as the first token and is followed by just a channel number.
-   (In fact, "ch" is no real MIDI message at all; it just sets the default
-   MIDI channel for subsequent messages in the output sequence.)
+   Note that not all combinations are possible -- "pb" has no data byte;
+   on the lhs, a step size in brackets is only permitted with "cc" and
+   "pb"; and "ch" must *not* occur on the lhs at all, and is followed by
+   just a channel number.  (In fact, "ch" is no real MIDI message at
+   all; it just sets the default MIDI channel for subsequent messages in
+   the output sequence.)
 
-   The incr flag indicates an "incremental" controller or pitch bend value
-   which responds to up ("+") and down ("-") changes; it is only permitted in
-   conjunction with "cc" and "pb", and (with one exception, see below) only on
-   the left-hand side of a translation. In addition, "<" and ">" can be used
-   in lieu of "-" and "-" to indicate a relative controller in "sign bit"
-   representation, where controller values > 64 denote down, and values < 64
-   up changes. This notation is only permitted with "cc". It is used for
-   endless rotary encoders, jog wheels and the like, as can be found, e.g., on
-   Mackie-like units.
+   The incr flag indicates an "incremental" controller or pitch bend
+   value which responds to up ("+") and down ("-") changes; it is only
+   permitted in conjunction with "cc" and "pb", and (with one exception,
+   see below) only on the lhs of a translation. In addition, "<" and ">"
+   can be used in lieu of "-" and "-" to indicate a relative controller
+   in "sign bit" representation, where controller values > 64 denote
+   down, and values < 64 up changes. This notation is only permitted
+   with "cc". It is used for endless rotary encoders, jog wheels and the
+   like, as can be found, e.g., on Mackie-like units.
 
-   Finally, the flags "=" and "~" are used in lieu of "+"/"-" or "<"/">",
-   respectively, to denote a "bidirectional" translation which applies to both
-   positive and negative changes of the controller or pitch bend value. Since
-   bidirectional translations cannot have distinct keystroke sequences for up
-   and down changes associated with them, this makes most sense with pure MIDI
-   translations.
+   Finally, the flags "=" and "~" are used in lieu of "+"/"-" or
+   "<"/">", respectively, to denote a "bidirectional" translation which
+   applies to both positive and negative changes of the controller or
+   pitch bend value. Since bidirectional translations cannot have
+   distinct keystroke sequences for up and down changes associated with
+   them, this makes most sense with pure MIDI translations.
 
-   The only incr flag which is also permitted on the right-hand side of a
-   translation, and only with "cc", is the "~" flag, which is used to denote a
-   relative (sign bit) controller change on output. */
+   The only incr flag which is also permitted on the rhs of a
+   translation, and only with "cc", is the "~" flag, which is used to
+   denote a relative (sign bit) controller change on output. */
 
 static int note_number(char c, char b, int k)
 {
@@ -755,10 +764,10 @@ parse_midi(char *tok, char *s, int lhs,
       return 0;
     }
   }
-  // step size ('cc' and 'pb' only)
+  // step size
   if (*p == '[') {
-    if (strcmp(s, "cc") && strcmp(s, "pb")) return 0;
     if (sscanf(++p, "%d%n", &l, &n) == 1) {
+      if (l <= 0) return 0; // must be positive
       p += n;
       if (*p != ']') return 0;
       p++;
@@ -767,10 +776,12 @@ parse_midi(char *tok, char *s, int lhs,
       return 0;
     }
   } else {
-    *step = 1;
+    // sentinel value; for the lhs, this will be filled in below; for
+    // the rhs this indicates the default value
+    *step = 0;
   }
+  // suffix with MIDI channel (not permitted with 'ch')
   if (p[0] == '-' && isdigit(p[1])) {
-    // suffix with MIDI channel (not permitted with 'ch')
     if (strcmp(s, "ch") == 0) return 0;
     if (sscanf(++p, "%d%n", &k, &n) == 1) {
       // check that it is a valid channel number
@@ -781,8 +792,8 @@ parse_midi(char *tok, char *s, int lhs,
       return 0;
     }
   }
+  // incremental flag ("pb" and "cc" only)
   if (*p && strchr("+-=<>~", *p)) {
-    // incremental flag ("pb" and "cc" only)
     if (strcmp(s, "pb") && strcmp(s, "cc")) return 0;
     // these are only permitted with "cc"
     if (strchr("<>~", *p) && strcmp(s, "cc")) return 0;
@@ -805,19 +816,26 @@ parse_midi(char *tok, char *s, int lhs,
   }
   // check for trailing garbage
   if (*p) return 0;
+  // check for the different messages types we support
   if (strcmp(s, "ch") == 0) {
-    if (lhs) return 0;
-    // we return a bogus status of 0 here, along with the MIDI channel in the
-    // data byte; also check that the MIDI channel is in the proper range
+    if (lhs) return 0; // not permitted on lhs
+    if (*step) return 0; // step size not permitted
+    // we return a bogus status of 0 here, along with the MIDI channel
+    // in the data byte; also check that the MIDI channel is in the
+    // proper range
     if (m < 1 || m > 16) return 0;
     *status = 0; *data = m-1;
     return 1;
   } else if (strcmp(s, "pb") == 0) {
     // pitch bend, no data byte
     *status = 0xe0 | k; *data = 0;
+    // step size only permitted on lhs if incremental
+    if (lhs && *step && !*incr) return 0;
+    if (lhs && !*step) *step = 1; // default
     return 1;
   } else if (strcmp(s, "pc") == 0) {
     // program change
+    if (*step) return 0; // step size not permitted
     if (m < 0 || m > 127) return 0;
     *status = 0xc0 | k; *data = m;
     return 1;
@@ -825,11 +843,15 @@ parse_midi(char *tok, char *s, int lhs,
     // control change
     if (m < 0 || m > 127) return 0;
     *status = 0xb0 | k; *data = m;
+    // step size only permitted on lhs if incremental
+    if (lhs && *step && !*incr) return 0;
+    if (lhs && !*step) *step = 1; // default
     return 1;
   } else {
-    // we must be looking at a MIDI note here, with m denoting the octave
-    // number; first character is the note name (must be a..g); optionally,
-    // the second character may denote an accidental (# or b)
+    if (lhs && *step) return 0; // step size not permitted on lhs
+    // we must be looking at a MIDI note here, with m denoting the
+    // octave number; first character is the note name (must be a..g);
+    // optionally, the second character may denote an accidental (# or b)
     n = note_number(s[0], s[1], m - midi_octave);
     if (n < 0 || n > 127) return 0;
     *status = 0x90 | k; *data = n;

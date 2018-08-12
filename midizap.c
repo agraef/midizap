@@ -78,7 +78,8 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
   switch (status & 0xf0) {
   case 0x90:
     if (!index) {
-      msg[2] = 127;
+      msg[2] = step?step:127;
+      if (msg[2] > 127) msg[2] = 127;
     } else {
       msg[2] = 0;
     }
@@ -91,7 +92,7 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
       } else {
 	// increment (dir==1) or decrement (dir==-1) the current value,
 	// clamping it to the 0..127 data byte range
-	if (!step) return;
+	if (!step) step = 1;
 	dir *= step;
 	if (dir > 0) {
 	  if (ccvalue[chan][data] >= 127) return;
@@ -105,7 +106,8 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
 	msg[2] = ccvalue[chan][data];
       }
     } else if (!index) {
-      msg[2] = 127;
+      msg[2] = step?step:127;
+      if (msg[2] > 127) msg[2] = 127;
     } else {
       msg[2] = 0;
     }
@@ -115,7 +117,7 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
     // range (0..16383, with 8192 being the center value)
     int pbval = 0;
     if (dir) {
-      if (!step) return;
+      if (!step) step = 1;
       dir *= step;
       if (dir > 0) {
 	if (pbvalue[chan] >= 16383) return;
@@ -128,7 +130,8 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
       }
       pbval = pbvalue[chan];
     } else if (!index) {
-      pbval = 16383;
+      pbval = 8192+(step?step:8191);
+      if (pbval > 16383) pbval = 16383;
     } else {
       // we use 8192 (center) as the "home" (a.k.a. "off") value, so the pitch
       // will only bend up, never down below the center value
@@ -192,10 +195,12 @@ void reload_callback(void)
 
 static void debug_section(translation *tr)
 {
-  if (tr && debug_regex && (!have_window || tr != last_translation)) {
+  // we do some caching of the last printed translation here, so that we don't
+  // print the same message twice
+  if (debug_regex && (!have_window || tr != last_translation)) {
     last_translation = tr;
     have_window = 1;
-    if (tr != NULL) {
+    if (tr) {
       printf("translation: %s for %s (class %s)\n",
 	     tr->name, last_window_name, last_window_class);
     } else {
@@ -266,6 +271,32 @@ static void debug_input(translation *tr, int portno,
 	   debug_key(tr, name, status, chan, data, 0), data2);
 }
 
+// Some machinery to handle the debugging of section matches. This is
+// necessary since some inputs may generate a lot of calls to send_strokes()
+// without ever actually matching any output sequence at all. In such cases we
+// want to prevent a cascade of useless debugging messages by handling the
+// message printing in a lazy manner.
+
+static int debug_state = 0, debug_count = 0;
+static translation *debug_tr = NULL;
+
+static void start_debug()
+{
+  // start a debugging section
+  debug_state = debug_regex;
+  debug_tr = NULL;
+  debug_count = 0;
+}
+
+static void end_debug()
+{
+  // end a debugging section; if we still haven't matched an output sequence,
+  // but processed any input at all, we print the last matched translation
+  // section now anyway
+  if (debug_state && debug_count) debug_section(debug_tr);
+  debug_state = 0;
+}
+
 void
 send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
 	     int index, int dir)
@@ -288,8 +319,19 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
     s = fetch_stroke(tr, portno, status, chan, data, index, dir);
   }
 
-  if (tr && debug_regex) {
-    debug_section(tr);
+  if (debug_regex) {
+    if (s) {
+      // found a sequence, print the matching section now
+      debug_section(tr);
+      debug_state = 0;
+    } else {
+      // no matches yet; to prevent a cascade of spurious messages, we defer
+      // printing the matched section for now and just record it instead; it
+      // may then be printed later
+      debug_tr = tr;
+      // record that we actually tried to process some input
+      debug_count = 1;
+    }
   }
 
   if (s && debug_keys) {
@@ -504,10 +546,13 @@ handle_event(uint8_t *msg, uint8_t portno)
   if (debug_midi) debug_input(tr, portno, status, chan, msg[1], msg[2]);
   switch (status) {
   case 0xc0:
+    start_debug();
     send_strokes(tr, portno, status, chan, msg[1], 0, 0);
     send_strokes(tr, portno, status, chan, msg[1], 1, 0);
+    end_debug();
     break;
   case 0x90:
+    start_debug();
     if (msg[2]) {
       if (!notedown[portno][chan][msg[1]]) {
 	send_strokes(tr, portno, status, chan, msg[1], 0, 0);
@@ -519,8 +564,10 @@ handle_event(uint8_t *msg, uint8_t portno)
 	notedown[portno][chan][msg[1]] = 0;
       }
     }
+    end_debug();
     break;
   case 0xb0:
+    start_debug();
     if (msg[2]) {
       if (!inccdown[portno][chan][msg[1]]) {
 	send_strokes(tr, portno, status, chan, msg[1], 0, 0);
@@ -532,6 +579,15 @@ handle_event(uint8_t *msg, uint8_t portno)
 	inccdown[portno][chan][msg[1]] = 0;
       }
     }
+    // This is a bit of a kludge, since controllers can be used in two
+    // different ways. It may happen that we haven't got any translations for
+    // the pressed/released state, and that because of a step size >1 the
+    // incremental controllers also fail to generate a single stroke. In such
+    // a case, we want to pretend that we haven't actually seen any input at
+    // all, to prevent spurios section matches when regex debugging is in
+    // effect. So we reset the debug counter here, which keeps track of the
+    // number of generated strokes.
+    debug_count = 0;
     if (check_incr(tr, portno, chan, msg[1])) {
       // Incremental controller a la MCU. NB: This assumes a signed bit
       // representation (values above 0x40 indicate counter-clockwise
@@ -565,9 +621,11 @@ handle_event(uint8_t *msg, uint8_t portno)
 	}
       }
     }
+    end_debug();
     break;
   case 0xe0: {
     int bend = ((msg[2] << 7) | msg[1]) - 8192;
+    start_debug();
     //fprintf(stderr, "pb %d\n", bend);
     if (bend) {
       if (!inpbdown[portno][chan]) {
@@ -580,6 +638,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	inpbdown[portno][chan] = 0;
       }
     }
+    debug_count = 0;
     if (check_pbs(tr, portno, chan) && inpbvalue[portno][chan] - 8192 != bend) {
       int dir = inpbvalue[portno][chan] - 8192 > bend ? -1 : 1;
       int step = get_pb_step(tr, portno, chan, dir);
@@ -593,6 +652,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	}
       }
     }
+    end_debug();
     break;
   }
   default:
