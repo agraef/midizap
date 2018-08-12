@@ -41,8 +41,8 @@
 # Two of the most common alternatives are listed below (uncomment one of
 # the following lines to use these):
 
-#MIDI_OCTAVE-1 # ASA (Acoustical Society of America; middle C is C4)
-#MIDI_OCTAVE-2 # alternate MIDI (various manufacturers; middle C is C3)
+#MIDI_OCTAVE -1 # ASA (Acoustical Society of America; middle C is C4)
+#MIDI_OCTAVE -2 # alternate MIDI (various manufacturers; middle C is C3)
 
 # The program distinguishes between messages on different MIDI
 # channels. By default, messages are assumed to be on MIDI channel 1,

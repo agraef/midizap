@@ -1214,6 +1214,9 @@ read_config_file(void)
       if (!strncmp(tok, "MIDI_OCTAVE", 11)) {
 	char *a = tok+11;
 	int k, n;
+	if (!*a)
+	  // look for the offset in the next token
+	  a = token(NULL, &delim);
 	if (sscanf(a, "%d%n", &k, &n) == 1 && !a[n]) {
 	  midi_octave = k;
 	} else {
