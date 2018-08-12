@@ -14,11 +14,11 @@ midizap provides you with a way to hook up just about any MIDI controller and us
 
 ## Description
 
-The `midizap` program translates Jack MIDI input into X keystrokes, mouse button presses, scroll wheel events, or, as an option, MIDI output. It does this by matching the (name and class of the) focused window against the regular expressions for each application section in its configuration (midizaprc) file, and using a matching set of translations if available. Default translations for applications not explicitly matching any of the sections in the configuration file can be given as well.
+The `midizap` program translates Jack MIDI input into X keystrokes, mouse button presses, scroll wheel events, or, as an option, MIDI output. It does this by matching the `WM_CLASS` and `WM_NAME` properties of the window that has the keyboard focus against the regular expressions for each application section in its configuration (midizaprc) file. If a regex matches, the corresponding set of translations is used. Otherwise the program falls back to a set of translations in a default section at the end of the file, if available.
 
 By these means incoming MIDI messages can be translated to sequences of multiple mouse actions and keystrokes, including the pressing and releasing of modifier keys. In addition, MIDI messages can be generated and output using Jack MIDI.
 
-The midizaprc file is just an ordinary text file which you can edit to configure the program for use with any kind of application taking keyboard, mouse or MIDI input. An example.midizaprc file containing sample configurations for some  applications is included in the sources.
+The midizaprc file is just an ordinary text file which you can edit to configure the program for use with any kind of application taking keyboard, mouse or MIDI input. An example.midizaprc file containing sample configurations for some applications is included in the sources.
 
 ## Installation
 
@@ -34,7 +34,7 @@ After installation the system-wide default configuration file will be in /etc/mi
 
     cp /etc/midizaprc ~/.midizaprc
 
-The ~/.midizaprc file, if it exists, takes priority over /etc/midizaprc, so it becomes your personal `midizap` configuration. You can edit this file as you see fit, in order to customize existing or add your own application configurations for the MIDI controller that you have. (If you create any new entries which might be useful to other users of this program, please consider submitting them so that they can be included in future releases.)
+The ~/.midizaprc file, if it exists, takes priority over /etc/midizaprc, so it becomes your personal `midizap` configuration. You can edit this file as you see fit, in order to customize existing or add your own application configurations for the MIDI controller that you have. (If you create any new configurations which might be useful to other users of this program, please consider submitting them so that they can be included in future releases.)
 
 **NOTE:** The program automatically reloads the midizaprc file whenever it notices that the file has been changed. Thus you can edit the file while the program keeps running, and have the changes take effect immediately without having to restart the program. When working on new translations, you may want to run the program in a terminal, and employ some or all of the debugging options explained below to see exactly how your translations are being processed.
 
@@ -86,7 +86,7 @@ A5-1[D]: XK_Down/D
 A5-1[U]: XK_Down/U 
 ~~~
 
-It goes without saying that these debugging options will be very helpful when you start developing your own bindings. The `-d` option can be combined with various option characters to choose exactly which kinds of debugging output you want; `r` ("regex") prints the matched translation section along with the window name and class of the focused window; `s` ("strokes") prints the parsed contents of the configuration file in a human-readable form whenever the file is loaded; `k` ("keys") shows the recognized translations as the program executes them, in the same format as `s`; and `j` adds some debugging output from the Jack driver. You can also just use `-d` to enable all debugging output.
+It goes without saying that these debugging options will be very helpful when you start developing your own bindings. The `-d` option can be combined with various option characters to choose exactly which kinds of debugging output you want; `r` ("regex") prints the matched translation section (if any) along with the window name and class of the focused window; `s` ("strokes") prints the parsed contents of the configuration file in a human-readable form whenever the file is loaded; `k` ("keys") shows the recognized translations as the program executes them, in the same format as `s`; `m` ("MIDI") to print *any* MIDI input, so that you can figure out which MIDI tokens to use for configuring the translations for your controller; and `j` adds some debugging output from the Jack driver. You can also just use `-d` to enable all debugging output. (Most of these options are also available as directives in the midizaprc file; please check the distributed example.midizaprc for details.)
 
 It's also possible to use alternative configuration files, by specifying the midizaprc file to be used with the `-r` option. Also, try `midizap -h` which prints a short help message with the available options and a brief description.
 
@@ -122,14 +122,40 @@ Note the `-10` suffix on the output messages in the above example, which indicat
 
 E.g., the input note `C4` is mapped to `C3-10`, the note C in the third MIDI octave, which on channel 10 will produce the sound of a bass drum, at least on GM compatible synthesizers like Fluidsynth. The binding for the volume controller (`CC7`) at the end of the entry sends volume changes to the same drum channel (`CC7-10`), so that you can use the volume control on your keyboard to dial in the volume on the drum channel that you want. The program keeps track of the values of both input and output controllers on all MIDI channels internally, so with the translations above all that happens automagically.
 
-A note on the MIDI octave numbers is in order here. There are various different standards for numbering octaves, and different programs use different standards, which can be rather confusing. E.g., there's the ASA (Acoustical Society of America) standard where middle C is C4, also known as "scientific" or "American standard" pitch notation. At least two standards exist for MIDI octave numbering, one in which middle C is C3 (so the lowest MIDI octave starts at C-2), and zero-based octave numbers, which start at C0 and have middle C at C5. There's not really a single "best" standard here, but the latter tends to appeal to mathematically inclined and computer-savvy people, and is also what is used by default in the midizaprc file.
-
-However, you can easily change this with a special `MIDI_OCTAVE` directive in the configuration file, please check example.midizaprc for details. Also, if you use some MIDI monitoring software to figure out which notes to put into your midizaprc file, first check how the program prints middle C, so that you know how to adjust the octave numbers reported by the monitoring program (or which `MIDI_OCTAVE` offset to use in your midizaprc file).
-
 Besides MIDI notes and control change (`CC`) messages, the `midizap` program also supports receiving and sending program change (`PC`) and pitch bend (`PB`) messages. This should cover most common use cases. Other messages (in particular, aftertouch and system messages) are not supported right now, but may be added in the future. Again, please refer to the example.midizaprc file and the comments in the readconfig.c for further details.
+
+## Octave Numbering and Other Options
+
+A note on the MIDI octave numbers in MIDI note designations is in order here. There are various different standards for numbering octaves, and different programs use different standards, which can be rather confusing. E.g., there's the ASA (Acoustical Society of America) standard where middle C is C4, also known as "scientific" or "American standard" pitch notation. At least two other standards exist specifically for MIDI octave numbering, one in which middle C is C3 (so the lowest MIDI octave starts at C-2), and zero-based octave numbers, which start at C0 and have middle C at C5. There's not really a single "best" standard here, but the latter tends to appeal to mathematically inclined and computer-savvy people, and is also what is used by default in the midizaprc file.
+
+However, you can easily change this with a special `MIDI_OCTAVE` directive in the configuration file, please check example.midizaprc for details. For instance:
+
+~~~
+MIDI_OCTAVE -1 # ASA pitches (middle C is C4)
+~~~
+
+This is useful, in particular, if you use some external MIDI monitoring software to figure out which notes to put into your midizaprc file. To these ends, just check how the program prints middle C, and adjust the `MIDI_OCTAVE` offset in your midizaprc file accordingly. (This isn't necessary if you use midizap's built-in MIDI monitoring facility, as it always prints out MIDI notes in exactly the form that is used in the midizaprc file, no matter what the `MIDI_OCTAVE` offset happens to be.)
+
+Finally, there are some additional directives (and corresponding command line options) to set midizap's Jack client name and the number of input and output ports it uses. (If both the command line options and directives in the midizaprc file are used, the former take priority, so that it's always possible to override the options from the midizaprc file from the command line.)
+
+Firstly, there's the `-j` option and the `JACK_NAME` directive which change the Jack client name from the default (`midizap`) to whatever you want it to be. To use this option, simply invoke `midizap` as `midizap -j client-name`, or put the following directive into your midizaprc file:
+
+~~~
+JACK_NAME "client-name"
+~~~
+
+This option is useful, in particular, if you're running multiple instances of midizap using different configurations for different controllers, and you want to have the corresponding Jack clients named appropriately, so that they can be distinguished more easily when wiring them up using the QjackCtl patchbay.
+
+Secondly, we've already seen the `-o` option which is used to equip the Jack client with an additional output port. This can also be achieved with the `JACK_PORTS` directive in the midizaprc file, as follows:
+
+~~~
+JACK_PORTS 1
+~~~
+
+You may want to place this directive directly into a configuration file, if the configuration is primarily used for doing MIDI translations, so you want to have the MIDI output enabled by default. Typically, such configurations will include just a default `[MIDI]` section and little else. (As explained below, it's also possible to have *two* pairs of input and output ports, in order to deal with controller feedback from the application. This is achieved by either invoking `midizap` with the `-o2` option, or by employing the `JACK_PORTS 2` directive in the configuration file.)
 
 ## Secondary MIDI Ports
 
-Some MIDI controllers need a more elaborate setup than what we've seen so far, because they have motor faders, LEDs and similar controls requiring feedback from the application. To accommodate these, you can use the `-o2` option of `midizap` to create a second pair of MIDI input and output ports, named `midi_input2` and `midi_output2`. Use of this option also activates a second MIDI default section in the midizaprc file, labeled `[MIDI2]`, which is used exclusively for translating MIDI from the second input port and sending the resulting MIDI data to the second output port. Typically, the translations in the `[MIDI2]` section will be the inverse of those in the `[MIDI]` section, or whatever it takes to translate the MIDI feedback from the application back to MIDI data which the controller understands.
+Some MIDI controllers need a more elaborate setup than what we've seen so far, because they have motor faders, LEDs and similar controls requiring feedback from the application. To accommodate these, you can use the `-o2` option of `midizap`, or the `JACK_PORTS 2` directive in the midizaprc file, to create a second pair of MIDI input and output ports, named `midi_input2` and `midi_output2`. Use of this option also activates a second MIDI default section in the midizaprc file, labeled `[MIDI2]`, which is used exclusively for translating MIDI from the second input port and sending the resulting MIDI data to the second output port. Typically, the translations in the `[MIDI2]` section will be the inverse of those in the `[MIDI]` section, or whatever it takes to translate the MIDI feedback from the application back to MIDI data which the controller understands.
 
-You then wire up the controller to the `midi_input` port of midizap and the `midi_output` port to the application as before, but in addition you also connect the application back to midizap's `midi_input2` port, and the `midi_output2` port to the controller. This second path is what is needed to translate the feedback from the application and send it back to the controller. Please check the example.midizaprc file for a simple example illustrating this kind of setup.
+You then wire up the controller to the `midi_input` port of midizap and the `midi_output` port to the application as before, but in addition you also connect the application back to midizap's `midi_input2` port, and the `midi_output2` port to the controller. This reverse path is what is needed to translate the feedback from the application and send it back to the controller. Please check the example.midizaprc file for a simple example illustrating this kind of setup.
