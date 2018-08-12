@@ -6,11 +6,38 @@
 
 # This program works pretty much like Eric Messick's shuttlepro program,
 # but it translates MIDI input rather than input events from the Contour
-# Design Shuttle devices.  The program creates a Jack MIDI client named
-# "midizap" with a single input port, which you'll have to connect to
-# the MIDI controller that you want to use (e.g., using a patchbay
-# program like qjackctl; non-Jack ALSA MIDI inputs can be accommodated
-# using a2jmidid).
+# Design Shuttle devices.  By default, the program creates a Jack MIDI
+# client named "midizap" with a single input port, which you'll have to
+# connect to the MIDI controller that you want to use (e.g., using a
+# patchbay program like qjackctl; non-Jack ALSA MIDI inputs can be
+# accommodated using a2jmidid).
+
+# Both the Jack client name and the number of (input and output) ports
+# can be adjusted, either from the command line, using the -j and -o
+# options (these always take priority), or by employing the following
+# midizaprc directives.  NOTE: These options only take effect
+# immediately after program start, when the Jack client is initialized.
+# If you edit them later, you need to restart the program, so that a new
+# Jack client is created.
+
+# The JACK_NAME directive is used to change the client name.
+# (Uncomment the line and edit the name as needed.)  This is useful,
+# e.g., if you're running multiple instances of midizap using different
+# configurations for different controllers, and you want to have them
+# named appropriately so that they can be wired up more easily using the
+# qjackctl patchbay.
+
+#JACK_NAME "hello midizap"
+
+# The number of ports given with the JACK_PORTS directive must be
+# 1 or 2.  It causes the given number of both input and output ports to
+# be created.  This option is useful if you want to translate MIDI
+# messages, see the [MIDI] section below for details.  Two input and
+# output ports can be employed, e.g., if you also need to provide
+# backward translations for controller feedback, see the [MIDI2] section
+# below for an example.
+
+#JACK_PORTS 2
 
 # Other than the input being MIDI instead of the Shuttle's key and wheel
 # events, the program works exactly the same. Each section in the file

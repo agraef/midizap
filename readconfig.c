@@ -199,6 +199,8 @@ int debug_midi = 0;
 
 int midi_octave = 0;
 
+char *jack_client_name = NULL;
+
 char *
 allocate(size_t len)
 {
@@ -1209,6 +1211,27 @@ read_config_file(void)
       }
       if (!strcmp(tok, "DEBUG_MIDI")) {
 	debug_midi = 1;
+	continue;
+      }
+      if (!strcmp(tok, "JACK_NAME")) {
+	char *a = token(NULL, &delim);
+	if (!jack_client_name) {
+	  static char buf[100];
+	  strncpy(buf, a, 100); buf[99] = 0; // just in case...
+	  jack_client_name = buf;
+	}
+	continue;
+      }
+      if (!strcmp(tok, "JACK_PORTS")) {
+	char *a = token(NULL, &delim);
+	int k, n;
+	if (!jack_num_outputs) {
+	  if (sscanf(a, "%d%n", &k, &n) == 1 && !a[n] && k>=1 && k<=2) {
+	    jack_num_outputs = k;
+	  } else {
+	    fprintf(stderr, "invalid port number: %s, must be 1 or 2\n", a);
+	  }
+	}
 	continue;
       }
       if (!strncmp(tok, "MIDI_OCTAVE", 11)) {

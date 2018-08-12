@@ -376,10 +376,11 @@ int
 init_jack(JACK_SEQ* seq, uint8_t verbose)
 {
     int err, k;
-    char portname[100];
+    char portname[100],
+      *client_name = seq->client_name?seq->client_name:"midizap";
 
     if(verbose)printf("opening client...\n");
-    seq->jack_client = jack_client_open("midizap", JackNullOption, NULL);
+    seq->jack_client = jack_client_open(client_name, JackNullOption, NULL);
 
     if (seq->jack_client == NULL)
     {

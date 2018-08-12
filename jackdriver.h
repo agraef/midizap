@@ -5,6 +5,7 @@
 
 typedef struct _jseq
 {
+  char *client_name;
   jack_ringbuffer_t **ringbuffer_out;
   jack_ringbuffer_t **ringbuffer_in;
   jack_client_t	*jack_client;

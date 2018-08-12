@@ -23,7 +23,7 @@ typedef struct input_event EV;
 Display *display;
 
 JACK_SEQ seq;
-int enable_jack_output = 0, debug_jack = 0;
+int jack_num_outputs = 0, debug_jack = 0;
 
 void
 initdisplay(void)
@@ -70,7 +70,7 @@ static int16_t pbvalue[16] =
 void
 send_midi(uint8_t portno, int status, int data, int step, int incr, int index, int dir)
 {
-  if (!enable_jack_output) return; // MIDI output not enabled
+  if (!jack_num_outputs) return; // MIDI output not enabled
   uint8_t msg[3];
   int chan = status & 0x0f;
   msg[0] = status;
@@ -273,7 +273,7 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
   int nkeys = 0;
   stroke *s = fetch_stroke(tr, portno, status, chan, data, index, dir);
 
-  if (!s && enable_jack_output) {
+  if (!s && jack_num_outputs) {
     // fall back to default MIDI translation
     tr = default_midi_translation[portno];
     s = fetch_stroke(tr, portno, status, chan, data, index, dir);
@@ -603,11 +603,12 @@ handle_event(uint8_t *msg, uint8_t portno)
 
 void help(char *progname)
 {
-  fprintf(stderr, "Usage: %s [-h] [-o[2]] [-r rcfile] [-d[rskj]]\n", progname);
+  fprintf(stderr, "Usage: %s [-h] [-o[2]] [-j name] [-r rcfile] [-d[rskmj]]\n", progname);
   fprintf(stderr, "-h print this message\n");
   fprintf(stderr, "-o enable MIDI output (add 2 for a second pair of ports)\n");
+  fprintf(stderr, "-j jack client name (default: midizap)\n");
   fprintf(stderr, "-r config file name (default: MIDIZAP_CONFIG_FILE variable or ~/.midizaprc)\n");
-  fprintf(stderr, "-d debug (r = regex, s = strokes, k = keys, j = jack; default: all)\n");
+  fprintf(stderr, "-d debug (r = regex, s = strokes, k = keys, m = midi, j = jack; default: all)\n");
 }
 
 uint8_t quit = 0;
@@ -623,25 +624,23 @@ void quitter()
 #define CONF_FREQ 1
 #define MAX_COUNT (1000000/CONF_FREQ/POLL_INTERVAL)
 
-int n_ports = 1;
-
 int
 main(int argc, char **argv)
 {
   uint8_t msg[3];
   int opt, count = 0;
 
-  while ((opt = getopt(argc, argv, "ho::d::r:")) != -1) {
+  while ((opt = getopt(argc, argv, "ho::d::j:r:")) != -1) {
     switch (opt) {
     case 'h':
       help(argv[0]);
       exit(0);
     case 'o':
-      enable_jack_output = 1;
+      jack_num_outputs = 1;
       if (optarg && *optarg) {
 	const char *a = optarg;
 	if (*a == '2') {
-	  n_ports = 2;
+	  jack_num_outputs = 2;
 	} else if (*a && *a != '1') {
 	  fprintf(stderr, "%s: wrong port number (-o), must be 1 or 2\n", argv[0]);
 	  fprintf(stderr, "Try -h for help.\n");
@@ -682,6 +681,9 @@ main(int argc, char **argv)
 	debug_jack = 1;
       }
       break;
+    case 'j':
+      jack_client_name = optarg;
+      break;
     case 'r':
       config_file_name = optarg;
       break;
@@ -698,14 +700,20 @@ main(int argc, char **argv)
 
   initdisplay();
 
-  seq.n_in = n_ports; seq.n_out = enable_jack_output?n_ports:0;
+  // Force the config file to be loaded initially, so that we pick up the Jack
+  // client name to be used (if not set from the command line). This cannot be
+  // changed later, so if you want to make changes to the client name in the
+  // config file take effect, you need to restart the program.
+  read_config_file();
+
+  seq.client_name = jack_client_name;
+  seq.n_in = jack_num_outputs>1?jack_num_outputs:1;
+  seq.n_out = jack_num_outputs;
   if (!init_jack(&seq, debug_jack)) {
     exit(1);
   }
 
   signal(SIGINT, quitter);
-  // force the config file to be loaded initially
-  count = MAX_COUNT;
   while (!quit) {
     uint8_t portno;
     while (pop_midi(&seq, msg, &portno)) {
