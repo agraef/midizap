@@ -190,10 +190,12 @@
 int default_debug_regex = 0;
 int default_debug_strokes = 0;
 int default_debug_keys = 0;
+int default_debug_midi = 0;
 
 int debug_regex = 0;
 int debug_strokes = 0;
 int debug_keys = 0;
+int debug_midi = 0;
 
 int midi_octave = 0;
 
@@ -1130,7 +1132,8 @@ read_config_file(void)
   }
   if (buf.st_mtime > config_file_modification_time) {
     config_file_modification_time = buf.st_mtime;
-    if (default_debug_regex || default_debug_strokes || default_debug_keys) {
+    if (default_debug_regex || default_debug_strokes || default_debug_keys ||
+	default_debug_midi) {
       printf("Loading configuration: %s\n", config_file_name);
     }
 
@@ -1148,6 +1151,7 @@ read_config_file(void)
     debug_regex = default_debug_regex;
     debug_strokes = default_debug_strokes;
     debug_keys = default_debug_keys;
+    debug_midi = default_debug_midi;
     midi_octave = 0;
 
     while ((line=read_line(f, config_file_name)) != NULL) {
@@ -1201,6 +1205,10 @@ read_config_file(void)
       }
       if (!strcmp(tok, "DEBUG_KEYS")) {
 	debug_keys = 1;
+	continue;
+      }
+      if (!strcmp(tok, "DEBUG_MIDI")) {
+	debug_midi = 1;
 	continue;
       }
       if (!strncmp(tok, "MIDI_OCTAVE", 11)) {

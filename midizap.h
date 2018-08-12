@@ -89,8 +89,9 @@ extern int read_config_file(void);
 extern translation *get_translation(char *win_title, char *win_class);
 extern void print_stroke_sequence(char *name, char *up_or_down, stroke *s);
 extern translation *default_translation, *default_midi_translation[2];
-extern int debug_regex, debug_strokes, debug_keys;
-extern int default_debug_regex, default_debug_strokes, default_debug_keys;
+extern int debug_regex, debug_strokes, debug_keys, debug_midi;
+extern int default_debug_regex, default_debug_strokes, default_debug_keys,
+  default_debug_midi;
 extern char *config_file_name;
 extern int enable_jack_output;
 extern int midi_octave;

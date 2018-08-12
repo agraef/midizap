@@ -251,6 +251,21 @@ static char *debug_key(translation *tr, char *name,
   return name;
 }
 
+static void debug_input(translation *tr, int portno,
+			int status, int chan, int data, int data2)
+{
+  char name[100];
+  if (status == 0xe0)
+    // translate LSB,MSB to a pitch bend value in the range -8192..8191
+    data2 = ((data2 << 7) | data) - 8192;
+  if (status == 0xc0)
+    printf("[%d] %s\n", portno,
+	   debug_key(tr, name, status, chan, data, 0));
+  else
+    printf("[%d] %s value = %d\n", portno,
+	   debug_key(tr, name, status, chan, data, 0), data2);
+}
+
 void
 send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
 	     int index, int dir)
@@ -486,6 +501,7 @@ handle_event(uint8_t *msg, uint8_t portno)
     msg[0] = status | chan;
     msg[2] = 0;
   }
+  if (debug_midi) debug_input(tr, portno, status, chan, msg[1], msg[2]);
   switch (status) {
   case 0xc0:
     send_strokes(tr, portno, status, chan, msg[1], 0, 0);
@@ -647,6 +663,9 @@ main(int argc, char **argv)
 	  case 'k':
 	    default_debug_keys = 1;
 	    break;
+	  case 'm':
+	    default_debug_midi = 1;
+	    break;
 	  case 'j':
 	    debug_jack = 1;
 	    break;
@@ -658,7 +677,8 @@ main(int argc, char **argv)
 	  ++a;
 	}
       } else {
-	default_debug_regex = default_debug_strokes = default_debug_keys = 1;
+	default_debug_regex = default_debug_strokes = default_debug_keys =
+	  default_debug_midi = 1;
 	debug_jack = 1;
       }
       break;

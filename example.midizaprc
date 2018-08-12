@@ -110,8 +110,15 @@
 
 #DEBUG_KEYS
 
+# Finally, the following option prints all MIDI input (with the input port
+# number in the first, and the actual data value in the last column). This is
+# useful as a simple MIDI monitor, especially if you want to figure out which
+# tokens to use in your translations.
+
+#DEBUG_MIDI
+
 # NOTE: The debugging options can also be specified on the command line
-# using -d in conjunction with any of the letters r, s and k (or the
+# using -d in conjunction with any of the letters r, s, k and m (or the
 # letter j if you also want debugging output from Jack).  Just -d
 # without any option letter turns on all debugging options.
 
