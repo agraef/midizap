@@ -19,30 +19,35 @@ JACK_PORTS 2
 
 [MIDI]
 
-# transport (topmost 4 buttons on the right)
-A#6 G7  # Rew
-B6  G#7 # FFwd
-C7  A#7 # Play
-C#7 A7  # Stop
+# transport (assigned to topmost 5 "scene launch" buttons on the right)
+A#6 A7  # Stop
+B6  A#7 # Play
+C7  B7  # Rec
+C#7 G7  # Rew
+D7  G#7 # FFwd
 
 # next two keys below are bound to bank select left and right
-D7  A#3 # Bank Left
-D#7 B3  # Bank Right
+D#7 A#3 # Bank Left
+E7  B3  # Bank Right
+
+# bottommost "scene launch" button (labeled "stop all clips" on the APCmini)
+# assign this to whatever you want, I use it for cycle
+F7  D7  # Cycle
 
 # shift key (bottom key on the right, above the master fader)
 D8  A#5 # Shift
 
-# faders
-CC48= PB[128]-1
-CC49= PB[128]-2
-CC50= PB[128]-3
-CC51= PB[128]-4
-CC52= PB[128]-5
-CC53= PB[128]-6
-CC54= PB[128]-7
-CC55= PB[128]-8
+# faders (use 129 as PB step size to get full range)
+CC48= PB[129]-1
+CC49= PB[129]-2
+CC50= PB[129]-3
+CC51= PB[129]-4
+CC52= PB[129]-5
+CC53= PB[129]-6
+CC54= PB[129]-7
+CC55= PB[129]-8
 # master fader
-CC56= PB[128]-9
+CC56= PB[129]-9
 
 # bottom 3x8 grid: mute/solo/rec (these happen to be identical to the MCU)
 
@@ -90,15 +95,27 @@ B5  G2
 
 [MIDI2]
 
-# transport
-G7  A#6
-G#7 B6
-A#7 C7
-A7  C#7
+# transport (will light up in green)
+A7  A#6
+A#7 B6
+B7  C7[2] # Rec, blinks when engaged
+G7  C#7
+G#7 D7
+
+# bank select
+# NOTE: These don't seem to work properly in Ardour (only the bank left button
+# lights up), disabled for now.
+#A#3 D#7
+#B3  E7
+
+# cycle
+D7  F7
 
 # NOTE: Ardour seems to provide feedback for the shift key, but it doesn't
 # light up, on my APCmini at least. Maybe it has no LED?
 A#5 D8
+
+# no feedback for faders (faders aren't motorized)
 
 # rec: color = red (vel. 3)
 C0  C0[3]
@@ -131,6 +148,7 @@ A#1 A#1[5]
 B1  B1[5]
 
 # select (will light up in red)
+# NOTE: For some reason, Ardour doesn't update these when changing banks.
 C2  E5
 C#2 F5
 D2  F#5
