@@ -184,22 +184,22 @@ static char last_window_name[MAX_WINNAME_SIZE];
 static char last_window_class[MAX_WINNAME_SIZE];
 static Window last_focused_window = 0;
 static translation *last_window_translation = NULL, *last_translation = NULL;
-static int have_window = 0;
+static int last_window = 0;
 
 void reload_callback(void)
 {
   last_focused_window = 0;
   last_window_translation = last_translation = NULL;
-  have_window = 0;
+  last_window = 0;
 }
 
 static void debug_section(translation *tr)
 {
   // we do some caching of the last printed translation here, so that we don't
   // print the same message twice
-  if (debug_regex && (!have_window || tr != last_translation)) {
+  if (debug_regex && (!last_window || tr != last_translation)) {
     last_translation = tr;
-    have_window = 1;
+    last_window = 1;
     if (tr) {
       printf("translation: %s for %s (class %s)\n",
 	     tr->name, last_window_name, last_window_class);
@@ -427,6 +427,7 @@ get_focused_window_translation()
 
   XGetInputFocus(display, &focus, &revert_to);
   if (focus != last_focused_window) {
+    last_window = 0;
     last_focused_window = focus;
     window_name = walk_window_tree(focus, &window_class);
     last_window_translation = get_translation(window_name, window_class);
