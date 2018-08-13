@@ -459,6 +459,13 @@ static int16_t inpbvalue[2][16] =
    {8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192,
     8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192}};
 
+// If this option is enabled (-k on the command line), we make sure that each
+// "key" (note, cc, pb) is "off" before we allow it to go "on" again. This is
+// useful to eliminate double note-ons and the like, but interferes with the
+// way some controllers work, so it is disabled by default.
+
+static int keydown_tracker = 0;
+
 static uint8_t notedown[2][16][128];
 static uint8_t inccdown[2][16][128];
 static uint8_t inpbdown[2][16];
@@ -554,12 +561,12 @@ handle_event(uint8_t *msg, uint8_t portno)
   case 0x90:
     start_debug();
     if (msg[2]) {
-      if (!notedown[portno][chan][msg[1]]) {
+      if (!keydown_tracker || !notedown[portno][chan][msg[1]]) {
 	send_strokes(tr, portno, status, chan, msg[1], 0, 0);
 	notedown[portno][chan][msg[1]] = 1;
       }
     } else {
-      if (notedown[portno][chan][msg[1]]) {
+      if (!keydown_tracker || notedown[portno][chan][msg[1]]) {
 	send_strokes(tr, portno, status, chan, msg[1], 1, 0);
 	notedown[portno][chan][msg[1]] = 0;
       }
@@ -569,12 +576,12 @@ handle_event(uint8_t *msg, uint8_t portno)
   case 0xb0:
     start_debug();
     if (msg[2]) {
-      if (!inccdown[portno][chan][msg[1]]) {
+      if (!keydown_tracker || !inccdown[portno][chan][msg[1]]) {
 	send_strokes(tr, portno, status, chan, msg[1], 0, 0);
 	inccdown[portno][chan][msg[1]] = 1;
       }
     } else {
-      if (inccdown[portno][chan][msg[1]]) {
+      if (!keydown_tracker || inccdown[portno][chan][msg[1]]) {
 	send_strokes(tr, portno, status, chan, msg[1], 1, 0);
 	inccdown[portno][chan][msg[1]] = 0;
       }
@@ -628,12 +635,12 @@ handle_event(uint8_t *msg, uint8_t portno)
     start_debug();
     //fprintf(stderr, "pb %d\n", bend);
     if (bend) {
-      if (!inpbdown[portno][chan]) {
+      if (!keydown_tracker || !inpbdown[portno][chan]) {
 	send_strokes(tr, portno, status, chan, 0, 0, 0);
 	inpbdown[portno][chan] = 1;
       }
     } else {
-      if (inpbdown[portno][chan]) {
+      if (!keydown_tracker || inpbdown[portno][chan]) {
 	send_strokes(tr, portno, status, chan, 0, 1, 0);
 	inpbdown[portno][chan] = 0;
       }
@@ -663,8 +670,9 @@ handle_event(uint8_t *msg, uint8_t portno)
 
 void help(char *progname)
 {
-  fprintf(stderr, "Usage: %s [-h] [-o[2]] [-j name] [-r rcfile] [-d[rskmj]]\n", progname);
+  fprintf(stderr, "Usage: %s [-h] [-k] [-o[2]] [-j name] [-r rcfile] [-d[rskmj]]\n", progname);
   fprintf(stderr, "-h print this message\n");
+  fprintf(stderr, "-k keep track of key status (ignore double notes)\n");
   fprintf(stderr, "-o enable MIDI output (add 2 for a second pair of ports)\n");
   fprintf(stderr, "-j jack client name (default: midizap)\n");
   fprintf(stderr, "-r config file name (default: MIDIZAP_CONFIG_FILE variable or ~/.midizaprc)\n");
@@ -690,11 +698,15 @@ main(int argc, char **argv)
   uint8_t msg[3];
   int opt, count = 0;
 
-  while ((opt = getopt(argc, argv, "ho::d::j:r:")) != -1) {
+  while ((opt = getopt(argc, argv, "hko::d::j:r:")) != -1) {
     switch (opt) {
     case 'h':
       help(argv[0]);
       exit(0);
+    case 'k':
+      // see comment on -k and keydown_tracker above
+      keydown_tracker = 1;
+      break;
     case 'o':
       jack_num_outputs = 1;
       if (optarg && *optarg) {
