@@ -2,8 +2,7 @@
 /*
 
  Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)
-
- Copyright 2018 Albert Graef <aggraef@gmail.com>, various improvements
+ Copyright 2018 Albert Graef <aggraef@gmail.com>
 
  Based on a version (c) 2006 Trammell Hudson <hudson@osresearch.net>
 

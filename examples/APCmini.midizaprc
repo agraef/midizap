@@ -1,6 +1,13 @@
 
 # Mackie emulation for the AKAI APCmini
 
+# Copyright (c) 2018 Albert Graef <aggraef@gmail.com>
+
+# Copying and distribution of this file, with or without modification, are
+# permitted in any medium without royalty provided the copyright notice and
+# this notice are preserved.  This file is offered as-is, without any
+# warranty.
+
 JACK_NAME "midizap-APCmini"
 JACK_PORTS 2
 
@@ -104,7 +111,7 @@ B5  G2
 ^A#5 F3  # Send
 ^B5  A3  # Instr (Device)
 
-# faders (MCU uses pitch bends here, use 129 as the step size to get full range)
+# faders (MCU uses pitch bends here, use 129 as step size to get full range)
 CC48= PB[129]-1
 CC49= PB[129]-2
 CC50= PB[129]-3

@@ -27,7 +27,7 @@
 # named appropriately so that they can be wired up more easily using the
 # qjackctl patchbay.
 
-#JACK_NAME "hello midizap"
+#JACK_NAME "midizap"
 
 # The number of ports given with the JACK_PORTS directive must be
 # 1 or 2.  It causes the given number of both input and output ports to
@@ -297,9 +297,7 @@
 # E keys in the middle octave are bound to the three mouse buttons, and
 # the modulation wheel (CC1) emulates the mouse wheel. The F, G, A and B
 # keys in the middle octave are mapped to the cursor keys (Left, Up,
-# Down, Right). Please note that most of these bindings, as well as the
-# CC60 bindings above, will only be active when the [MIDI] default
-# section above isn't used (invoke midizap without the -o option).
+# Down, Right).
 
  C5    XK_Button_1
  D5    XK_Button_2
