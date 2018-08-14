@@ -64,25 +64,33 @@ typedef struct _stroke {
 #define NUM_KEYS 128
 #define NUM_CHAN 16
 
+typedef struct _stroke_data {
+  // key (MIDI channel and, for note/CC/PB, data byte)
+  uint8_t chan, data;
+  // stroke data, indexed by press/release or up/down index
+  stroke *s[2];
+  // step size (CC and PB only)
+  int step[2];
+  // incr flag (CC only)
+  uint8_t is_incr;
+} stroke_data;
+
 typedef struct _translation {
   struct _translation *next;
   char *name;
   int is_default;
   regex_t regex;
   uint8_t portno;
-  // XXXFIXME: This way of storing the translation tables is easy to
-  // construct, but wastes quite a lot of memory. We should rather use some
-  // kind of dictionary here.
-  uint8_t is_incr[2][NUM_CHAN][NUM_KEYS];
-  stroke *pc[2][NUM_CHAN][NUM_KEYS][2];
-  stroke *note[2][NUM_CHAN][NUM_KEYS][2];
-  stroke *cc[2][NUM_CHAN][NUM_KEYS][2];
-  stroke *ccs[2][NUM_CHAN][NUM_KEYS][2];
-  stroke *pb[2][NUM_CHAN][2];
-  stroke *pbs[2][NUM_CHAN][2];
-  // step size for control changes and pitch bend (1 by default)
-  int cc_step[2][NUM_CHAN][NUM_KEYS][2];
-  int pb_step[2][NUM_CHAN][2];
+  // these are indexed by shift status
+  stroke_data *note[2];
+  stroke_data *pc[2];
+  stroke_data *cc[2];
+  stroke_data *ccs[2];
+  stroke_data *pb[2];
+  stroke_data *pbs[2];
+  // actual and allocated sizes (can be at most 16*128)
+  uint16_t n_note[2], n_pc[2], n_cc[2], n_ccs[2], n_pb[2], n_pbs[2];
+  uint16_t a_note[2], a_pc[2], a_cc[2], a_ccs[2], a_pb[2], a_pbs[2];
 } translation;
 
 extern void reload_callback(void);
