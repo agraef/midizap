@@ -136,7 +136,7 @@ MIDI_OCTAVE -1 # ASA pitches (middle C is C4)
 
 This is useful, in particular, if you use some external MIDI monitoring software to figure out which notes to put into your midizaprc file. To these ends, just check how the program prints middle C, and adjust the `MIDI_OCTAVE` offset in your midizaprc file accordingly. (This isn't necessary if you use midizap's built-in MIDI monitoring facility, as it always prints out MIDI notes in exactly the form that is used in the midizaprc file, no matter what the `MIDI_OCTAVE` offset happens to be.)
 
-Finally, there are some additional directives (and corresponding command line options) to set midizap's Jack client name and the number of input and output ports it uses. (If both the command line options and directives in the midizaprc file are used, the former take priority, so that it's always possible to override the options from the midizaprc file from the command line.)
+Also, there are some additional directives (and corresponding command line options) to set midizap's Jack client name and the number of input and output ports it uses. (If both the command line options and directives in the midizaprc file are used, the former take priority, so that it's always possible to override the options from the midizaprc file from the command line.)
 
 Firstly, there's the `-j` option and the `JACK_NAME` directive which change the Jack client name from the default (`midizap`) to whatever you want it to be. To use this option, simply invoke midizap as `midizap -j client-name`, or put the following directive into your midizaprc file:
 
@@ -156,6 +156,31 @@ You may want to place this directive directly into a configuration file if the c
 
 ## Secondary MIDI Ports
 
-Some MIDI controllers need a more elaborate setup than what we've seen so far, because they have motor faders, LEDs and similar controls requiring feedback from the application. To accommodate these, you can use the `-o2` option of midizap, or the `JACK_PORTS 2` directive in the midizaprc file, to create a second pair of MIDI input and output ports, named `midi_input2` and `midi_output2`. Use of this option also activates a second MIDI default section in the midizaprc file, labeled `[MIDI2]`, which is used exclusively for translating MIDI from the second input port and sending the resulting MIDI data to the second output port. Typically, the translations in the `[MIDI2]` section will be the inverse of those in the `[MIDI]` section, or whatever it takes to translate the MIDI feedback from the application back to MIDI data which the controller understands.
+Some MIDI controllers need a more elaborate setup than what we've seen so far, because they have motor faders, LEDs, etc. requiring feedback from the application. To accommodate these, you can use the `-o2` option of midizap, or the `JACK_PORTS 2` directive in the midizaprc file, to create a second pair of MIDI input and output ports, named `midi_input2` and `midi_output2`. Use of this option also activates a second MIDI default section in the midizaprc file, labeled `[MIDI2]`, which is used exclusively for translating MIDI from the second input port and sending the resulting MIDI data to the second output port. Typically, the translations in the `[MIDI2]` section will be the inverse of those in the `[MIDI]` section, or whatever it takes to translate the MIDI feedback from the application back to MIDI data which the controller understands.
 
 You then wire up the controller to the `midi_input` port of midizap and the `midi_output` port to the application as before, but in addition you also connect the application back to midizap's `midi_input2` port, and the `midi_output2` port to the controller. This reverse path is what is needed to translate the feedback from the application and send it back to the controller. Please check the example.midizaprc file for a simple example illustrating this kind of setup.
+
+## Shift Status
+
+Finally, there's a special `SHIFT` token which can be used to toggle an internal shift state. This comes in handy if you want to generate different output for certain MIDI messages depending on the shift status. Only one such shift status is available in the present implementation. Also note that the `SHIFT` token doesn't generate any output by itself; it merely toggles the internal shift bit which can then be queried in other translations to distinguish between shifted and unshifted bindings for the same input message.
+
+To these ends, there are two additional prefixes which indicate the shift status in which a translation is active. Unprefixed translations are active only in unshifted state. The `^` prefix denotes a translation which is active only in shifted state, while the `?` prefix indicates a translation which is active in *both* shifted and unshifted state.
+
+Many Mackie-like DAW controllers have some designated shift keys which can be used for this purpose, but the following will actually work with any key-style MIDI message. E.g., to bind the shift key (`A#5`) on a Mackie controller:
+
+~~~
+?A#5 SHIFT
+~~~
+
+Note the `?` prefix indicating that this translation is active in both unshifted and shifted state, so it is used to turn shift state both on and off, giving a "Caps Lock"-style of toggle key. If you'd rather have an ordinary shift key which turns on shift state when pressed and immediately turns it off when released again, you can do that as follows:
+
+~~~
+?A#5 SHIFT RELEASE SHIFT
+~~~
+
+Having set up the translation for the shift key itself, we can now indicate that a translation should be valid only in shifted state with the `^` prefix. This makes it possible to assign different functions, e.g., to buttons and faders which depend on the shift state. Here's a typical example which maps a control change to either Mackie-style fader values encoded as pitch bends, or incremental encoder values:
+
+~~~
+CC48=  PB[129]-1 # translate controller to pitch bend when unshifted
+^CC48= CC16~     # translate controller to encoder when shifted
+~~~

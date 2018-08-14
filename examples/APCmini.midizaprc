@@ -1,55 +1,55 @@
 
-# MCU emulation for the AKAI APCmini
+# Mackie emulation for the AKAI APCmini
 
 JACK_NAME "midizap-APCmini"
 JACK_PORTS 2
 
-# This emulation is somewhat limited since the APCmini has no encoders and no
-# motorized faders, but it should be good enough for basic mixing.  Tested in
-# Ardour (configure as a Mackie surface, connect midizap's midi_output port to
-# Ardour's "mackie control in" port, and vice versa Ardour's "mackie control
-# out" to midizap's midi_in2).
+# This turns the APCmini into a Mackie-compatible controller, so that it can
+# be used with Linux DAW programs like Ardour. The emulation is somewhat
+# limited since the APCmini has no encoders, no motorized faders, and not
+# nearly as many dedicated buttons as a Mackie device. But it offers enough
+# controls to be usable as a basic DAW controller.
 
-# TODO: Figure out whether there's a way to flip the controls so that the
-# faders can be used for panning.  I tried assigning the MCU flip key as well
-# as the various MCU shift keys, but except for the standard shift key they
-# don't seem to do anything. :(  The standard shift key (A#5, bound to the
-# APCmini's shift key D8 below) works, though, and can be used, e.g., to
-# shift-select tracks, and to operate the faders in a group together
+# Tested with Ardour. Setup: In Ardour, enable the Mackie control surface,
+# then connect Ardour's "mackie control" ports to midizap's midi_out and
+# midi_in2 ports, and the APCmini to midizap's midi_in and midi_out2 ports.
 
 [MIDI]
 
-# transport (assigned to topmost 5 "scene launch" buttons on the right)
+# The APCmini's dedicated shift key is used to provide alternative functions
+# to some of the buttons and the faders.
+?D8 SHIFT RELEASE SHIFT
+
+# transport (assigned to the topmost 5 "scene launch" buttons on the right)
 A#6 A7  # Stop
 B6  A#7 # Play
 C7  B7  # Rec
+#C7  C#7  # Cycle
 C#7 G7  # Rew
 D7  G#7 # FFwd
 
-# next two keys below are bound to bank select left and right
-D#7 A#3 # Bank Left
-E7  B3  # Bank Right
+# the next three buttons below are used for the MCU shift keys
+# NOTE: The MCU actually has four shift keys, so one has to go. You may want
+# to rearrange these as needed.
+D#7 A#5 # Shift
+E7  B5  # Control
+F7  C6  # Option
+#F7  C#6 # Alt/Cmd
 
-# bottommost "scene launch" button (labeled "stop all clips" on the APCmini)
-# assign this to whatever you want, I use it for cycle
-F7  D7  # Cycle
+# shifted "scene launch" buttons
+# We assign these to the function keys F1..F8 here, but of course you can
+# remap these as needed.
+^A#6 F#4
+^B6  G4
+^C7  G#4
+^C#7 A4
+^D7  A#4
+^D#7 B4
+^E7  C5
+^F7  C#5
 
-# shift key (bottom key on the right, above the master fader)
-D8  A#5 # Shift
-
-# faders (use 129 as PB step size to get full range)
-CC48= PB[129]-1
-CC49= PB[129]-2
-CC50= PB[129]-3
-CC51= PB[129]-4
-CC52= PB[129]-5
-CC53= PB[129]-6
-CC54= PB[129]-7
-CC55= PB[129]-8
-# master fader
-CC56= PB[129]-9
-
-# bottom 3x8 grid: mute/solo/rec (these happen to be identical to the MCU)
+# bottom 3x8 grid: mute/solo/rec
+# NOTE: Incidentally, these happen to be identical to corresponding MCU input.
 
 # rec (bottom row of the grid)
 C0  C0
@@ -81,7 +81,7 @@ A1  A1
 A#1 A#1
 B1  B1
 
-# select (bottom row right above the faders)
+# track select (bottom row right above the faders)
 E5  C2
 F5  C#2
 F#5 D2
@@ -91,6 +91,41 @@ A5  F2
 A#5 F#2
 B5  G2
 
+# shifted bottom row
+# We have these assigned to the bank/channel and track/pan/send/instr controls,
+# but you may want to remap some or all of these as needed.
+^E5  A#3 # Bank Left
+^F5  B3  # Bank Right
+^F#5 C4  # Channel Left
+^G5  C#4 # Channel Right
+# NOTE: Only Pan and Send appear to be supported in Ardour.
+^G#5 E3  # Track (Volume)
+^A5  F#3 # Pan
+^A#5 F3  # Send
+^B5  A3  # Instr (Device)
+
+# faders (MCU uses pitch bends here, use 129 as the step size to get full range)
+CC48= PB[129]-1
+CC49= PB[129]-2
+CC50= PB[129]-3
+CC51= PB[129]-4
+CC52= PB[129]-5
+CC53= PB[129]-6
+CC54= PB[129]-7
+CC55= PB[129]-8
+# master fader
+?CC56= PB[129]-9
+
+# faders become encoders when shifted (CC16..CC23, incremental mode)
+^CC48= CC16~
+^CC49= CC17~
+^CC50= CC18~
+^CC51= CC19~
+^CC52= CC20~
+^CC53= CC21~
+^CC54= CC22~
+^CC55= CC23~
+
 # feedback section ########################################################
 
 [MIDI2]
@@ -99,61 +134,57 @@ B5  G2
 A7  A#6
 A#7 B6
 B7  C7[2] # Rec, blinks when engaged
+#C#7 C7 # Cycle
 G7  C#7
 G#7 D7
 
-# bank select
-# NOTE: These don't seem to work properly in Ardour (only the bank left button
-# lights up), disabled for now.
-#A#3 D#7
-#B3  E7
-
-# cycle
-D7  F7
-
-# NOTE: Ardour seems to provide feedback for the shift key, but it doesn't
-# light up, on my APCmini at least. Maybe it has no LED?
-A#5 D8
+# MCU shift keys
+A#5 D#7
+B5  E7
+C6  F7
 
 # no feedback for faders (faders aren't motorized)
 
+# NOTE: Feedback for rec/solo/mute/select also needs to be recognized in shift
+# mode, so that the (shifted) bank/channel left/right keys work as expected.
+
 # rec: color = red (vel. 3)
-C0  C0[3]
-C#0 C#0[3]
-D0  D0[3]
-D#0 D#0[3]
-E0  E0[3]
-F0  F0[3]
-F#0 F#0[3]
-G0  G0[3]
+?C0  C0[3]
+?C#0 C#0[3]
+?D0  D0[3]
+?D#0 D#0[3]
+?E0  E0[3]
+?F0  F0[3]
+?F#0 F#0[3]
+?G0  G0[3]
 
 # solo: color = green (vel. 1)
-G#0 G#0[1]
-A0  A0[1]
-A#0 A#0[1]
-B0  B0[1]
-C1  C1[1]
-C#1 C#1[1]
-D1  D1[1]
-D#1 D#1[1]
+?G#0 G#0[1]
+?A0  A0[1]
+?A#0 A#0[1]
+?B0  B0[1]
+?C1  C1[1]
+?C#1 C#1[1]
+?D1  D1[1]
+?D#1 D#1[1]
 
 # mute: color = yellow (vel. 5)
-E1  E1[5]
-F1  F1[5]
-F#1 F#1[5]
-G1  G1[5]
-G#1 G#1[5]
-A1  A1[5]
-A#1 A#1[5]
-B1  B1[5]
+?E1  E1[5]
+?F1  F1[5]
+?F#1 F#1[5]
+?G1  G1[5]
+?G#1 G#1[5]
+?A1  A1[5]
+?A#1 A#1[5]
+?B1  B1[5]
 
 # select (will light up in red)
-# NOTE: For some reason, Ardour doesn't update these when changing banks.
-C2  E5
-C#2 F5
-D2  F#5
-D#2 G5
-E2  G#5
-F2  A5
-F#2 A#5
-G2  B5
+# NOTE: Ardour apparently doesn't update these when changing banks.
+?C2  E5
+?C#2 F5
+?D2  F#5
+?D#2 G5
+?E2  G#5
+?F2  A5
+?F#2 A#5
+?G2  B5

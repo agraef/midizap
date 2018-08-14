@@ -1,8 +1,6 @@
 
 /*
 
- Contour ShuttlePro v2 interface
-
  Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)
 
  Copyright 2018 Albert Graef <aggraef@gmail.com>, various improvements
@@ -24,6 +22,7 @@ Display *display;
 
 JACK_SEQ seq;
 int jack_num_outputs = 0, debug_jack = 0;
+int shift = 0;
 
 void
 initdisplay(void)
@@ -159,19 +158,19 @@ fetch_stroke(translation *tr, uint8_t portno, int status, int chan, int data,
   if (tr && tr->portno == portno) {
     switch (status) {
     case 0x90:
-      return tr->note[chan][data][index];
+      return tr->note[shift][chan][data][index];
     case 0xc0:
-      return tr->pc[chan][data][index];
+      return tr->pc[shift][chan][data][index];
     case 0xb0:
       if (dir)
-	return tr->ccs[chan][data][dir>0];
+	return tr->ccs[shift][chan][data][dir>0];
       else
-	return tr->cc[chan][data][index];
+	return tr->cc[shift][chan][data][index];
     case 0xe0:
       if (dir)
-	return tr->pbs[chan][dir>0];
+	return tr->pbs[shift][chan][dir>0];
       else
-	return tr->pb[chan][index];
+	return tr->pb[shift][chan][index];
     default:
       return NULL;
     }
@@ -214,40 +213,40 @@ static char *debug_key(translation *tr, char *name,
 		       int status, int chan, int data, int dir)
 {
   static char *note_names[] = { "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B" };
-  char *suffix = "";
+  char *prefix = shift?"^":"", *suffix = "";
   strcpy(name, "??");
   switch (status) {
   case 0x90:
-    sprintf(name, "%s%d-%d", note_names[data % 12],
+    sprintf(name, "%s%s%d-%d", prefix, note_names[data % 12],
 	    data / 12 + midi_octave, chan+1);
     break;
   case 0xb0: {
-    int step = tr->cc_step[chan][data][dir>0];
+    int step = tr->cc_step[shift][chan][data][dir>0];
     if (!dir)
       suffix = "";
-    else if (tr->is_incr[chan][data])
+    else if (tr->is_incr[shift][chan][data])
       suffix = (dir<0)?"<":">";
     else
       suffix = (dir<0)?"-":"+";
     if (dir && step != 1)
-      sprintf(name, "CC%d[%d]-%d%s", data, step, chan+1, suffix);
+      sprintf(name, "%sCC%d[%d]-%d%s", prefix, data, step, chan+1, suffix);
     else
-      sprintf(name, "CC%d-%d%s", data, chan+1, suffix);
+      sprintf(name, "%sCC%d-%d%s", prefix, data, chan+1, suffix);
     break;
   }
   case 0xc0:
-    sprintf(name, "PC%d-%d", data, chan+1);
+    sprintf(name, "%sPC%d-%d", prefix, data, chan+1);
     break;
   case 0xe0: {
-    int step = tr->pb_step[chan][dir>0];
+    int step = tr->pb_step[shift][chan][dir>0];
     if (!dir)
       suffix = "";
     else
       suffix = (dir<0)?"-":"+";
     if (dir && step != 1)
-      sprintf(name, "PB[%d]-%d%s", step, chan+1, suffix);
+      sprintf(name, "%sPB[%d]-%d%s", prefix, step, chan+1, suffix);
     else
-      sprintf(name, "PB-%d%s", chan+1, suffix);
+      sprintf(name, "%sPB-%d%s", prefix, chan+1, suffix);
     break;
   }
   default: // this can't happen
@@ -303,11 +302,19 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
 {
   int nkeys = 0;
   stroke *s = fetch_stroke(tr, portno, status, chan, data, index, dir);
+  // If there's no press/release translation, check whether we have got at
+  // least the corresponding release/press translation, in order to prevent
+  // spurious error messages if either the press or release translation just
+  // happens to be empty.
+  int chk = s ||
+    (!dir && fetch_stroke(tr, portno, status, chan, data, !index, dir));
 
   if (!s && jack_num_outputs) {
     // fall back to default MIDI translation
     tr = default_midi_translation[portno];
     s = fetch_stroke(tr, portno, status, chan, data, index, dir);
+    chk = chk || s ||
+      (!dir && fetch_stroke(tr, portno, status, chan, data, !index, dir));
     // Ignore all MIDI input on the second port if no translation was found in
     // the [MIDI2] section (or the section is missing altogether).
     if (portno && !s) return;
@@ -317,6 +324,8 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
     // fall back to the default translation
     tr = default_translation;
     s = fetch_stroke(tr, portno, status, chan, data, index, dir);
+    chk = chk || s ||
+      (!dir && fetch_stroke(tr, portno, status, chan, data, !index, dir));
   }
 
   if (debug_regex) {
@@ -324,10 +333,10 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
       // found a sequence, print the matching section now
       debug_section(tr);
       debug_state = 0;
-    } else {
-      // no matches yet; to prevent a cascade of spurious messages, we defer
+    } else if (!chk) {
+      // No matches yet. To prevent a cascade of spurious messages, we defer
       // printing the matched section for now and just record it instead; it
-      // may then be printed later
+      // may then be printed later.
       debug_tr = tr;
       // record that we actually tried to process some input
       debug_count = 1;
@@ -343,6 +352,9 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
     if (s->keysym) {
       send_key(s->keysym, s->press);
       nkeys++;
+    } else if (s->shift) {
+      // toggle shift status
+      shift = !shift;
     } else {
       send_midi(portno, s->status, s->data, s->step, s->incr, index, dir);
     }
@@ -475,16 +487,16 @@ int
 check_incr(translation *tr, uint8_t portno, int chan, int data)
 {
   if (tr && tr->portno == portno &&
-      (tr->ccs[chan][data][0] || tr->ccs[chan][data][1]))
-    return tr->is_incr[chan][data];
+      (tr->ccs[shift][chan][data][0] || tr->ccs[shift][chan][data][1]))
+    return tr->is_incr[shift][chan][data];
   tr = default_midi_translation[portno];
   if (tr && tr->portno == portno &&
-      (tr->ccs[chan][data][0] || tr->ccs[chan][data][1]))
-    return tr->is_incr[chan][data];
+      (tr->ccs[shift][chan][data][0] || tr->ccs[shift][chan][data][1]))
+    return tr->is_incr[shift][chan][data];
   tr = default_translation;
   if (tr && tr->portno == portno &&
-      (tr->ccs[chan][data][0] || tr->ccs[chan][data][1]))
-    return tr->is_incr[chan][data];
+      (tr->ccs[shift][chan][data][0] || tr->ccs[shift][chan][data][1]))
+    return tr->is_incr[shift][chan][data];
   return 0;
 }
 
@@ -492,16 +504,16 @@ int
 get_cc_step(translation *tr, uint8_t portno, int chan, int data, int dir)
 {
   if (tr && tr->portno == portno &&
-      tr->ccs[chan][data][dir>0])
-    return tr->cc_step[chan][data][dir>0];
+      tr->ccs[shift][chan][data][dir>0])
+    return tr->cc_step[shift][chan][data][dir>0];
   tr = default_midi_translation[portno];
   if (tr && tr->portno == portno &&
-      tr->ccs[chan][data][dir>0])
-    return tr->cc_step[chan][data][dir>0];
+      tr->ccs[shift][chan][data][dir>0])
+    return tr->cc_step[shift][chan][data][dir>0];
   tr = default_translation;
   if (tr && tr->portno == portno &&
-      tr->ccs[chan][data][dir>0])
-    return tr->cc_step[chan][data][dir>0];
+      tr->ccs[shift][chan][data][dir>0])
+    return tr->cc_step[shift][chan][data][dir>0];
   return 1;
 }
 
@@ -509,15 +521,15 @@ int
 check_pbs(translation *tr, uint8_t portno, int chan)
 {
   if (tr && tr->portno == portno &&
-      (tr->pbs[chan][0] || tr->pbs[chan][1]))
+      (tr->pbs[shift][chan][0] || tr->pbs[shift][chan][1]))
     return 1;
   tr = default_midi_translation[portno];
   if (tr && tr->portno == portno &&
-      (tr->pbs[chan][0] || tr->pbs[chan][1]))
+      (tr->pbs[shift][chan][0] || tr->pbs[shift][chan][1]))
     return 1;
   tr = default_translation;
   if (tr && tr->portno == portno &&
-      (tr->pbs[chan][0] || tr->pbs[chan][1]))
+      (tr->pbs[shift][chan][0] || tr->pbs[shift][chan][1]))
     return 1;
   return 0;
 }
@@ -526,16 +538,16 @@ int
 get_pb_step(translation *tr, uint8_t portno, int chan, int dir)
 {
   if (tr && tr->portno == portno &&
-      tr->pbs[chan][dir>0])
-    return tr->pb_step[chan][dir>0];
+      tr->pbs[shift][chan][dir>0])
+    return tr->pb_step[shift][chan][dir>0];
   tr = default_midi_translation[portno];
   if (tr && tr->portno == portno &&
-      tr->pbs[chan][dir>0])
-    return tr->pb_step[chan][dir>0];
+      tr->pbs[shift][chan][dir>0])
+    return tr->pb_step[shift][chan][dir>0];
   tr = default_translation;
   if (tr && tr->portno == portno &&
-      tr->pbs[chan][dir>0])
-    return tr->pb_step[chan][dir>0];
+      tr->pbs[shift][chan][dir>0])
+    return tr->pb_step[shift][chan][dir>0];
   return 1;
 }
 

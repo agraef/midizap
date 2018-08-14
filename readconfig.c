@@ -179,11 +179,35 @@
   with keypress-style messages (except PC), where they set the value for
   the "on" state.
 
-  Finally, on the output side there's a special token of the form
+  Also, on the output side there's a special token of the form
   CH<1..16>, which doesn't actually generate any MIDI message.  Rather,
   it sets the default MIDI channel for subsequent MIDI messages in the
   same output sequence, which is convenient if multiple messages are
   output to the same MIDI channel.
+
+  Finally, there's a special SHIFT token which toggles an internal shift
+  state.  If your controller has a dedicated shift key (as many
+  Mackie-like DAW controllers do), this makes it possible to have
+  different bindings depending on the internal shift state.  E.g., to
+  bind the shift key (`A#5`) on a Mackie controller:
+
+  ?A#5 SHIFT
+
+  Note that the "?" prefix tells the parser that this translation is
+  active in both unshifted and shifted state, so it is used to turn
+  shift state both on and off, giving a Caps Lock-style of toggle key.
+  If you'd rather have an ordinary shift key which turns on shift state
+  when pressed and immediately turns it off when released again, you can
+  do that as follows:
+
+  ?A#5 SHIFT RELEASE SHIFT
+
+  Having set up our shift key, we can now add translations like the
+  following (using the "^" prefix to indicate translations only valid in
+  shifted state):
+
+  CC48=  PB[129]-1 # translate controller to pitch bend when unshifted
+  ^CC48= CC16~     # translate controller to encoder when shifted
 
  */
 
@@ -350,28 +374,30 @@ free_strokes(stroke *s)
 void
 free_translation_section(translation *tr)
 {
-  int i, j;
+  int i, j, k;
 
   if (tr != NULL) {
     free(tr->name);
     if (!tr->is_default) {
       regfree(&tr->regex);
     }
-    for (i=0; i<NUM_CHAN; i++) {
-      for (j=0; j<NUM_KEYS; j++) {
-	free_strokes(tr->pc[i][j][0]);
-	free_strokes(tr->pc[i][j][1]);
-	free_strokes(tr->note[i][j][0]);
-	free_strokes(tr->note[i][j][1]);
-	free_strokes(tr->cc[i][j][0]);
-	free_strokes(tr->cc[i][j][1]);
-	free_strokes(tr->ccs[i][j][0]);
-	free_strokes(tr->ccs[i][j][1]);
+    for (k=0; k<2; k++) {
+      for (i=0; i<NUM_CHAN; i++) {
+	for (j=0; j<NUM_KEYS; j++) {
+	  free_strokes(tr->pc[k][i][j][0]);
+	  free_strokes(tr->pc[k][i][j][1]);
+	  free_strokes(tr->note[k][i][j][0]);
+	  free_strokes(tr->note[k][i][j][1]);
+	  free_strokes(tr->cc[k][i][j][0]);
+	  free_strokes(tr->cc[k][i][j][1]);
+	  free_strokes(tr->ccs[k][i][j][0]);
+	  free_strokes(tr->ccs[k][i][j][1]);
+	}
+	free_strokes(tr->pb[k][i][0]);
+	free_strokes(tr->pb[k][i][1]);
+	free_strokes(tr->pbs[k][i][0]);
+	free_strokes(tr->pbs[k][i][1]);
       }
-      free_strokes(tr->pb[i][0]);
-      free_strokes(tr->pb[i][1]);
-      free_strokes(tr->pbs[i][0]);
-      free_strokes(tr->pbs[i][1]);
     }
     free(tr);
   }
@@ -512,6 +538,8 @@ print_stroke(stroke *s)
 	str = "???";
       }
       printf("%s/%c ", str, s->press ? 'D' : 'U');
+    } else if (s->shift) {
+      printf("SHIFT ");
     } else {
       int status = s->status & 0xf0;
       int channel = (s->status & 0x0f) + 1;
@@ -561,7 +589,9 @@ stroke **first_stroke;
 stroke *last_stroke;
 stroke **press_first_stroke;
 stroke **release_first_stroke;
-int is_keystroke, is_bidirectional;
+stroke **alt_press_stroke;
+stroke **alt_release_stroke;
+int is_keystroke, is_bidirectional, is_anyshift;
 int is_midi;
 char *current_translation;
 char *key_name;
@@ -583,6 +613,25 @@ append_stroke(KeySym sym, int press)
   s->next = NULL;
   s->keysym = sym;
   s->press = press;
+  s->shift = 0;
+  s->status = s->data = s->step = s->incr = s->dirty = 0;
+  if (*first_stroke) {
+    last_stroke->next = s;
+  } else {
+    *first_stroke = s;
+  }
+  last_stroke = s;
+}
+
+void
+append_shift(void)
+{
+  stroke *s = (stroke *)allocate(sizeof(stroke));
+
+  s->next = NULL;
+  s->shift = 1;
+  s->keysym = 0;
+  s->press = 0;
   s->status = s->data = s->step = s->incr = s->dirty = 0;
   if (*first_stroke) {
     last_stroke->next = s;
@@ -600,6 +649,7 @@ append_midi(int status, int data, int step, int incr)
   s->next = NULL;
   s->keysym = 0;
   s->press = 0;
+  s->shift = 0;
   s->status = status;
   s->data = data;
   s->step = step;
@@ -862,7 +912,7 @@ parse_midi(char *tok, char *s, int lhs,
 int
 start_translation(translation *tr, char *which_key)
 {
-  int status, data, step, incr, dir;
+  int k, status, data, step, incr, dir;
   char buf[100];
 
   //printf("start_translation(%s)\n", which_key);
@@ -873,18 +923,23 @@ start_translation(translation *tr, char *which_key)
   }
   current_translation = tr->name;
   key_name = which_key;
-  is_keystroke = is_bidirectional = is_midi = 0;
+  is_keystroke = is_bidirectional = is_midi = is_anyshift = 0;
   first_release_stroke = 0;
   regular_key_down = 0;
   modifier_count = 0;
   midi_channel = 0;
-  if (parse_midi(which_key, buf, 1, &status, &data, &step, &incr, &dir)) {
+  k = *which_key == '^' || (is_anyshift = *which_key == '?');
+  if (parse_midi(which_key+k, buf, 1, &status, &data, &step, &incr, &dir)) {
     int chan = status & 0x0f;
     switch (status & 0xf0) {
     case 0x90:
       // note on/off
-      first_stroke = &(tr->note[chan][data][0]);
-      release_first_stroke = &(tr->note[chan][data][1]);
+      first_stroke = &(tr->note[k][chan][data][0]);
+      release_first_stroke = &(tr->note[k][chan][data][1]);
+      if (is_anyshift) {
+	alt_press_stroke = &(tr->note[0][chan][data][0]);
+	alt_release_stroke = &(tr->note[0][chan][data][1]);
+      }
       is_keystroke = 1;
       break;
     case 0xc0:
@@ -893,21 +948,32 @@ start_translation(translation *tr, char *which_key)
       // this message has no off state. Thus, when we receive a pc, it's
       // supposed to be treated as a "press" sequence immediately followed by
       // the corresponding "release" sequence.
-      first_stroke = &(tr->pc[chan][data][0]);
-      release_first_stroke = &(tr->pc[chan][data][1]);
+      first_stroke = &(tr->pc[k][chan][data][0]);
+      release_first_stroke = &(tr->pc[k][chan][data][1]);
+      if (is_anyshift) {
+	alt_press_stroke = &(tr->pc[0][chan][data][0]);
+	alt_release_stroke = &(tr->pc[0][chan][data][1]);
+      }
       is_keystroke = 1;
       break;
     case 0xb0:
       if (!incr) {
 	// cc on/off
-	first_stroke = &(tr->cc[chan][data][0]);
-	release_first_stroke = &(tr->cc[chan][data][1]);
+	first_stroke = &(tr->cc[k][chan][data][0]);
+	release_first_stroke = &(tr->cc[k][chan][data][1]);
+	if (is_anyshift) {
+	  alt_press_stroke = &(tr->cc[0][chan][data][0]);
+	  alt_release_stroke = &(tr->cc[0][chan][data][1]);
+	}
 	is_keystroke = 1;
       } else {
 	// cc (step up, down)
-	tr->is_incr[chan][data] = incr>1;
-	first_stroke = &(tr->ccs[chan][data][dir>0]);
-	tr->cc_step[chan][data][dir>0] = step;
+	tr->is_incr[k][chan][data] = incr>1;
+	first_stroke = &(tr->ccs[k][chan][data][dir>0]);
+	if (is_anyshift) {
+	  alt_press_stroke = &(tr->ccs[0][chan][data][0]);
+	}
+	tr->cc_step[k][chan][data][dir>0] = step;
 	if (!dir) {
 	  // This is a bidirectional translation (=, ~). We first fill in the
 	  // "down" part (pointed to by first_stroke). When finishing off the
@@ -917,16 +983,23 @@ start_translation(translation *tr, char *which_key)
 	  // translation, here to remember the "up" part of the translation,
 	  // so that we can fill in that part later.
 	  is_bidirectional = 1;
-	  release_first_stroke = &(tr->ccs[chan][data][1]);
-	  tr->cc_step[chan][data][1] = step;
+	  release_first_stroke = &(tr->ccs[k][chan][data][1]);
+	  if (is_anyshift) {
+	    alt_release_stroke = &(tr->ccs[0][chan][data][1]);
+	  }
+	  tr->cc_step[k][chan][data][1] = step;
 	}
       }
       break;
     case 0xe0:
       if (!incr) {
 	// pb on/off
-	first_stroke = &(tr->pb[chan][0]);
-	release_first_stroke = &(tr->pb[chan][1]);
+	first_stroke = &(tr->pb[k][chan][0]);
+	release_first_stroke = &(tr->pb[k][chan][1]);
+	if (is_anyshift) {
+	  alt_press_stroke = &(tr->pb[0][chan][0]);
+	  alt_release_stroke = &(tr->pb[0][chan][1]);
+	}
 	is_keystroke = 1;
       } else {
 	// pb (step up, down)
@@ -934,12 +1007,18 @@ start_translation(translation *tr, char *which_key)
 	  fprintf(stderr, "zero or negative step size not permitted here: [%s]%s\n", current_translation, which_key);
 	  return 1;
 	}
-	first_stroke = &(tr->pbs[chan][dir>0]);
-	tr->pb_step[chan][dir>0] = step;
+	first_stroke = &(tr->pbs[k][chan][dir>0]);
+	if (is_anyshift) {
+	  alt_press_stroke = &(tr->pbs[0][chan][0]);
+	}
+	tr->pb_step[k][chan][dir>0] = step;
 	if (!dir) {
 	  is_bidirectional = 1;
-	  release_first_stroke = &(tr->pbs[chan][1]);
-	  tr->pb_step[chan][1] = step;
+	  release_first_stroke = &(tr->pbs[k][chan][1]);
+	  if (is_anyshift) {
+	    alt_release_stroke = &(tr->pbs[0][chan][1]);
+	  }
+	  tr->pb_step[k][chan][1] = step;
 	}
       }
       break;
@@ -953,7 +1032,10 @@ start_translation(translation *tr, char *which_key)
     return 1;
   }
   if (*first_stroke != NULL ||
-      (is_bidirectional && *release_first_stroke != NULL)) {
+      (is_bidirectional && *release_first_stroke != NULL) ||
+      (is_anyshift &&
+       (*alt_press_stroke != NULL ||
+	(is_bidirectional && *alt_release_stroke != NULL)))) {
     fprintf(stderr, "can't redefine message: [%s]%s\n", current_translation, which_key);
     return 1;
   }
@@ -1005,7 +1087,7 @@ add_release(int all_keys)
       // MIDI events in there and add them to the "release" strokes
       stroke *s = *press_first_stroke;
       while (s) {
-	if (!s->keysym && s->dirty) {
+	if (!s->keysym && !s->shift && s->dirty) {
 	  append_midi(s->status, s->data, s->step, s->incr);
 	  s->dirty = 0;
 	}
@@ -1025,10 +1107,41 @@ add_release(int all_keys)
     while (s) {
       if (s->keysym) {
 	append_stroke(s->keysym, s->press);
+      } else if (s->shift) {
+	append_shift();
       } else {
 	append_midi(s->status, s->data, s->step, s->incr);
       }
       s = s->next;
+    }
+  }
+  if (all_keys && is_anyshift) {
+    // create a duplicate for any-shift translations (?)
+    stroke *s = *press_first_stroke;
+    first_stroke = alt_press_stroke;
+    while (s) {
+      if (s->keysym) {
+	append_stroke(s->keysym, s->press);
+      } else if (s->shift) {
+	append_shift();
+      } else {
+	append_midi(s->status, s->data, s->step, s->incr);
+      }
+      s = s->next;
+    }
+    if (is_keystroke || is_bidirectional) {
+      s = *release_first_stroke;
+      first_stroke = alt_release_stroke;
+      while (s) {
+	if (s->keysym) {
+	  append_stroke(s->keysym, s->press);
+	} else if (s->shift) {
+	  append_shift();
+	} else {
+	  append_midi(s->status, s->data, s->step, s->incr);
+	}
+	s = s->next;
+      }
     }
   }
 }
@@ -1283,7 +1396,11 @@ read_config_file(void)
 	case ' ':
 	case '\t':
 	case '\n':
-	  if (strncmp(tok, "XK", 2) && strncmp(tok, "RELEASE", 8))
+	  if (!strcmp(tok, "RELEASE"))
+	    add_keystroke(tok, PRESS_RELEASE);
+	  else if (!strcmp(tok, "SHIFT"))
+	    append_shift();
+	  else if (strncmp(tok, "XK", 2))
 	    add_midi(tok);
 	  else
 	    add_keystroke(tok, PRESS_RELEASE);

@@ -47,8 +47,10 @@ typedef struct _stroke {
   struct _stroke *next;
   // nonzero keysym indicates a key event
   KeySym keysym;
-  int press; // zero -> release, non-zero -> press
-  // keysym == 0 => MIDI event
+  int8_t press; // zero -> release, non-zero -> press
+  // nonzero value indicates a shift event
+  int8_t shift;
+  // keysym == shift == 0 => MIDI event
   int status, data; // status and, if applicable, first data byte
   int step; // step size (1, 127 or 8191 by default, depending on status)
   // the incremental bit indicates an incremental control change (typically
@@ -69,19 +71,18 @@ typedef struct _translation {
   regex_t regex;
   uint8_t portno;
   // XXXFIXME: This way of storing the translation tables is easy to
-  // construct, but wastes quite a lot of memory (needs some 128 KB per
-  // translation section even if most of the entries are NULL pointers). We
-  // should rather use some kind of dictionary here.
-  uint8_t is_incr[NUM_CHAN][NUM_KEYS];
-  stroke *pc[NUM_CHAN][NUM_KEYS][2];
-  stroke *note[NUM_CHAN][NUM_KEYS][2];
-  stroke *cc[NUM_CHAN][NUM_KEYS][2];
-  stroke *ccs[NUM_CHAN][NUM_KEYS][2];
-  stroke *pb[NUM_CHAN][2];
-  stroke *pbs[NUM_CHAN][2];
+  // construct, but wastes quite a lot of memory. We should rather use some
+  // kind of dictionary here.
+  uint8_t is_incr[2][NUM_CHAN][NUM_KEYS];
+  stroke *pc[2][NUM_CHAN][NUM_KEYS][2];
+  stroke *note[2][NUM_CHAN][NUM_KEYS][2];
+  stroke *cc[2][NUM_CHAN][NUM_KEYS][2];
+  stroke *ccs[2][NUM_CHAN][NUM_KEYS][2];
+  stroke *pb[2][NUM_CHAN][2];
+  stroke *pbs[2][NUM_CHAN][2];
   // step size for control changes and pitch bend (1 by default)
-  int cc_step[NUM_CHAN][NUM_KEYS][2];
-  int pb_step[NUM_CHAN][2];
+  int cc_step[2][NUM_CHAN][NUM_KEYS][2];
+  int pb_step[2][NUM_CHAN][2];
 } translation;
 
 extern void reload_callback(void);
@@ -94,5 +95,5 @@ extern int default_debug_regex, default_debug_strokes, default_debug_keys,
   default_debug_midi;
 extern char *config_file_name;
 extern int jack_num_outputs;
-extern int midi_octave;
+extern int midi_octave, shift;
 extern char *jack_client_name;
