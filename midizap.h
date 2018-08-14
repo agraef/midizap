@@ -61,9 +61,6 @@ typedef struct _stroke {
   uint8_t dirty;
 } stroke;
 
-#define NUM_KEYS 128
-#define NUM_CHAN 16
-
 typedef struct _stroke_data {
   // key (MIDI channel and, for note/CC/PB, data byte)
   uint8_t chan, data;
