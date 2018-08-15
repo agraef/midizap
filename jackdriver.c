@@ -40,6 +40,7 @@
 #include <jack/jack.h>
 #include <jack/midiport.h>
 #include <jack/ringbuffer.h>
+#include <jack/session.h>
 #include "jackdriver.h"
 
 
@@ -369,13 +370,35 @@ int pop_midi(void* seqq, uint8_t msg[], uint8_t *port_no)
   return 0;
 }
 
-int jack_shutdown;
+int jack_quit;
 
 void
 shutdown_callback()
 {
   // we can't do anything fancy here, just ping the main thread
-  jack_shutdown = 1;
+  jack_quit = -1;
+}
+
+char *jack_command_line = "midizap";
+
+void
+session_callback(jack_session_event_t *event, void *seqq)
+{
+  JACK_SEQ* seq = (JACK_SEQ*)seqq;
+  // XXXTODO: In order to better support Jack session management in the future
+  // we may want to copy over the loaded midizaprc file and store it in the
+  // session dir, so that we can reload it from there later. For the time
+  // being, we simply record the command line here.
+  //printf("path %s, uuid %s, type: %s\n", event->session_dir, event->client_uuid, event->type == JackSessionSave ? "save" : "quit");
+
+  event->command_line = strdup(jack_command_line);
+  jack_session_reply(seq->jack_client, event);
+
+  if (event->type == JackSessionSaveAndQuit) {
+    jack_quit = 1;
+  }
+
+  jack_session_event_free (event);
 }
 
 ////////////////////////////////
@@ -408,6 +431,9 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
 
     if(verbose)printf("assigning shutdown callback...\n");
     jack_on_shutdown(seq->jack_client, shutdown_callback, (void*)seq);
+
+    if(verbose)printf("assigning session callback...\n");
+    jack_set_session_callback(seq->jack_client, session_callback, (void*)seq);
 
     if(verbose)printf("assigning process callback...\n");
     err = jack_set_process_callback(seq->jack_client, process_callback, (void*)seq);
@@ -519,4 +545,5 @@ void close_jack(JACK_SEQ* seq)
     for (k = 0; k < seq->n_in; k++)
       jack_ringbuffer_free(seq->ringbuffer_in[k]);
   }
+  jack_client_close(seq->jack_client);
 }

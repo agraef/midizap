@@ -15,7 +15,9 @@ typedef struct _jseq
   uint8_t n_out;
 } JACK_SEQ;
 
-extern int jack_shutdown;
+extern int jack_quit;
+// This is supposed to be set properly by main().
+extern char *jack_command_line;
 
 int init_jack(JACK_SEQ* seq, uint8_t verbose);
 void close_jack(JACK_SEQ* seq);

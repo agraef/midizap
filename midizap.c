@@ -798,6 +798,58 @@ void quitter()
     quit = 1;
 }
 
+// Helper functions to process the command line, so that we can pass it to
+// Jack session management.
+
+static char *command_line;
+static size_t len;
+
+static void add_command(char *arg)
+{
+  char *a = arg;
+  // Do some simplistic quoting if the argument contains blanks. This won't do
+  // the right thing if the argument also contains quotes. Oh well.
+  if ((strchr(a, ' ') || strchr(a, '\t')) && !strchr(a, '"')) {
+    a = malloc(strlen(arg)+3);
+    sprintf(a, "\"%s\"", arg);
+  }
+  if (!command_line) {
+    len = strlen(a);
+    command_line = malloc(len+1);
+    strcpy(command_line, a);
+  } else {
+    size_t l = strlen(a)+1;
+    command_line = realloc(command_line, len+l+1);
+    command_line[len] = ' ';
+    strcpy(command_line+len+1, a);
+    len += l;
+  }
+  if (a != arg) free(a);
+}
+
+static char *absolute_path(char *name)
+{
+  if (*name == '/') {
+    return name;
+  } else {
+    // This is a relative pathname, we turn it into a canonicalized absolute
+    // path.  NOTE: This requires glibc. We should probably rewrite this code
+    // to be more portable.
+    char *pwd = getcwd(NULL, 0);
+    if (!pwd) {
+      perror("getcwd");
+      return name;
+    } else {
+      char *path = malloc(strlen(pwd)+strlen(name)+2);
+      static char abspath[PATH_MAX];
+      sprintf(path, "%s/%s", pwd, name);
+      realpath(path, abspath);
+      free(path); free(pwd);
+      return abspath;
+    }
+  }
+}
+
 // poll interval in microsec (this shouldn't be too large to avoid jitter)
 #define POLL_INTERVAL 1000
 // how often we check the config file per sec (> 0, < 1000000/POLL_INTERVAL)
@@ -810,6 +862,9 @@ main(int argc, char **argv)
   uint8_t msg[3];
   int opt, count = 0;
 
+  // Start recording the command line to be passed to Jack session management.
+  add_command(argv[0]);
+
   while ((opt = getopt(argc, argv, "hko::d::j:r:")) != -1) {
     switch (opt) {
     case 'h':
@@ -818,23 +873,29 @@ main(int argc, char **argv)
     case 'k':
       // see comment on -k and keydown_tracker above
       keydown_tracker = 1;
+      add_command("-k");
       break;
     case 'o':
       jack_num_outputs = 1;
       if (optarg && *optarg) {
 	const char *a = optarg;
-	if (*a == '2') {
+	if (!strcmp(a, "2")) {
 	  jack_num_outputs = 2;
-	} else if (*a && *a != '1') {
+	  add_command("-o2");
+	} else if (strcmp(a, "1")) {
 	  fprintf(stderr, "%s: wrong port number (-o), must be 1 or 2\n", argv[0]);
 	  fprintf(stderr, "Try -h for help.\n");
 	  exit(1);
-	}
-      }
+	} else
+	  add_command("-o1");
+      } else
+	add_command("-o");
       break;
     case 'd':
       if (optarg && *optarg) {
-	const char *a = optarg;
+	const char *a = optarg; char buf[100];
+	snprintf(buf, 100, "-d%s", optarg);
+	add_command(buf);
 	while (*a) {
 	  switch (*a) {
 	  case 'r':
@@ -863,13 +924,20 @@ main(int argc, char **argv)
 	default_debug_regex = default_debug_strokes = default_debug_keys =
 	  default_debug_midi = 1;
 	debug_jack = 1;
+	add_command("-d");
       }
       break;
     case 'j':
       jack_client_name = optarg;
+      add_command("-j");
+      add_command(optarg);
       break;
     case 'r':
       config_file_name = optarg;
+      add_command("-r");
+      // We need to convert this to an absolute pathname for Jack session
+      // management.
+      add_command(absolute_path(optarg));
       break;
     default:
       fprintf(stderr, "Try -h for help.\n");
@@ -881,6 +949,8 @@ main(int argc, char **argv)
     help(argv[0]);
     exit(1);
   }
+
+  if (command_line) jack_command_line = command_line;
 
   initdisplay();
 
@@ -897,11 +967,14 @@ main(int argc, char **argv)
     exit(1);
   }
 
+  int do_flush = debug_regex || debug_strokes || debug_keys || debug_midi ||
+    debug_jack;
   signal(SIGINT, quitter);
   while (!quit) {
     uint8_t portno;
-    if (jack_shutdown) {
-      fprintf(stderr, "%s: jack shutting down, exiting\n", argv[0]);
+    if (jack_quit) {
+      printf("[jack %s, exiting]\n",
+	     (jack_quit>0)?"asked us to quit":"shutting down");
       close_jack(&seq);
       exit(0);
     }
@@ -918,6 +991,9 @@ main(int argc, char **argv)
       if (read_config_file()) last_focused_window = 0;
       count = 0;
     }
+    // Make sure that debugging output gets flushed every once in a while (may
+    // be buffered when midizap is running inside a QjackCtl session).
+    if (do_flush) fflush(NULL);
   }
   printf(" [exiting]\n");
   close_jack(&seq);
