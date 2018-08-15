@@ -387,14 +387,23 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
     int err, k;
     char portname[100],
       *client_name = seq->client_name?seq->client_name:"midizap";
+    jack_status_t status;
 
     if(verbose)printf("opening client...\n");
-    seq->jack_client = jack_client_open(client_name, JackNullOption, NULL);
+    seq->jack_client = jack_client_open(client_name, JackNullOption, &status);
 
     if (seq->jack_client == NULL)
     {
       fprintf(stderr, "Could not connect to the JACK server; run jackd first?\n");
       return 0;
+    }
+
+    if (verbose && (status & JackServerStarted)) {
+      printf("JACK server started\n");
+    }
+    if (verbose && status & JackNameNotUnique) {
+      client_name = jack_get_client_name(seq->jack_client);
+      printf("JACK client name changed to: %s\n", client_name);
     }
 
     if(verbose)printf("assigning shutdown callback...\n");
