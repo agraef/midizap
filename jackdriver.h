@@ -15,6 +15,8 @@ typedef struct _jseq
   uint8_t n_out;
 } JACK_SEQ;
 
+extern int jack_shutdown;
+
 int init_jack(JACK_SEQ* seq, uint8_t verbose);
 void close_jack(JACK_SEQ* seq);
 void queue_midi(void* seqq, uint8_t msg[], uint8_t port_no);

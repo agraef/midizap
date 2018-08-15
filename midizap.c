@@ -900,6 +900,11 @@ main(int argc, char **argv)
   signal(SIGINT, quitter);
   while (!quit) {
     uint8_t portno;
+    if (jack_shutdown) {
+      fprintf(stderr, "%s: jack shutting down, exiting\n", argv[0]);
+      close_jack(&seq);
+      exit(0);
+    }
     while (pop_midi(&seq, msg, &portno)) {
       handle_event(msg, portno);
       count = 0;

@@ -369,6 +369,15 @@ int pop_midi(void* seqq, uint8_t msg[], uint8_t *port_no)
   return 0;
 }
 
+int jack_shutdown;
+
+void
+shutdown_callback()
+{
+  // we can't do anything fancy here, just ping the main thread
+  jack_shutdown = 1;
+}
+
 ////////////////////////////////
 //this is run in the main thread
 ////////////////////////////////
@@ -387,6 +396,9 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
       fprintf(stderr, "Could not connect to the JACK server; run jackd first?\n");
       return 0;
     }
+
+    if(verbose)printf("assigning shutdown callback...\n");
+    jack_on_shutdown(seq->jack_client, shutdown_callback, (void*)seq);
 
     if(verbose)printf("assigning process callback...\n");
     err = jack_set_process_callback(seq->jack_client, process_callback, (void*)seq);
