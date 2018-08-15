@@ -18,7 +18,7 @@ The midizap program translates Jack MIDI input into X keystrokes, mouse button p
 
 By these means incoming MIDI messages can be translated to sequences of multiple mouse actions and keystrokes, including the pressing and releasing of modifier keys. In addition, MIDI messages can be generated and output using Jack MIDI.
 
-The midizaprc file is just an ordinary text file which you can edit to configure the program for use with any kind of application taking keyboard, mouse or MIDI input. An example.midizaprc file containing sample configurations for some applications is included in the sources.
+The midizaprc file is just an ordinary text file which you can edit to configure the program for use with any kind of application taking keyboard, mouse or MIDI input. An example.midizaprc file containing sample configurations for some applications is included in the sources. Also, in the examples directory you can find some more examples of configuration files for various purposes.
 
 ## Installation
 
@@ -34,13 +34,17 @@ After installation the system-wide default configuration file will be in /etc/mi
 
     cp /etc/midizaprc ~/.midizaprc
 
-The ~/.midizaprc file, if it exists, takes priority over /etc/midizaprc, so it becomes your personal midizap configuration. You can edit this file as you see fit, in order to customize existing or add your own application configurations for the MIDI controller that you have. (If you create any new configurations which might be useful to other users of this program, please consider submitting them so that they can be included in future releases.)
+The ~/.midizaprc file, if it exists, takes priority over /etc/midizaprc, so it becomes your personal default midizap configuration. You can edit this file as you see fit, in order to customize existing or add your own application configurations, adjust the bindings for the MIDI controllers that you have, etc. (If you create any new configurations which might be useful to other users of this program, please consider submitting them so that they can be included in future releases.)
+
+It is also possible to specify the configuration file to be used, by invoking midizap with the `-r` option on the command line, e.g.: `midizap -r myconfig.midizaprc`. This is often used with more specialized configurations dealing with specific applications or MIDI controllers.
 
 **NOTE:** The program automatically reloads the midizaprc file whenever it notices that the file has been changed. Thus you can edit the file while the program keeps running, and have the changes take effect immediately without having to restart the program. When working on new translations, you may want to run the program in a terminal, and employ some or all of the debugging options explained below to see exactly how your translations are being processed.
 
 ## Basic Usage
 
 The midizap program is a command line application, so you typically run it from the terminal, but of course it is also possible to invoke it from your desktop environment's startup files once you've set up everything to your liking.
+
+Try `midizap -h` for a brief summary of the available options with which the program can be invoked.
 
 midizap uses [Jack][] for doing all its MIDI input and output, so you need to be able to run Jack and connect the Jack MIDI inputs and outputs of the program. While it's possible to do all of that from the command line as well, we recommend using a Jack front-end and patchbay program like [QjackCtl][] to manage Jack and to set up the MIDI connections. In QJackCtl's setup, make sure that you have selected `seq` as the MIDI driver. This exposes the ALSA sequencer ports of your MIDI hardware and other non-Jack ALSA MIDI applications as Jack MIDI ports, so that they can easily be connected using QjackCtl.
 
@@ -88,9 +92,7 @@ A5-1[U]: XK_Down/U
 
 It goes without saying that these debugging options will be very helpful when you start developing your own bindings. The `-d` option can be combined with various option characters to choose exactly which kinds of debugging output you want; `r` ("regex") prints the matched translation section (if any) along with the window name and class of the focused window; `s` ("strokes") prints the parsed contents of the configuration file in a human-readable form whenever the file is loaded; `k` ("keys") shows the recognized translations as the program executes them, in the same format as `s`; `m` ("MIDI") prints *any* MIDI input, so that you can figure out which MIDI tokens to use for configuring the translations for your controller; and `j` adds some debugging output from the Jack driver. You can also just use `-d` to enable all debugging output. (Most of these options are also available as directives in the midizaprc file; please check the distributed example.midizaprc for details.)
 
-It's also possible to use alternative configuration files, by specifying the midizaprc file to be used with the `-r` option. Also, try `midizap -h` which prints a short help message with the available options and a brief description.
-
-Have a look at the distributed midizaprc file for more examples. Most of the other translations in the file assume a Mackie-like device with standard playback controls and a jog wheel. Any standard DAW controller which can be switched into Mackie mode should work with these. Otherwise, you'll have to edit the configuration file to make them work.
+Have a look at the distributed midizaprc file for more examples. Most of the other translations in the file assume a Mackie-like device with standard playback controls and a jog wheel. Any standard DAW controller which can be switched into Mackie mode should work with these. Otherwise, you'll have to edit the configuration file to make them work with your controllers.
 
 More information about the available configurations and on how to actually create your own configurations can be found in the example.midizaprc file. This also contains a brief explanation of the syntax used to denote the MIDI messages to be translated. You may also want to look at the comments at the top of readconfig.c for further technical details.
 
@@ -124,7 +126,7 @@ E.g., the input note `C4` is mapped to `C3-10`, the note C in the third MIDI oct
 
 Besides MIDI notes and control change (`CC`) messages, the midizap program also supports receiving and sending program change (`PC`) and pitch bend (`PB`) messages. This should cover most common use cases. Other messages (in particular, aftertouch and system messages) are not supported right now, but may be added in the future. Again, please refer to the example.midizaprc file and the comments in the readconfig.c for further details.
 
-## Octave Numbering and Other Options
+## Octave Numbering
 
 A note on the octave numbers in MIDI note designations is in order here. There are various different standards for numbering octaves, and different programs use different standards, which can be rather confusing. E.g., there's the ASA (Acoustical Society of America) standard where middle C is C4, also known as "scientific" or "American standard" pitch notation. At least two other standards exist specifically for MIDI octave numbering, one in which middle C is C3 (so the lowest MIDI octave starts at C-2), and zero-based octave numbers, which start at C0 and have middle C at C5. There's not really a single "best" standard here, but the latter tends to appeal to mathematically inclined and computer-savvy people, and is also what is used by default in the midizaprc file.
 
@@ -136,7 +138,9 @@ MIDI_OCTAVE -1 # ASA pitches (middle C is C4)
 
 This is useful, in particular, if you use some external MIDI monitoring software to figure out which notes to put into your midizaprc file. To these ends, just check how the program prints middle C, and adjust the `MIDI_OCTAVE` offset in your midizaprc file accordingly. (This isn't necessary if you use midizap's built-in MIDI monitoring facility, as it always prints out MIDI notes in exactly the form that is used in the midizaprc file, no matter what the `MIDI_OCTAVE` offset happens to be.)
 
-Also, there are some additional directives (and corresponding command line options) to set midizap's Jack client name and the number of input and output ports it uses. (If both the command line options and directives in the midizaprc file are used, the former take priority, so that it's always possible to override the options from the midizaprc file from the command line.)
+## Jack Options
+
+There are some additional directives (and corresponding command line options) to set midizap's Jack client name and the number of input and output ports it uses. (If both the command line options and directives in the midizaprc file are used, the former take priority, so that it's always possible to override the options from the midizaprc file from the command line.)
 
 Firstly, there's the `-j` option and the `JACK_NAME` directive which change the Jack client name from the default (`midizap`) to whatever you want it to be. To use this option, simply invoke midizap as `midizap -j client-name`, or put the following directive into your midizaprc file:
 
@@ -144,7 +148,7 @@ Firstly, there's the `-j` option and the `JACK_NAME` directive which change the 
 JACK_NAME "client-name"
 ~~~
 
-This option is useful, in particular, if you're running multiple instances of midizap using different configurations for different controllers, and you want to have the corresponding Jack clients named appropriately, so that they can be distinguished more easily when wiring them up using the QjackCtl patchbay.
+This option is useful, in particular, if you're running multiple instances of midizap with different configurations for different controllers and/or target applications, and you want to have the corresponding Jack clients named appropriately, so that they can be identified more easily when wiring them up. If you're using a persistent MIDI patchbay, such as the one available in QjackCtl, you can then have the right connections automatically set up for you whenever you launch midizap with that specific configuration.
 
 Secondly, we've already seen the `-o` option which is used to equip the Jack client with an additional output port. This can also be achieved with the `JACK_PORTS` directive in the midizaprc file, as follows:
 
@@ -162,11 +166,11 @@ You then wire up the controller to the `midi_input` port of midizap and the `mid
 
 ## Shift Status
 
-Finally, there's a special `SHIFT` token which can be used to toggle an internal shift state. This comes in handy if you want to generate different output for certain MIDI messages depending on the shift status. Only one such shift status is available in the present implementation. Also note that the `SHIFT` token doesn't generate any output by itself; it merely toggles the internal shift bit which can then be queried in other translations to distinguish between shifted and unshifted bindings for the same input message.
+The special `SHIFT` token toggles an internal shift state, which can be used to generate alternative output for certain MIDI messages. Please note that the `SHIFT` token doesn't generate any output by itself; it merely toggles the internal shift bit which can then be queried in other translations to distinguish between shifted and unshifted bindings for the same input message.
 
 To these ends, there are two additional prefixes which indicate the shift status in which a translation is active. Unprefixed translations are active only in unshifted state. The `^` prefix denotes a translation which is active only in shifted state, while the `?` prefix indicates a translation which is active in *both* shifted and unshifted state.
 
-Many Mackie-like DAW controllers have some designated shift keys which can be used for this purpose, but the following will actually work with any key-style MIDI message. E.g., to bind the shift key (`A#5`) on a Mackie controller:
+Many DAW controllers have some designated shift keys which can be used for this purpose, but the following will actually work with any key-style MIDI message. E.g., to bind the shift key (`A#5`) on a Mackie controller:
 
 ~~~
 ?A#5 SHIFT
@@ -184,3 +188,7 @@ Having set up the translation for the shift key itself, we can now indicate that
 CC48=  PB[129]-1 # translate controller to pitch bend when unshifted
 ^CC48= CC16~     # translate controller to encoder when shifted
 ~~~
+
+**NOTE:** To keep things simple, only one shift status is available in the present implementation. Also, when using a shift key in the manner described above, then its status is *only* available internally to the midizap program; the host application never gets to see it. If your host software does its own handling of shift keys (as most Mackie-compatible DAW software does), then it's usually more convenient to simply pass those keys on to the application and have it take care of them.
+
+However, midizap's internal shift status feature may come in handy if your controller simply doesn't have enough buttons and faders to control all the essential features of your target application. In this case the internal shift feature makes it possible to (almost) double the amount of controls available on the device. For instance, you can emulate a Mackie controller with both encoders and faders on a device which only has a single set of faders, by assigning the shifted faders to the encoders, as shown above.
