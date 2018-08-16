@@ -12,14 +12,21 @@ JACK_NAME "midizap-APCmini"
 JACK_PORTS 2
 
 # This turns the APCmini into a Mackie-compatible controller, so that it can
-# be used with Linux DAW programs like Ardour. The emulation is somewhat
-# limited since the APCmini has no encoders, no motorized faders, and not
-# nearly as many dedicated buttons as a Mackie device. But it offers enough
-# controls to be usable as a basic DAW controller.
+# be used with Linux DAW programs like Ardour. The emulation is complicated by
+# the APCmini having no encoders, no motorized faders, and not nearly as many
+# dedicated buttons as a Mackie device. But it offers enough controls to be
+# usable as a basic DAW controller.
 
 # Tested with Ardour. Setup: In Ardour, enable the Mackie control surface,
 # then connect Ardour's "mackie control" ports to midizap's midi_out and
 # midi_in2 ports, and the APCmini to midizap's midi_in and midi_out2 ports.
+
+# PROTOCOL DOCUMENTATION: If you want to see for yourself how all this works,
+# comprehensive information about the Mackie MCU protocol can be found on
+# https://mackie.com; search for the MCU Pro owner's manual in this file:
+# MCU_Pro-XT_Pro_OM.pdf.  Unfortunately, the APCmini is not nearly as well
+# documented, but relevant information can be found in the Ableton forums
+# here: https://forum.ableton.com/viewtopic.php?f=1&t=209604
 
 [MIDI]
 
