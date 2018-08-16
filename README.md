@@ -13,16 +13,16 @@ midizap [-h] [-k] [-o[2]] [-j *name*] [-r *rcfile*] [-d[rskmj]]
 :   Keep track of key (on/off) status of MIDI notes and control switches. This isn't generally recommended, but may occasionally be useful to deal with quirky controllers sending note- or control-ons without corresponding off messages.
 
 -o[2]
-:   Enable MIDI output. Add "2" for a second pair of MIDI ports to be used, e.g., for controller feedback.
+:   Enable MIDI output. Add "2" for a second pair of MIDI ports to be used, e.g., for controller feedback. See Sections *MIDI Output* and *Secondary MIDI Ports*.
 
 -j *name*
-:   Set the Jack client name. Default: "midizap".
+:   Set the Jack client name. Default: "midizap". See Section *Jack-Related Options*.
 
 -r *rcfile*
-:   Set the configuration file name. Default: Taken from the MIDIZAP_CONFIG_FILE environment variable if it exists, or ~/.midizaprc if it exists, /etc/midizaprc otherwise.
+:   Set the configuration file name. Default: Taken from the MIDIZAP_CONFIG_FILE environment variable if it exists, or ~/.midizaprc if it exists, /etc/midizaprc otherwise. See Section *Configuration File*.
 
 -d[rskmj]
-:   Enable various debugging options: r = regex (print matched translation sections), s = strokes (print the parsed configuration file in a human-readable format), k = keys (print executed translations), m = midi (MIDI monitor, print all recognizable MIDI input), j = jack (additional Jack debugging output). Just `-d` enables all debugging options. (NB: The names of these options aren't really very mnemonic in some cases, but they provide compatibility with Eric Messick's ShuttlePRO program on which midizap is based.)
+:   Enable various debugging options: r = regex (print matched translation sections), s = strokes (print the parsed configuration file in a human-readable format), k = keys (print executed translations), m = midi (MIDI monitor, print all recognizable MIDI input), j = jack (additional Jack debugging output). Just `-d` enables all debugging options. See Section *Basic Usage*.
 
 # Description
 
@@ -32,7 +32,7 @@ The midizaprc file is just an ordinary text file which you can edit to configure
 
 midizap provides you with a way to hook up just about any MIDI controller to your favorite multimedia applications, like digital audio workstation (DAW) programs, as well as audio and video editors. The MIDI output option is useful if the target application supports MIDI, but can't work directly with your controller because of protocol incompatibilities. In particular, you can use midizap to turn pretty much any MIDI controller with enough faders and buttons into a Mackie-compatible mixing device for DAW programs. Another common use case is video editing software, which rarely offers built-in MIDI controller support. midizap allows you to map the faders, encoders and buttons of your MIDI controller to corresponding keyboard commands of your video software for cutting, marking, playback, scrolling and zooming.
 
-In other words, as long as the target application can be controlled with simple keyboard shortcuts and/or MIDI commands, midizap should be able to make it work with your controller.
+In other words, as long as the target application can be controlled with simple keyboard shortcuts and/or MIDI commands, chances are that midizap can make it work with your controller.
 
 # Installation
 
@@ -88,7 +88,7 @@ To test the waters, you can hook up just about any MIDI keyboard and give it a t
  CC1-  XK_Scroll_Down
 ~~~
 
-It should be fairly obvious that these translations map the white keys of the middle octave (MIDI notes `C5` thru `B5`) to some mouse buttons and cursor commands. Switch the keyboard focus to some window with text in it, such as a terminal or an editor window. Pressing the keys C, D and E should click the mouse buttons, while F thru B should perform various cursor movements. Also, moving the modulation wheel (`CC1`) on your keyboard should scroll the window contents up and down.
+We refer to Section *Translation Syntax* below for a discussion of the syntax being used here, but it should be fairly obvious that these translations map the white keys of the middle octave (MIDI notes `C5` thru `B5`) to some mouse buttons and cursor commands. Switch the keyboard focus to some window with text in it, such as a terminal or an editor window. Pressing the keys C, D and E should click the mouse buttons, while F thru B should perform various cursor movements. Also, moving the modulation wheel (`CC1`) on your keyboard should scroll the window contents up and down.
 
 One useful feature is that you can invoke the program with various debugging options to get more verbose output as the program recognizes events from the device and translates them to corresponding mouse actions or key presses. E.g., try running `midizap -drk` to have the program print the recognized configuration sections and translations as they are executed. Now press some of the keys and move the modulation wheel. You should see something like:
 
@@ -107,8 +107,6 @@ A5-1[U]: XK_Down/U
 It goes without saying that these debugging options will be very helpful when you start developing your own bindings. The `-d` option can be combined with various option characters to choose exactly which kinds of debugging output you want; `r` ("regex") prints the matched translation section (if any) along with the window name and class of the focused window; `s` ("strokes") prints the parsed contents of the configuration file in a human-readable form whenever the file is loaded; `k` ("keys") shows the recognized translations as the program executes them, in the same format as `s`; `m` ("MIDI") prints *any* MIDI input, so that you can figure out which MIDI tokens to use for configuring the translations for your controller; and `j` adds some debugging output from the Jack driver. You can also just use `-d` to enable all debugging output. (Most of these options are also available as directives in the midizaprc file; please check the distributed example.midizaprc for details.)
 
 Have a look at the distributed midizaprc file for more examples. Most of the other translations in the file assume a Mackie-like device with standard playback controls and a jog wheel. Any standard DAW controller which can be switched into Mackie mode should work with these. Otherwise, editing the configuration to make the translations work with your controller should be a piece of cake.
-
-More information about the available configurations and on how to actually create your own configurations can be found in the example.midizaprc file. This also contains a brief explanation of the syntax used to denote the MIDI messages to be translated. You may also want to look at the comments at the top of readconfig.c for further technical details.
 
 # MIDI Output
 
@@ -136,9 +134,43 @@ Note the `-10` suffix on the output messages in the above example, which indicat
 
 E.g., the input note `C4` is mapped to `C3-10`, the note C in the third MIDI octave, which on channel 10 will produce the sound of a bass drum, at least on GM compatible synthesizers like Fluidsynth. The binding for the volume controller (`CC7`) at the end of the entry sends volume changes to the same drum channel (`CC7-10`), so that you can use the volume control on your keyboard to dial in the volume on the drum channel that you want. The program keeps track of the values of both input and output controllers on all MIDI channels internally, so with the translations above all that happens automagically.
 
-Besides MIDI notes and control change (`CC`) messages, the midizap program also supports receiving and sending program change (`PC`) and pitch bend (`PB`) messages. This should cover most common use cases. Other messages (in particular, aftertouch and system messages) are not supported right now, but may be added in the future. Again, please refer to the example.midizaprc file and the comments in readconfig.c for further details.
+Please see Section *Translation Syntax* below for a more detailed explanation of the syntax used in the configuration file. Besides MIDI notes and control change (`CC`) messages, the midizap program also recognizes program change (`PC`) and pitch bend (`PB`) messages, which should cover most common use cases. Other messages (in particular, aftertouch and system messages) are not supported right now, but may be added in the future.
 
-# Octave Numbering
+# Translation Syntax
+
+`#` after whitespace (or at the beginning of a line) indicates that the rest of the line is a comment.
+
+The midizap configuration file is a sequence of sections defining translation classes. Each section looks like this (`<X..Y>` indicates ranges of permitted values, `[...]` optional parts, and `output` denotes the output sequence):
+
+~~~
+[name] regex
+CC<0..127> output           # control change
+PC<0..127> output           # program change
+PB output                   # pitch bend
+<A..G>[#b]<-11..11> output  # note
+~~~
+
+When focus is on a window whose class or title matches the regular expression `regex`, the following translation class is in effect.  An empty regex for the last class will always match, allowing default translations.  Any output sequences not bound in a matched section will be loaded from the default section if they are bound there.
+
+Each `[name] regex` line introduces the list of MIDI message translations for the named translation class.  The name is only used for debugging output, and needn't be unique.  The following lines indicate what output should be produced for the given MIDI messages.
+
+The left-hand side (first token) of each translation denotes the MIDI message to be translated. MIDI messages are on channel 1 by default; a suffix of the form `-<1..16>` can be used to specify a different MIDI channel.  E.g., `C3-10` denotes note `C3` on MIDI channel 10.
+
+Note messages are specified using the customary notation (note name `A..G`, optionally followed by an accidental, `#` or `b`, followed by the MIDI octave number. Note that all MIDI octaves start at the note C, so `B0` comes before `C1`. By default, `C5` denotes middle C.  Enharmonic spellings are equivalent, so, e.g., `D#` and `Eb` denote exactly the same MIDI note.
+
+We will go into most of the other syntactic bits and pieces of MIDI messages in translations later, but it's good to have the following grammar in EBNF notation handy for reference:
+
+~~~
+tok  ::= ( note | msg ) [ number ] [ "[" number "]" ]
+         [ "-" number] [ incr ]
+note ::= ( "a" | ... | "g" ) [ "#" | "b" ]
+msg  ::= "ch" | "pb" | "pc" | "cc"
+incr ::= "-" | "+" | "=" | "<" | ">" | "~"
+~~~
+
+Case is insignificant. Numbers are always integers in decimal. The meaning of the first number depends on the context (octave number for notes, controller or program number in the range 0..127 for other messages). This can optionally be followed by a number in brackets, denoting a nonzero step size. Also optionally, the suffix with the third number (after the dash) denotes the MIDI channel in the range 1..16; otherwise the default MIDI channel is used (which is always 1 on the left-hand side, but can be set on the right-hand side with `CH`). The optional incr flag at the end of a token indicates an "incremental" controller or pitch bend value which responds to numeric (up/down) changes rather than key presses, cf. *On/Off vs. Incremental Changes* below.
+   
+## Octave Numbering
 
 A note on the octave numbers in MIDI note designations is in order here. There are various different standards for numbering octaves, and different programs use different standards, which can be rather confusing. E.g., there's the ASA (Acoustical Society of America) standard where middle C is C4, also known as "scientific" or "American standard" pitch notation. At least two other standards exist specifically for MIDI octave numbering, one in which middle C is C3 (so the lowest MIDI octave starts at C-2), and zero-based octave numbers, which start at C0 and have middle C at C5. There's not really a single "best" standard here, but the latter tends to appeal to mathematically inclined and computer-savvy people, and is also what is used by default in the midizaprc file.
 
@@ -150,9 +182,111 @@ MIDI_OCTAVE -1 # ASA pitches (middle C is C4)
 
 This is useful, in particular, if you use some external MIDI monitoring software to figure out which notes to put into your midizaprc file. To these ends, just check how the program prints middle C, and adjust the `MIDI_OCTAVE` offset in your midizaprc file accordingly. (Note that midizap's built-in MIDI monitoring facility always prints out MIDI notes using the `MIDI_OCTAVE` offset that is in effect. Thus in this case the printed note tokens will always be in exactly the form that is to be used in the midizaprc file, no matter what the `MIDI_OCTAVE` offset happens to be.)
 
-# Shift State
+## On/Off vs. Incremental Changes
 
-The special `SHIFT` token toggles an internal shift state, which can be used to generate alternative output for certain MIDI messages. Please note that the `SHIFT` token doesn't generate any output by itself; it merely toggles the internal shift bit which can then be queried in other translations to distinguish between shifted and unshifted bindings for the same input message.
+By default, all MIDI messages on the left-hand side of a rule are interpreted in the same way as keys on a computer keyboard, i.e., they can be "on" ("pressed") or "off" ("released").  For notes, a nonzero velocity means "pressed", zero "released".  Similarly, for control changes any nonzero value indicates "pressed".  Same goes for pitch bends, but in this case 0 denotes the center value (considering pitch bend values as signed quantities in the range -8192..8191).  Again, any nonzero (positive or negative) value means "pressed", and 0 (the center value) "released". Finally, while program changes don't actually come in "on"/"off" pairs, they are treated in the same key-like fashion, assuming that they are "pressed" and then "released" immediately afterwards.
+
+`CC` (control change) and `PB` (pitch bend) input messages can also be marked with a trailing `+` or `-` in the left-hand side of a translation. This changes their meaning, so that they are used to report incremental (up and down) changes of the controller or pitch bend value instead of key presses.
+
+## Key Translations
+
+The right-hand side of a translation (i.e., everything following the first token) is a sequence of one or more tokens, separated by whitespace, indicating either MIDI messages or X11 keyboard and mouse events to be output.
+
+Let's look at keyboard and mouse output first. It consists of X key codes (symbolic constants prefixed with `XK_` from the /usr/include/X11/keysymdef.h file) with optional up/down indicators, or strings of printable characters enclosed in double quotes.  Also, there are some special keycodes to denote mouse button (`XK_Button_1`, `XK_Button_2`, `XK_Button_3`) and scroll wheel (`XK_Scroll_Up`, `XK_Scroll_Down`) events.  Sequences may have separate press and release sequences, separated by the special word `RELEASE`.
+
+Examples:
+
+~~~
+C5 "qwer"
+D5 XK_Right
+E5 XK_Alt_L/D XK_Right
+F5 "V" XK_Left XK_Page_Up "v"
+G5 XK_Alt_L/D "v" XK_Alt_L/U "x" RELEASE "q"
+~~~
+
+Any keycode can be followed by an optional `/D`, `/U`, or `/H` flag, indicating that the key is just going down (without being released), going up, or going down and being held until the "off" event is received.
+
+So, in general, modifier key codes will be followed by `/D`, and precede the keycodes they are intended to modify.  If a sequence requires different sets of modifiers for different keycodes, `/U` can be used to release a modifier that was previously pressed with `/D`.
+
+By default, MIDI messages translate to separate press and release sequences.  At the end of the press sequence, all down keys marked by `/D` will be released, and the last key not marked by `/D`, `/U`, or `/H` will remain pressed.  The release sequence will begin by releasing the last held key.  If keys are to be pressed as part of the release sequence, then any keys marked with `/D` will be repressed before continuing the sequence.  Keycodes marked with `/H` remain held between the press and release sequences.
+
+When marking `CC` (control change) and `PB` (pitch bend) input messages with a trailing `+` or `-` in the left-hand side of a translation, they are interpreted as *incremental changes* instead.  Instead of providing separate press and release sequences, the output of such translations is executed whenever the controller increases or decreases, respectively.  At the end of such sequences, all down keys will be released.  For instance, the following translations output the letter `"a"` whenever the volume controller (`CC7`) is increased, and the letter `"b"` if it is decreased.  Also, the number of times one of these keys is output corresponds to the actual change in the controller value.  (Thus, if in the example `CC7` increases by 32, say, 32 `"a"`s will be output.)
+
+~~~
+CC7+ "a"
+CC7+ "b"
+~~~
+
+`CC` also has an alternative incremental mode which handles *relative control changes* encoded in "sign bit" format.  Here, a value < 64 denotes an increase, and a value > 64 a decrease (thus the 7th bit is the sign of the value change).  The lower 6 bits then denote the amount of change (e.g., 2 increments the control by 2, whereas 66 decrements by 2).  This format is often used with endless rotary encoders, such as the jog wheel on the Mackie MCU.  It is denoted by using `<` and `>` in lieu of `-` and `+` as the suffix of the CC message. Example:
+
+~~~
+CC60< XK_Left
+CC60> XK_Right
+~~~
+
+Furthermore, incremental `CC` and `PB` messages can have a *step size* associated with them, which enables you to scale controller and pitch bend changes.  The default step size is 1 (no scaling).  To change it, the desired step size is written in brackets immediately after the message token, but before the increment suffix.  Thus, e.g., `CC1[2]+` denotes a sequence to be executed once whenever the controller increases by an amount of 2.  As another (more useful) example, `PB[1170]` will give you 7 steps up and down, which is useful to emulate a shuttle wheel, such as those on the Contour Design devices, with the pitch bend wheel available on many MIDI keyboards.  For instance, we might map this to the `"j"` and `"k"` keys used to control the playback speed in various video editors as follows:
+
+~~~
+PB[1170]- "j"
+PB[1170]+ "l"
+~~~
+
+## MIDI Translations
+
+Most of the notations for MIDI messages on the left-hand side of a translation rule also carry over to the output side, in order to translate MIDI input to MIDI output.  As already discussed in Section *MIDI Output* above, you need to invoke the midizap program with the `-o` option to make this work.  (Otherwise, MIDI messages in the output translations will just be silently ignored.)
+
+The output sequence can involve as many MIDI messages as you want, and these can be combined freely with keypress events in any order.  There's no limitation on the type or number of MIDI messages that you can put into a translation rule.
+
+Note that on output, the `+-<>` suffixes aren't supported, because the *input* message determines whether it is a key press or value change type of event, and which direction it goes in the latter case.
+
+For key press events, such as a note or non-incremental control change message, the corresponding "on" or "off" event is generated for all MIDI messages in the output sequence, where the "on" value defaults to the maximum value (127 for controller values, 8191 for pitch bends). Thus, e.g., the following rule outputs a `CC80` message with controller value 127 each time middle C (`C5`) is pressed:
+
+~~~
+C5 CC80
+~~~
+
+It is also possible to specify a step size in this case, which explicitly sets the value for the "on" state. For instance, the following variation of the rule above produces a `CC80` message with value 64 (rather than the default "on" value of 127) whenever the MIDI note `C5` is pressed:
+
+~~~
+C5 CC80[64]
+~~~
+
+On the left-hand side of a translation, there are two additional suffixes `=` and `~` for incremental `CC` and `PB` messages which are most useful with pure MIDI translations, which is why we deferred their discussion until now. If the "up" and "down" sequences for these messages are the same, the `=` suffix can be used to indicate that the same sequence should be output for both increments and decrements. For instance, to map the modulation wheel (`CC1`) to the volume controller (`CC7`):
+
+~~~
+CC1= CC7
+~~~
+
+Which is exactly the same as the two translations:
+
+~~~
+CC1+ CC7
+CC1- CC7
+~~~
+
+The same goes for `<`/`>` and `~` with sign-bit relative encoders. Also, on the output side the `~` suffix can be used to indicate an incremental `CC` message in sign-bit encoding.  Thus, to translate a standard MIDI controller to an endless encoder value, you might use a rule like:
+
+~~~
+CC1= CC60~
+~~~
+
+Specifying step sizes with incremental `CC` and `PB` messages works as well, but scales the values *up* rather than down on the output side.  This is most commonly used when scaling up controller values to pitch bends, which cover 128 times the range of a controller:
+
+~~~
+CC1= PB[128]
+~~~
+
+Another possible use is to scale controller values *both* down and up with a combination of step sizes on the left- and right-hand sides, to achieve (an approximation of) a rational scaling factor (2/3 in this example):
+
+~~~
+CC1[3]= CC1[2]
+~~~
+
+There are two other special tokens on the output side, `CH` which selects the default MIDI channel for output, and `SHIFT` which is used for processing shift state.  We'll discuss the latter in its own section below.  The `CH` token, which is followed by a MIDI channel number in the range 1..16, doesn't actually generate any MIDI message, but merely sets the default MIDI channel for subsequent MIDI messages in the same output sequence.  This is convenient if multiple messages are output to the same MIDI channel.  For instance, the sequence `C5-2 E5-2 G5-2`, which outputs a C major chord on MIDI channel 2, can also be abbreviated as `CH2 C5 E5 G5`.
+
+## Shift State
+
+The special `SHIFT` token toggles an internal shift state, which can be used to generate alternative output for certain MIDI messages. Please note that, like the `CH` token, the `SHIFT` token doesn't generate any output by itself; it merely toggles the internal shift bit which can then be queried in other translations to distinguish between shifted and unshifted bindings for the same input message.
 
 To these ends, there are two additional prefixes which indicate the shift status in which a translation is active. Unprefixed translations are active only in unshifted state. The `^` prefix denotes a translation which is active only in shifted state, while the `?` prefix indicates a translation which is active in *both* shifted and unshifted state.
 
@@ -209,9 +343,25 @@ You then wire up midizap's `midi_input` and `midi_output` ports to controller an
 
 You can also use examples/APCmini.midizaprc as a blueprint for your own Mackie emulations. If your controller has enough buttons and faders to serve as a mixing device, you just need to figure out the MIDI messages which the device generates, and which MIDI messages can be sent back to the device for controller feedback (if the device supports it). This information can hopefully be gleaned from your controller's manual or found on the web somewhere, or you can figure it out on your own by running midizap with its MIDI monitoring option (`-dm`).
 
+# Bugs
+
+There probably are some.  Please submit bug reports and pull requests at the midizap [git repository][agraef/midizap].
+
+[agraef/midizap]: https://github.com/agraef/midizap
+
+Here are some issues that I'm aware of and which might be addressed in the future (or not):
+
+- The names of the various debugging options aren't really very mnemonic in some cases.  They are the way they are for compatibility with Eric Messick's ShuttlePRO program on which midizap is based (see below).
+
+- There's only one internal shift state.  That's unlikely to change, because in cases where multiple shift keys are needed, the host application most likely already does them, so this doesn't really seem to be worth the effort.
+
+- Aftertouch and system exclusive/realtime messages are not supported right now.  I didn't find any uses for them yet, but at least the system messages might be good to have.
+
+- It might be nice to have more options for scaling controller and pitch bend values, and maybe ways to combine such values, or use them to specify conditions on a rule (such as restricting the valid range of a controller).
+
 # Notes
 
-midizap is licensed under the GPLv3, please check the accompanying LICENSE file for details.
+midizap is free and open source software licensed under the GPLv3, please check the accompanying LICENSE file for details.
 
 Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)  
 Copyright 2018 Albert Graef (<aggraef@gmail.com>)

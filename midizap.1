@@ -25,12 +25,14 @@ corresponding off messages.
 Enable MIDI output.
 Add \[lq]2\[rq] for a second pair of MIDI ports to be used, e.g., for
 controller feedback.
+See Sections \f[I]MIDI Output\f[] and \f[I]Secondary MIDI Ports\f[].
 .RS
 .RE
 .TP
 .B \-j \f[I]name\f[]
 Set the Jack client name.
 Default: \[lq]midizap\[rq].
+See Section \f[I]Jack\-Related Options\f[].
 .RS
 .RE
 .TP
@@ -38,6 +40,7 @@ Default: \[lq]midizap\[rq].
 Set the configuration file name.
 Default: Taken from the MIDIZAP_CONFIG_FILE environment variable if it
 exists, or ~/.midizaprc if it exists, /etc/midizaprc otherwise.
+See Section \f[I]Configuration File\f[].
 .RS
 .RE
 .TP
@@ -48,9 +51,7 @@ human\-readable format), k = keys (print executed translations), m =
 midi (MIDI monitor, print all recognizable MIDI input), j = jack
 (additional Jack debugging output).
 Just \f[C]\-d\f[] enables all debugging options.
-(NB: The names of these options aren't really very mnemonic in some
-cases, but they provide compatibility with Eric Messick's ShuttlePRO
-program on which midizap is based.)
+See Section \f[I]Basic Usage\f[].
 .RS
 .RE
 .SH Description
@@ -89,8 +90,8 @@ controller to corresponding keyboard commands of your video software for
 cutting, marking, playback, scrolling and zooming.
 .PP
 In other words, as long as the target application can be controlled with
-simple keyboard shortcuts and/or MIDI commands, midizap should be able
-to make it work with your controller.
+simple keyboard shortcuts and/or MIDI commands, chances are that midizap
+can make it work with your controller.
 .SH Installation
 .PP
 First, make sure that you have the required dependencies installed.
@@ -213,9 +214,10 @@ Here is the relevant excerpt from that section:
 \f[]
 .fi
 .PP
-It should be fairly obvious that these translations map the white keys
-of the middle octave (MIDI notes \f[C]C5\f[] thru \f[C]B5\f[]) to some
-mouse buttons and cursor commands.
+We refer to Section \f[I]Translation Syntax\f[] below for a discussion
+of the syntax being used here, but it should be fairly obvious that
+these translations map the white keys of the middle octave (MIDI notes
+\f[C]C5\f[] thru \f[C]B5\f[]) to some mouse buttons and cursor commands.
 Switch the keyboard focus to some window with text in it, such as a
 terminal or an editor window.
 Pressing the keys C, D and E should click the mouse buttons, while F
@@ -271,14 +273,6 @@ Any standard DAW controller which can be switched into Mackie mode
 should work with these.
 Otherwise, editing the configuration to make the translations work with
 your controller should be a piece of cake.
-.PP
-More information about the available configurations and on how to
-actually create your own configurations can be found in the
-example.midizaprc file.
-This also contains a brief explanation of the syntax used to denote the
-MIDI messages to be translated.
-You may also want to look at the comments at the top of readconfig.c for
-further technical details.
 .SH MIDI Output
 .PP
 As already mentioned, the midizap program can also be made to function
@@ -340,15 +334,92 @@ The program keeps track of the values of both input and output
 controllers on all MIDI channels internally, so with the translations
 above all that happens automagically.
 .PP
+Please see Section \f[I]Translation Syntax\f[] below for a more detailed
+explanation of the syntax used in the configuration file.
 Besides MIDI notes and control change (\f[C]CC\f[]) messages, the
-midizap program also supports receiving and sending program change
-(\f[C]PC\f[]) and pitch bend (\f[C]PB\f[]) messages.
-This should cover most common use cases.
+midizap program also recognizes program change (\f[C]PC\f[]) and pitch
+bend (\f[C]PB\f[]) messages, which should cover most common use cases.
 Other messages (in particular, aftertouch and system messages) are not
 supported right now, but may be added in the future.
-Again, please refer to the example.midizaprc file and the comments in
-readconfig.c for further details.
-.SH Octave Numbering
+.SH Translation Syntax
+.PP
+\f[C]#\f[] after whitespace (or at the beginning of a line) indicates
+that the rest of the line is a comment.
+.PP
+The midizap configuration file is a sequence of sections defining
+translation classes.
+Each section looks like this (\f[C]<X..Y>\f[] indicates ranges of
+permitted values, \f[C][...]\f[] optional parts, and \f[C]output\f[]
+denotes the output sequence):
+.IP
+.nf
+\f[C]
+[name]\ regex
+CC<0..127>\ output\ \ \ \ \ \ \ \ \ \ \ #\ control\ change
+PC<0..127>\ output\ \ \ \ \ \ \ \ \ \ \ #\ program\ change
+PB\ output\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ #\ pitch\ bend
+<A..G>[#b]<\-11..11>\ output\ \ #\ note
+\f[]
+.fi
+.PP
+When focus is on a window whose class or title matches the regular
+expression \f[C]regex\f[], the following translation class is in effect.
+An empty regex for the last class will always match, allowing default
+translations.
+Any output sequences not bound in a matched section will be loaded from
+the default section if they are bound there.
+.PP
+Each \f[C][name]\ regex\f[] line introduces the list of MIDI message
+translations for the named translation class.
+The name is only used for debugging output, and needn't be unique.
+The following lines indicate what output should be produced for the
+given MIDI messages.
+.PP
+The left\-hand side (first token) of each translation denotes the MIDI
+message to be translated.
+MIDI messages are on channel 1 by default; a suffix of the form
+\f[C]\-<1..16>\f[] can be used to specify a different MIDI channel.
+E.g., \f[C]C3\-10\f[] denotes note \f[C]C3\f[] on MIDI channel 10.
+.PP
+Note messages are specified using the customary notation (note name
+\f[C]A..G\f[], optionally followed by an accidental, \f[C]#\f[] or
+\f[C]b\f[], followed by the MIDI octave number.
+Note that all MIDI octaves start at the note C, so \f[C]B0\f[] comes
+before \f[C]C1\f[].
+By default, \f[C]C5\f[] denotes middle C.
+Enharmonic spellings are equivalent, so, e.g., \f[C]D#\f[] and
+\f[C]Eb\f[] denote exactly the same MIDI note.
+.PP
+We will go into most of the other syntactic bits and pieces of MIDI
+messages in translations later, but it's good to have the following
+grammar in EBNF notation handy for reference:
+.IP
+.nf
+\f[C]
+tok\ \ ::=\ (\ note\ |\ msg\ )\ [\ number\ ]\ [\ "["\ number\ "]"\ ]
+\ \ \ \ \ \ \ \ \ [\ "\-"\ number]\ [\ incr\ ]
+note\ ::=\ (\ "a"\ |\ ...\ |\ "g"\ )\ [\ "#"\ |\ "b"\ ]
+msg\ \ ::=\ "ch"\ |\ "pb"\ |\ "pc"\ |\ "cc"
+incr\ ::=\ "\-"\ |\ "+"\ |\ "="\ |\ "<"\ |\ ">"\ |\ "~"
+\f[]
+.fi
+.PP
+Case is insignificant.
+Numbers are always integers in decimal.
+The meaning of the first number depends on the context (octave number
+for notes, controller or program number in the range 0..127 for other
+messages).
+This can optionally be followed by a number in brackets, denoting a
+nonzero step size.
+Also optionally, the suffix with the third number (after the dash)
+denotes the MIDI channel in the range 1..16; otherwise the default MIDI
+channel is used (which is always 1 on the left\-hand side, but can be
+set on the right\-hand side with \f[C]CH\f[]).
+The optional incr flag at the end of a token indicates an
+\[lq]incremental\[rq] controller or pitch bend value which responds to
+numeric (up/down) changes rather than key presses, cf.
+\f[I]On/Off vs.\ Incremental Changes\f[] below.
+.SS Octave Numbering
 .PP
 A note on the octave numbers in MIDI note designations is in order here.
 There are various different standards for numbering octaves, and
@@ -386,14 +457,279 @@ out MIDI notes using the \f[C]MIDI_OCTAVE\f[] offset that is in effect.
 Thus in this case the printed note tokens will always be in exactly the
 form that is to be used in the midizaprc file, no matter what the
 \f[C]MIDI_OCTAVE\f[] offset happens to be.)
-.SH Shift State
+.SS On/Off vs.\ Incremental Changes
+.PP
+By default, all MIDI messages on the left\-hand side of a rule are
+interpreted in the same way as keys on a computer keyboard, i.e., they
+can be \[lq]on\[rq] (\[lq]pressed\[rq]) or \[lq]off\[rq]
+(\[lq]released\[rq]).
+For notes, a nonzero velocity means \[lq]pressed\[rq], zero
+\[lq]released\[rq].
+Similarly, for control changes any nonzero value indicates
+\[lq]pressed\[rq].
+Same goes for pitch bends, but in this case 0 denotes the center value
+(considering pitch bend values as signed quantities in the range
+\-8192..8191).
+Again, any nonzero (positive or negative) value means \[lq]pressed\[rq],
+and 0 (the center value) \[lq]released\[rq].
+Finally, while program changes don't actually come in
+\[lq]on\[rq]/\[lq]off\[rq] pairs, they are treated in the same key\-like
+fashion, assuming that they are \[lq]pressed\[rq] and then
+\[lq]released\[rq] immediately afterwards.
+.PP
+\f[C]CC\f[] (control change) and \f[C]PB\f[] (pitch bend) input messages
+can also be marked with a trailing \f[C]+\f[] or \f[C]\-\f[] in the
+left\-hand side of a translation.
+This changes their meaning, so that they are used to report incremental
+(up and down) changes of the controller or pitch bend value instead of
+key presses.
+.SS Key Translations
+.PP
+The right\-hand side of a translation (i.e., everything following the
+first token) is a sequence of one or more tokens, separated by
+whitespace, indicating either MIDI messages or X11 keyboard and mouse
+events to be output.
+.PP
+Let's look at keyboard and mouse output first.
+It consists of X key codes (symbolic constants prefixed with
+\f[C]XK_\f[] from the /usr/include/X11/keysymdef.h file) with optional
+up/down indicators, or strings of printable characters enclosed in
+double quotes.
+Also, there are some special keycodes to denote mouse button
+(\f[C]XK_Button_1\f[], \f[C]XK_Button_2\f[], \f[C]XK_Button_3\f[]) and
+scroll wheel (\f[C]XK_Scroll_Up\f[], \f[C]XK_Scroll_Down\f[]) events.
+Sequences may have separate press and release sequences, separated by
+the special word \f[C]RELEASE\f[].
+.PP
+Examples:
+.IP
+.nf
+\f[C]
+C5\ "qwer"
+D5\ XK_Right
+E5\ XK_Alt_L/D\ XK_Right
+F5\ "V"\ XK_Left\ XK_Page_Up\ "v"
+G5\ XK_Alt_L/D\ "v"\ XK_Alt_L/U\ "x"\ RELEASE\ "q"
+\f[]
+.fi
+.PP
+Any keycode can be followed by an optional \f[C]/D\f[], \f[C]/U\f[], or
+\f[C]/H\f[] flag, indicating that the key is just going down (without
+being released), going up, or going down and being held until the
+\[lq]off\[rq] event is received.
+.PP
+So, in general, modifier key codes will be followed by \f[C]/D\f[], and
+precede the keycodes they are intended to modify.
+If a sequence requires different sets of modifiers for different
+keycodes, \f[C]/U\f[] can be used to release a modifier that was
+previously pressed with \f[C]/D\f[].
+.PP
+By default, MIDI messages translate to separate press and release
+sequences.
+At the end of the press sequence, all down keys marked by \f[C]/D\f[]
+will be released, and the last key not marked by \f[C]/D\f[],
+\f[C]/U\f[], or \f[C]/H\f[] will remain pressed.
+The release sequence will begin by releasing the last held key.
+If keys are to be pressed as part of the release sequence, then any keys
+marked with \f[C]/D\f[] will be repressed before continuing the
+sequence.
+Keycodes marked with \f[C]/H\f[] remain held between the press and
+release sequences.
+.PP
+When marking \f[C]CC\f[] (control change) and \f[C]PB\f[] (pitch bend)
+input messages with a trailing \f[C]+\f[] or \f[C]\-\f[] in the
+left\-hand side of a translation, they are interpreted as
+\f[I]incremental changes\f[] instead.
+Instead of providing separate press and release sequences, the output of
+such translations is executed whenever the controller increases or
+decreases, respectively.
+At the end of such sequences, all down keys will be released.
+For instance, the following translations output the letter \f[C]"a"\f[]
+whenever the volume controller (\f[C]CC7\f[]) is increased, and the
+letter \f[C]"b"\f[] if it is decreased.
+Also, the number of times one of these keys is output corresponds to the
+actual change in the controller value.
+(Thus, if in the example \f[C]CC7\f[] increases by 32, say, 32
+\f[C]"a"\f[]s will be output.)
+.IP
+.nf
+\f[C]
+CC7+\ "a"
+CC7+\ "b"
+\f[]
+.fi
+.PP
+\f[C]CC\f[] also has an alternative incremental mode which handles
+\f[I]relative control changes\f[] encoded in \[lq]sign bit\[rq] format.
+Here, a value < 64 denotes an increase, and a value > 64 a decrease
+(thus the 7th bit is the sign of the value change).
+The lower 6 bits then denote the amount of change (e.g., 2 increments
+the control by 2, whereas 66 decrements by 2).
+This format is often used with endless rotary encoders, such as the jog
+wheel on the Mackie MCU.
+It is denoted by using \f[C]<\f[] and \f[C]>\f[] in lieu of \f[C]\-\f[]
+and \f[C]+\f[] as the suffix of the CC message.
+Example:
+.IP
+.nf
+\f[C]
+CC60<\ XK_Left
+CC60>\ XK_Right
+\f[]
+.fi
+.PP
+Furthermore, incremental \f[C]CC\f[] and \f[C]PB\f[] messages can have a
+\f[I]step size\f[] associated with them, which enables you to scale
+controller and pitch bend changes.
+The default step size is 1 (no scaling).
+To change it, the desired step size is written in brackets immediately
+after the message token, but before the increment suffix.
+Thus, e.g., \f[C]CC1[2]+\f[] denotes a sequence to be executed once
+whenever the controller increases by an amount of 2.
+As another (more useful) example, \f[C]PB[1170]\f[] will give you 7
+steps up and down, which is useful to emulate a shuttle wheel, such as
+those on the Contour Design devices, with the pitch bend wheel available
+on many MIDI keyboards.
+For instance, we might map this to the \f[C]"j"\f[] and \f[C]"k"\f[]
+keys used to control the playback speed in various video editors as
+follows:
+.IP
+.nf
+\f[C]
+PB[1170]\-\ "j"
+PB[1170]+\ "l"
+\f[]
+.fi
+.SS MIDI Translations
+.PP
+Most of the notations for MIDI messages on the left\-hand side of a
+translation rule also carry over to the output side, in order to
+translate MIDI input to MIDI output.
+As already discussed in Section \f[I]MIDI Output\f[] above, you need to
+invoke the midizap program with the \f[C]\-o\f[] option to make this
+work.
+(Otherwise, MIDI messages in the output translations will just be
+silently ignored.)
+.PP
+The output sequence can involve as many MIDI messages as you want, and
+these can be combined freely with keypress events in any order.
+There's no limitation on the type or number of MIDI messages that you
+can put into a translation rule.
+.PP
+Note that on output, the \f[C]+\-<>\f[] suffixes aren't supported,
+because the \f[I]input\f[] message determines whether it is a key press
+or value change type of event, and which direction it goes in the latter
+case.
+.PP
+For key press events, such as a note or non\-incremental control change
+message, the corresponding \[lq]on\[rq] or \[lq]off\[rq] event is
+generated for all MIDI messages in the output sequence, where the
+\[lq]on\[rq] value defaults to the maximum value (127 for controller
+values, 8191 for pitch bends).
+Thus, e.g., the following rule outputs a \f[C]CC80\f[] message with
+controller value 127 each time middle C (\f[C]C5\f[]) is pressed:
+.IP
+.nf
+\f[C]
+C5\ CC80
+\f[]
+.fi
+.PP
+It is also possible to specify a step size in this case, which
+explicitly sets the value for the \[lq]on\[rq] state.
+For instance, the following variation of the rule above produces a
+\f[C]CC80\f[] message with value 64 (rather than the default
+\[lq]on\[rq] value of 127) whenever the MIDI note \f[C]C5\f[] is
+pressed:
+.IP
+.nf
+\f[C]
+C5\ CC80[64]
+\f[]
+.fi
+.PP
+On the left\-hand side of a translation, there are two additional
+suffixes \f[C]=\f[] and \f[C]~\f[] for incremental \f[C]CC\f[] and
+\f[C]PB\f[] messages which are most useful with pure MIDI translations,
+which is why we deferred their discussion until now.
+If the \[lq]up\[rq] and \[lq]down\[rq] sequences for these messages are
+the same, the \f[C]=\f[] suffix can be used to indicate that the same
+sequence should be output for both increments and decrements.
+For instance, to map the modulation wheel (\f[C]CC1\f[]) to the volume
+controller (\f[C]CC7\f[]):
+.IP
+.nf
+\f[C]
+CC1=\ CC7
+\f[]
+.fi
+.PP
+Which is exactly the same as the two translations:
+.IP
+.nf
+\f[C]
+CC1+\ CC7
+CC1\-\ CC7
+\f[]
+.fi
+.PP
+The same goes for \f[C]<\f[]/\f[C]>\f[] and \f[C]~\f[] with sign\-bit
+relative encoders.
+Also, on the output side the \f[C]~\f[] suffix can be used to indicate
+an incremental \f[C]CC\f[] message in sign\-bit encoding.
+Thus, to translate a standard MIDI controller to an endless encoder
+value, you might use a rule like:
+.IP
+.nf
+\f[C]
+CC1=\ CC60~
+\f[]
+.fi
+.PP
+Specifying step sizes with incremental \f[C]CC\f[] and \f[C]PB\f[]
+messages works as well, but scales the values \f[I]up\f[] rather than
+down on the output side.
+This is most commonly used when scaling up controller values to pitch
+bends, which cover 128 times the range of a controller:
+.IP
+.nf
+\f[C]
+CC1=\ PB[128]
+\f[]
+.fi
+.PP
+Another possible use is to scale controller values \f[I]both\f[] down
+and up with a combination of step sizes on the left\- and right\-hand
+sides, to achieve (an approximation of) a rational scaling factor (2/3
+in this example):
+.IP
+.nf
+\f[C]
+CC1[3]=\ CC1[2]
+\f[]
+.fi
+.PP
+There are two other special tokens on the output side, \f[C]CH\f[] which
+selects the default MIDI channel for output, and \f[C]SHIFT\f[] which is
+used for processing shift state.
+We'll discuss the latter in its own section below.
+The \f[C]CH\f[] token, which is followed by a MIDI channel number in the
+range 1..16, doesn't actually generate any MIDI message, but merely sets
+the default MIDI channel for subsequent MIDI messages in the same output
+sequence.
+This is convenient if multiple messages are output to the same MIDI
+channel.
+For instance, the sequence \f[C]C5\-2\ E5\-2\ G5\-2\f[], which outputs a
+C major chord on MIDI channel 2, can also be abbreviated as
+\f[C]CH2\ C5\ E5\ G5\f[].
+.SS Shift State
 .PP
 The special \f[C]SHIFT\f[] token toggles an internal shift state, which
 can be used to generate alternative output for certain MIDI messages.
-Please note that the \f[C]SHIFT\f[] token doesn't generate any output by
-itself; it merely toggles the internal shift bit which can then be
-queried in other translations to distinguish between shifted and
-unshifted bindings for the same input message.
+Please note that, like the \f[C]CH\f[] token, the \f[C]SHIFT\f[] token
+doesn't generate any output by itself; it merely toggles the internal
+shift bit which can then be queried in other translations to distinguish
+between shifted and unshifted bindings for the same input message.
 .PP
 To these ends, there are two additional prefixes which indicate the
 shift status in which a translation is active.
@@ -564,10 +900,38 @@ controller feedback (if the device supports it).
 This information can hopefully be gleaned from your controller's manual
 or found on the web somewhere, or you can figure it out on your own by
 running midizap with its MIDI monitoring option (\f[C]\-dm\f[]).
+.SH Bugs
+.PP
+There probably are some.
+Please submit bug reports and pull requests at the midizap git
+repository (https://github.com/agraef/midizap).
+.PP
+Here are some issues that I'm aware of and which might be addressed in
+the future (or not):
+.IP \[bu] 2
+The names of the various debugging options aren't really very mnemonic
+in some cases.
+They are the way they are for compatibility with Eric Messick's
+ShuttlePRO program on which midizap is based (see below).
+.IP \[bu] 2
+There's only one internal shift state.
+That's unlikely to change, because in cases where multiple shift keys
+are needed, the host application most likely already does them, so this
+doesn't really seem to be worth the effort.
+.IP \[bu] 2
+Aftertouch and system exclusive/realtime messages are not supported
+right now.
+I didn't find any uses for them yet, but at least the system messages
+might be good to have.
+.IP \[bu] 2
+It might be nice to have more options for scaling controller and pitch
+bend values, and maybe ways to combine such values, or use them to
+specify conditions on a rule (such as restricting the valid range of a
+controller).
 .SH Notes
 .PP
-midizap is licensed under the GPLv3, please check the accompanying
-LICENSE file for details.
+midizap is free and open source software licensed under the GPLv3,
+please check the accompanying LICENSE file for details.
 .PP
 Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)
 .PD 0
