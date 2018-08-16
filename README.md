@@ -7,7 +7,9 @@ This is a version of Eric Messick's [ShuttlePRO][nanosyzygy/ShuttlePRO] program 
 
 ShuttlePRO was originally written in 2013 by Eric Messick. This version of the program is based on Albert Graef's [fork][agraef/ShuttlePRO] of the program, so it has all of the translation features of the original program, but also offers Jack MIDI support and various other useful improvements, such as additional command line options and the ability to detect applications using their `WM_CLASS` property (in addition to window titles).
 
-midizap provides you with a way to hook up just about any MIDI controller and use it to translate MIDI input to X keyboard and mouse events in order to control your favorite multimedia applications, such as audio and video editors, digital audio workstation (DAW) programs and the like. Moreover, midizap can also be used to output translated MIDI data, which is useful, e.g., if the target application supports MIDI, but can't work directly with your controller because of protocol incompatibilities. In other words, as long as the target application can be controlled with simple keyboard shortcuts and/or MIDI commands, midizap should be able to make it work with your controller.
+midizap provides you with a way to hook up just about any MIDI controller and use it to translate MIDI input to X keyboard and mouse events in order to control your favorite multimedia applications, such as audio and video editors, digital audio workstation (DAW) programs and the like. It can also be used to output translated MIDI data, so that it functions as a MIDI mapper. This is useful if the target application supports MIDI, but can't work directly with your controller because of protocol incompatibilities. In particular, you can use midizap to turn a MIDI controller with enough faders and buttons into a Mackie-compatible mixing device, which should work with pretty much any DAW program out there.
+
+In other words, as long as the target application can be controlled with simple keyboard shortcuts and/or MIDI commands, midizap should be able to make it work with your controller.
 
 [nanosyzygy/ShuttlePRO]: https://github.com/nanosyzygy/ShuttlePRO
 [agraef/ShuttlePRO]: https://github.com/agraef/ShuttlePRO
@@ -138,7 +140,7 @@ MIDI_OCTAVE -1 # ASA pitches (middle C is C4)
 
 This is useful, in particular, if you use some external MIDI monitoring software to figure out which notes to put into your midizaprc file. To these ends, just check how the program prints middle C, and adjust the `MIDI_OCTAVE` offset in your midizaprc file accordingly. (This isn't necessary if you use midizap's built-in MIDI monitoring facility, as it always prints out MIDI notes in exactly the form that is used in the midizaprc file, no matter what the `MIDI_OCTAVE` offset happens to be.)
 
-## Jack Options
+## Jack-Related Options
 
 There are some additional directives (and corresponding command line options) to set midizap's Jack client name and the number of input and output ports it uses. (If both the command line options and directives in the midizaprc file are used, the former take priority, so that it's always possible to override the options from the midizaprc file from the command line.)
 
@@ -156,13 +158,19 @@ Secondly, we've already seen the `-o` option which is used to equip the Jack cli
 JACK_PORTS 1
 ~~~
 
-You may want to place this directive directly into a configuration file if the configuration is primarily used for doing MIDI translations, so you want to have the MIDI output enabled by default. Typically, such configurations will include just a default `[MIDI]` section and little else. (As explained below, it's also possible to have *two* pairs of input and output ports, in order to deal with controller feedback from the application. This is achieved by either invoking midizap with the `-o2` option, or by employing the `JACK_PORTS 2` directive in the configuration file.)
+You may want to place this directive directly into a configuration file if the configuration is primarily used for doing MIDI translations, so you'd like to have the MIDI output enabled by default. Typically, such configurations will include just a default `[MIDI]` section and little else. As explained below, it's also possible to have *two* pairs of input and output ports, in order to deal with controller feedback from the application. This is achieved by either invoking midizap with the `-o2` option, or by employing the `JACK_PORTS 2` directive in the configuration file.
+
+Last but not least, midizap also supports Jack session management, which makes it possible to record which options the program was invoked with, along with all the MIDI connections. QjackCtl offers options to save and reload Jack sessions in its Session dialog. To use this, launch midizap and any other Jack applications you want to use, set up all the connections, and use QjackCtl's "Save" (or "Save and Quit") option in the Session dialog to have the session recorded. You can then relaunch the same session later by using the "Load" (or "Recent") option in the same dialog.
 
 ## Secondary MIDI Ports
 
 Some MIDI controllers need a more elaborate setup than what we've seen so far, because they have motor faders, LEDs, etc. requiring feedback from the application. To accommodate these, you can use the `-o2` option of midizap, or the `JACK_PORTS 2` directive in the midizaprc file, to create a second pair of MIDI input and output ports, named `midi_input2` and `midi_output2`. Use of this option also activates a second MIDI default section in the midizaprc file, labeled `[MIDI2]`, which is used exclusively for translating MIDI from the second input port and sending the resulting MIDI data to the second output port. Typically, the translations in the `[MIDI2]` section will be the inverse of those in the `[MIDI]` section, or whatever it takes to translate the MIDI feedback from the application back to MIDI data which the controller understands.
 
-You then wire up the controller to the `midi_input` port of midizap and the `midi_output` port to the application as before, but in addition you also connect the application back to midizap's `midi_input2` port, and the `midi_output2` port to the controller. This reverse path is what is needed to translate the feedback from the application and send it back to the controller. Please check the example.midizaprc file for a simple example illustrating this kind of setup.
+You then wire up the controller to the `midi_input` port of midizap and the `midi_output` port to the application as before, but in addition you also connect the application back to midizap's `midi_input2` port, and the `midi_output2` port to the controller. This reverse path is what is needed to translate the feedback from the application and send it back to the controller. A full-blown example for this kind of setup can be found in examples/APCmini.midizaprc in the sources, which shows how to emulate a Mackie controller with AKAI's APCmini device, so that it readily works with DAW software such as Ardour and Reaper. In the comments at the beginning of the file, you'll find information on how to set up the MIDI connections to make that work.
+
+You can also use examples/APCmini.midizaprc as a blueprint for your own Mackie emulations. Comprehensive information on the Mackie MCU protocol can be found in Mackie's [MCU Pro Owner's Manual][] If your controller has enough buttons and faders to serve as a mixing device, you just need to figure out the MIDI messages which the device generates, and which MIDI messages can be sent back to the device for controller feedback (if the device supports it). This information can hopefully be gleaned from your controller's manual or found on the web somewhere, or you can figure it out on your own by running midizap with its MIDI monitoring option (`-dm`).
+
+[MCU Pro Owner's Manual]: https://mackie.com/sites/default/files/PRODUCT%20RESOURCES/MANUALS/Owners_Manuals/MCU_Pro-XT_Pro_OM.pdf
 
 ## Shift Status
 
