@@ -22,7 +22,7 @@ midizap [-h] [-k] [-o[2]] [-j *name*] [-r *rcfile*] [-d[rskmj]]
 :   Set the configuration file name. Default: Taken from the MIDIZAP_CONFIG_FILE environment variable if it exists, or ~/.midizaprc if it exists, /etc/midizaprc otherwise.
 
 -d[rskmj]
-:   Enable various debugging options: r = regex (print matched translation sections), s = strokes (print the parsed configuration file in a human-readable format), k = keys (print executed translations), m = midi (MIDI monitor, print all recognizable MIDI input), j = jack (additional Jack debugging output). If none of these are given, enable all debugging options by default. (The naming of these options isn't really mnemonic in some cases, but was chosen for compatibility with Eric Messick's shuttlepro program on which midizap is based.)
+:   Enable various debugging options: r = regex (print matched translation sections), s = strokes (print the parsed configuration file in a human-readable format), k = keys (print executed translations), m = midi (MIDI monitor, print all recognizable MIDI input), j = jack (additional Jack debugging output). Just `-d` enables all debugging options. (NB: The names of these options aren't really very mnemonic in some cases, but they provide compatibility with Eric Messick's ShuttlePRO program on which midizap is based.)
 
 # Description
 
@@ -142,7 +142,7 @@ Besides MIDI notes and control change (`CC`) messages, the midizap program also 
 
 A note on the octave numbers in MIDI note designations is in order here. There are various different standards for numbering octaves, and different programs use different standards, which can be rather confusing. E.g., there's the ASA (Acoustical Society of America) standard where middle C is C4, also known as "scientific" or "American standard" pitch notation. At least two other standards exist specifically for MIDI octave numbering, one in which middle C is C3 (so the lowest MIDI octave starts at C-2), and zero-based octave numbers, which start at C0 and have middle C at C5. There's not really a single "best" standard here, but the latter tends to appeal to mathematically inclined and computer-savvy people, and is also what is used by default in the midizaprc file.
 
-However, if you prefer a different numbering scheme then you can easily change this by specifying the desired offset for the lowest MIDI note with the special `MIDI_OCTAVE` directive in the configuration file. For instance:
+However, if you prefer a different numbering scheme then you can easily change this by specifying the desired offset for the lowest MIDI octave with the special `MIDI_OCTAVE` directive in the configuration file. For instance:
 
 ~~~
 MIDI_OCTAVE -1 # ASA pitches (middle C is C4)
@@ -216,9 +216,9 @@ midizap is licensed under the GPLv3, please check the accompanying LICENSE file 
 Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)  
 Copyright 2018 Albert Graef (<aggraef@gmail.com>)
 
-This is a version of Eric Messick's [ShuttlePRO][nanosyzygy/ShuttlePRO] program which has been redesigned and rewritten extensively to use Jack MIDI input instead of the Contour Design Shuttle devices that the original program was written for.
+This is a version of Eric Messick's ShuttlePRO program which has been redesigned to use Jack MIDI instead of the Contour Design Shuttle devices that the original program was written for.
 
-ShuttlePRO was originally written in 2013 by Eric Messick, based on earlier code by Trammell Hudson (<hudson@osresearch.net>) and Arendt David (<admin@prnet.org>). The present version of the program is based on Albert Graef's [fork][agraef/ShuttlePRO] of the program, so it has all of the translation features of Eric's version (in particular, key and mouse translations work exactly the same). The Jack MIDI driver code is based on code from Spencer Jackson's [osc2midi][] utility, and on the simple_session_client.c example available in the Jack [git repository][jackaudio/example-clients].
+[ShuttlePRO][nanosyzygy/ShuttlePRO] was originally written in 2013 by Eric Messick, based on earlier code by Trammell Hudson (<hudson@osresearch.net>) and Arendt David (<admin@prnet.org>). The present version of the program is based on Albert Graef's [fork][agraef/ShuttlePRO] of the program. All the translation features of Eric's version are still there (in particular, key and mouse translations work exactly the same), but of course the code has undergone quite some significant changes to accommodate the MIDI input and output facilities. The Jack MIDI driver code is based on code from Spencer Jackson's [osc2midi][] utility, and on the simple_session_client.c example available in the Jack [git repository][jackaudio/example-clients].
 
 [nanosyzygy/ShuttlePRO]: https://github.com/nanosyzygy/ShuttlePRO
 [agraef/ShuttlePRO]: https://github.com/agraef/ShuttlePRO

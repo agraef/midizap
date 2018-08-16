@@ -47,10 +47,10 @@ sections), s = strokes (print the parsed configuration file in a
 human\-readable format), k = keys (print executed translations), m =
 midi (MIDI monitor, print all recognizable MIDI input), j = jack
 (additional Jack debugging output).
-If none of these are given, enable all debugging options by default.
-(The naming of these options isn't really mnemonic in some cases, but
-was chosen for compatibility with Eric Messick's shuttlepro program on
-which midizap is based.)
+Just \f[C]\-d\f[] enables all debugging options.
+(NB: The names of these options aren't really very mnemonic in some
+cases, but they provide compatibility with Eric Messick's ShuttlePRO
+program on which midizap is based.)
 .RS
 .RE
 .SH Description
@@ -366,7 +366,7 @@ tends to appeal to mathematically inclined and computer\-savvy people,
 and is also what is used by default in the midizaprc file.
 .PP
 However, if you prefer a different numbering scheme then you can easily
-change this by specifying the desired offset for the lowest MIDI note
+change this by specifying the desired offset for the lowest MIDI octave
 with the special \f[C]MIDI_OCTAVE\f[] directive in the configuration
 file.
 For instance:
@@ -575,19 +575,19 @@ Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)
 .PD
 Copyright 2018 Albert Graef (<aggraef@gmail.com>)
 .PP
-This is a version of Eric Messick's
-ShuttlePRO (https://github.com/nanosyzygy/ShuttlePRO) program which has
-been redesigned and rewritten extensively to use Jack MIDI input instead
-of the Contour Design Shuttle devices that the original program was
-written for.
+This is a version of Eric Messick's ShuttlePRO program which has been
+redesigned to use Jack MIDI instead of the Contour Design Shuttle
+devices that the original program was written for.
 .PP
-ShuttlePRO was originally written in 2013 by Eric Messick, based on
-earlier code by Trammell Hudson (<hudson@osresearch.net>) and Arendt
-David (<admin@prnet.org>).
+ShuttlePRO (https://github.com/nanosyzygy/ShuttlePRO) was originally
+written in 2013 by Eric Messick, based on earlier code by Trammell
+Hudson (<hudson@osresearch.net>) and Arendt David (<admin@prnet.org>).
 The present version of the program is based on Albert Graef's
-fork (https://github.com/agraef/ShuttlePRO) of the program, so it has
-all of the translation features of Eric's version (in particular, key
-and mouse translations work exactly the same).
+fork (https://github.com/agraef/ShuttlePRO) of the program.
+All the translation features of Eric's version are still there (in
+particular, key and mouse translations work exactly the same), but of
+course the code has undergone quite some significant changes to
+accommodate the MIDI input and output facilities.
 The Jack MIDI driver code is based on code from Spencer Jackson's
 osc2midi (https://github.com/ssj71/OSC2MIDI) utility, and on the
 simple_session_client.c example available in the Jack git
