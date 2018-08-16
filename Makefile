@@ -15,7 +15,13 @@ JACK := $(shell pkg-config --libs jack 2>/dev/null)
 
 OBJ = readconfig.o midizap.o jackdriver.o
 
-all: midizap midizap.1
+all: midizap
+
+# This should actually go into 'all', but we keep this target separate since
+# it requires special software (pandoc) to be generated. We also keep the
+# midizap.1 file in the repository, so that users don't need pandoc in order
+# to install this package.
+man: midizap.1
 
 install: all
 	install -d $(bindir) $(datadir) $(mandir)
