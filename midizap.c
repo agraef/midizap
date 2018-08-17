@@ -86,7 +86,11 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
     if (dir) {
       if (incr) {
 	// incremental controller, simply spit out a relative sign bit value
-	msg[2] = dir>0?1:65;
+	if (!step) step = 1;
+	dir *= step;
+	if (dir < -63) dir = -63;
+	if (dir > 63) dir = 63;
+	msg[2] = dir>0?dir:dir<0?64-dir:0;
       } else {
 	// increment (dir==1) or decrement (dir==-1) the current value,
 	// clamping it to the 0..127 data byte range
@@ -711,20 +715,23 @@ handle_event(uint8_t *msg, uint8_t portno)
       // Incremental controller a la MCU. NB: This assumes a signed bit
       // representation (values above 0x40 indicate counter-clockwise
       // rotation), which seems to be what most DAWs expect nowadays.
-      // But some DAWs may also have it the other way round, so that you may
-      // have to swap the actions for increment and decrement. XXXTODO:
-      // Maybe the encoding should be a configurable parameter?
       if (msg[2] < 64) {
-	int d = msg[2];
-	while (d) {
-	  send_strokes(tr, portno, status, chan, msg[1], 0, 1);
-	  d--;
+	int step = get_cc_step(tr, portno, chan, msg[1], -1);
+	if (step) {
+	  int d = msg[2]/step;
+	  while (d) {
+	    send_strokes(tr, portno, status, chan, msg[1], 0, 1);
+	    d--;
+	  }
 	}
       } else if (msg[2] > 64) {
-	int d = msg[2]-64;
-	while (d) {
-	  send_strokes(tr, portno, status, chan, msg[1], 0, -1);
-	  d--;
+	int step = get_cc_step(tr, portno, chan, msg[1], -1);
+	if (step) {
+	  int d = (msg[2]-64)/step;
+	  while (d) {
+	    send_strokes(tr, portno, status, chan, msg[1], 0, -1);
+	    d--;
+	  }
 	}
       }
     } else if (inccvalue[portno][chan][msg[1]] != msg[2]) {
