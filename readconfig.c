@@ -104,7 +104,7 @@
   will be output.)
 
   CC7+ "a"
-  CC7+ "b"
+  CC7- "b"
 
   CC also has an alternative "incremental" mode which handles relative
   control changes encoded in "sign bit" format.  Here, a value < 64

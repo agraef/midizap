@@ -214,7 +214,7 @@ When marking `CC` (control change) and `PB` (pitch bend) input messages with a t
 
 ~~~
 CC7+ "a"
-CC7+ "b"
+CC7- "b"
 ~~~
 
 `CC` also has an alternative incremental mode which handles *relative control changes* encoded in "sign bit" format.  Here, a value < 64 denotes an increase, and a value > 64 a decrease (thus the 7th bit is the sign of the value change).  The lower 6 bits then denote the amount of change (e.g., 2 increments the control by 2, whereas 66 decrements by 2).  This format is often used with endless rotary encoders, such as the jog wheel on the Mackie MCU.  It is denoted by using `<` and `>` in lieu of `-` and `+` as the suffix of the CC message. Example:
