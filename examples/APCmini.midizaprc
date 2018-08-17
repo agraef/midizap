@@ -15,18 +15,29 @@ JACK_PORTS 2
 # be used with Linux DAW programs like Ardour. The emulation is complicated by
 # the APCmini having no encoders, no motorized faders, and not nearly as many
 # dedicated buttons as a Mackie device. But it offers enough controls to be
-# usable as a basic DAW controller.
+# usable as a basic DAW controller. I tested it with Ardour.
 
-# Tested with Ardour. Setup: In Ardour, enable the Mackie control surface,
-# then connect Ardour's "mackie control" ports to midizap's midi_out and
-# midi_in2 ports, and the APCmini to midizap's midi_in and midi_out2 ports.
+# Setup: In Ardour, enable the Mackie control surface, then connect Ardour's
+# "mackie control" ports to midizap's midi_out and midi_in2 ports, and the
+# APCmini to midizap's midi_in and midi_out2 ports.
 
-# PROTOCOL DOCUMENTATION: If you want to see for yourself how all this works,
-# comprehensive information about the Mackie MCU protocol can be found on
-# https://mackie.com; search for the MCU Pro owner's manual in this file:
-# MCU_Pro-XT_Pro_OM.pdf.  Unfortunately, the APCmini is not nearly as well
-# documented, but relevant information can be found in the Ableton forums
-# here: https://forum.ableton.com/viewtopic.php?f=1&t=209604
+# PROTOCOL DOCUMENTATION: The Mackie protocol is fairly ubiquitous, but since
+# the manufacturers can't be bothered to properly *document* their stuff these
+# days, we have to rely on volunteers who do their work using some reverse
+# engineering. Here are the links that I found most useful:
+
+# http://www.budgetfeatures.com/XctlDOC/Xctl Protocol for X-Touch V1.0.pdf
+
+# (This chart really is a piece of art. It's actually about the Behringer
+# X-Touch, but since that device is MCU-compatible, there's a wealth of useful
+# information in there; just ignore the bits which pertain to Xctl.)
+
+# There's another fairly comprehensive one here:
+
+# http://www.jjlee.com/qlab/Mackie Control MIDI Map.pdf
+
+# Information about the APCmini can be found in the Akai forums here:
+# http://community.akaipro.com/akai_professional/topics/midi-information-for-apc-mini
 
 [MIDI]
 
