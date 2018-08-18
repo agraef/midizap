@@ -309,6 +309,10 @@ static char *debug_key(translation *tr, char *name,
     sprintf(name, "%s%s%d-%d", prefix, note_names[data % 12],
 	    data / 12 + midi_octave, chan+1);
     break;
+  case 0xa0:
+    sprintf(name, "%sKP:%s%d-%d", prefix, note_names[data % 12],
+	    data / 12 + midi_octave, chan+1);
+    break;
   case 0xb0: {
     int step = 1, is_incr = 0;
     if (tr) (void)find_ccs(tr, shift, chan, data, dir>0, &step, &is_incr);
@@ -326,6 +330,9 @@ static char *debug_key(translation *tr, char *name,
   }
   case 0xc0:
     sprintf(name, "%sPC%d-%d", prefix, data, chan+1);
+    break;
+  case 0xd0:
+    sprintf(name, "%sCP-%d", prefix, chan+1);
     break;
   case 0xe0: {
     int step = 1;
@@ -353,10 +360,12 @@ static void debug_input(int portno,
   if (status == 0xe0)
     // translate LSB,MSB to a pitch bend value in the range -8192..8191
     data2 = ((data2 << 7) | data) - 8192;
+  else if (status == 0xd0)
+    data2 = data;
   if (status == 0xc0)
     printf("[%d] %s\n", portno,
 	   debug_key(0, name, status, chan, data, 0));
-  else
+  else if (status != 0xf0) // system messages ignored for now
     printf("[%d] %s value = %d\n", portno,
 	   debug_key(0, name, status, chan, data, 0), data2);
 }
@@ -662,6 +671,7 @@ handle_event(uint8_t *msg, uint8_t portno)
   //fprintf(stderr, "midi [%d]: %0x %0x %0x\n", portno, msg[0], msg[1], msg[2]);
   int status = msg[0] & 0xf0, chan = msg[0] & 0x0f;
   if (status == 0x80) {
+    // convert proper note-off to note-on with vel. 0
     status = 0x90;
     msg[0] = status | chan;
     msg[2] = 0;
@@ -782,7 +792,7 @@ handle_event(uint8_t *msg, uint8_t portno)
     break;
   }
   default:
-    // ignore everything else
+    // ignore everything else for now, specifically system messages
     break;
   }
 }
