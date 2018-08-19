@@ -826,7 +826,7 @@ parse_midi(char *tok, char *s, int lhs, int mode,
   // step size
   if (*p == '[') {
     if (sscanf(++p, "%d%n", &l, &n) == 1) {
-      if (l <= 0) return 0; // must be positive
+      if (!l || (lhs && l<0)) return 0; // must be nonzero / positive on lhs
       p += n;
       if (*p != ']') return 0;
       p++;
@@ -892,6 +892,7 @@ parse_midi(char *tok, char *s, int lhs, int mode,
   } else if (strcmp(s, "pb") == 0) {
     // pitch bend, no data byte
     *status = 0xe0 | k; *data = 0;
+    // negative step size is always permitted on rhs here, even in key mode
     // step size only permitted on lhs if incremental
     if (lhs && *step && !*incr) return 0;
     if (lhs && !*step) *step = 1; // default
@@ -899,6 +900,8 @@ parse_midi(char *tok, char *s, int lhs, int mode,
   } else if (strcmp(s, "cp") == 0) {
     // channel pressure, no data byte
     *status = 0xd0 | k; *data = 0;
+    // negative step size not permitted on rhs in key mode
+    if (!lhs && *step < 0 && !mode) return 0;
     // step size only permitted on lhs if incremental
     if (lhs && *step && !*incr) return 0;
     if (lhs && !*step) *step = 1; // default
@@ -913,6 +916,8 @@ parse_midi(char *tok, char *s, int lhs, int mode,
     // control change
     if (m < 0 || m > 127) return 0;
     *status = 0xb0 | k; *data = m;
+    // negative step size not permitted on rhs in key mode
+    if (!lhs && *step < 0 && !mode) return 0;
     // step size only permitted on lhs if incremental
     if (lhs && *step && !*incr) return 0;
     if (lhs && !*step) *step = 1; // default
@@ -921,12 +926,17 @@ parse_midi(char *tok, char *s, int lhs, int mode,
     // key pressure
     if (m < 0 || m > 127) return 0;
     *status = 0xa0 | k; *data = m;
+    // negative step size not permitted on rhs in key mode
+    if (!lhs && *step < 0 && !mode) return 0;
     // step size only permitted on lhs if incremental
     if (lhs && *step && !*incr) return 0;
     if (lhs && !*step) *step = 1; // default
     return 1;
   } else {
-    if (lhs && *step) return 0; // step size not permitted on lhs
+    // negative step size not permitted on rhs
+    if (!lhs && *step < 0) return 0;
+    // step size not permitted on lhs
+    if (lhs && *step) return 0;
     // we must be looking at a MIDI note here, with m denoting the
     // octave number; first character is the note name (must be a..g);
     // optionally, the second character may denote an accidental (# or b)

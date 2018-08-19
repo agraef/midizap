@@ -67,6 +67,16 @@ static int16_t pbvalue[16] =
   {8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192,
    8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192};
 
+static int dataval(int val, int min, int max)
+{
+  if (!val || val > max)
+    return max;
+  else if (val < min)
+    return min;
+  else
+    return val;
+}
+
 void
 send_midi(uint8_t portno, int status, int data, int step, int incr, int index, int dir)
 {
@@ -78,8 +88,7 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
   switch (status & 0xf0) {
   case 0x90:
     if (!index) {
-      msg[2] = step?step:127;
-      if (msg[2] > 127) msg[2] = 127;
+      msg[2] = dataval(step, 0, 127);
     } else {
       msg[2] = 0;
     }
@@ -110,8 +119,7 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
 	msg[2] = ccvalue[chan][data];
       }
     } else if (!index) {
-      msg[2] = step?step:127;
-      if (msg[2] > 127) msg[2] = 127;
+      msg[2] = dataval(step, 0, 127);
     } else {
       msg[2] = 0;
     }
@@ -133,8 +141,7 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
       }
       msg[2] = kpvalue[chan][data];
     } else if (!index) {
-      msg[2] = step?step:127;
-      if (msg[2] > 127) msg[2] = 127;
+      msg[2] = dataval(step, 0, 127);
     } else {
       msg[2] = 0;
     }
@@ -156,8 +163,7 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
       }
       msg[1] = cpvalue[chan];
     } else if (!index) {
-      msg[1] = step?step:127;
-      if (msg[1] > 127) msg[1] = 127;
+      msg[1] = dataval(step, 0, 127);
     } else {
       msg[1] = 0;
     }
@@ -180,8 +186,7 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
       }
       pbval = pbvalue[chan];
     } else if (!index) {
-      pbval = 8192+(step?step:8191);
-      if (pbval > 16383) pbval = 16383;
+      pbval = 8192+dataval(step, -8192, 8191);
     } else {
       // we use 8192 (center) as the "home" (a.k.a. "off") value, so the pitch
       // will only bend up, never down below the center value
