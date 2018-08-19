@@ -164,12 +164,11 @@ While it's possible to do all of that from the command line as well, we
 recommend using a Jack front\-end and patchbay program like
 QjackCtl (https://qjackctl.sourceforge.io/) to manage Jack and to set up
 the MIDI connections.
-In QJackCtl's setup, make sure that you have selected \f[C]seq\f[] as
+In QjackCtl's setup, make sure that you have selected \f[C]seq\f[] as
 the MIDI driver.
 This exposes the ALSA sequencer ports of your MIDI hardware and other
 non\-Jack ALSA MIDI applications as Jack MIDI ports, so that they can
 easily be connected to midizap.
-.PP
 (Here and in the following, we're assuming that you're using Jack1.
 Jack2 works in a very similar way, but may require some more fiddling;
 in particular, you may have to use
@@ -180,7 +179,7 @@ devices.)
 Having that set up, start Jack, make sure that your MIDI controller is
 connected, and try running \f[C]midizap\f[] from the command line
 (without any arguments).
-In QJackCtl, open the Connections dialog and activate the second tab
+In QjackCtl, open the Connections dialog and activate the second tab
 named \[lq]MIDI\[rq], which shows all available Jack MIDI inputs and
 outputs.
 On the right side of the MIDI tab, you should now see a client named
@@ -279,7 +278,7 @@ As already mentioned, the midizap program can also be made to function
 as a MIDI mapper which translates MIDI input to MIDI output.
 MIDI output is enabled by running the program as \f[C]midizap\ \-o\f[].
 This equips the Jack client with an additional MIDI output port named
-\f[C]midi_out\f[] (visible on the left side of QJackCtl's Connection
+\f[C]midi_out\f[] (visible on the left side of QjackCtl's Connection
 window).
 .PP
 The example.midizaprc file comes with a sample configuration in the
@@ -470,18 +469,16 @@ form that is to be used in the midizaprc file, no matter what the
 \f[C]MIDI_OCTAVE\f[] offset happens to be.)
 .SS Key and Data Input
 .PP
-Input messages can generally be processed in two different ways,
-\[lq]key mode\[rq] and \[lq]data mode\[rq].
-In either mode, the extra data payload of the message is considered,
-which we refer to as the \f[I]parameter value\f[] (or just
-\f[I]value\f[], for short) of a message.
-The only exception here is the program change message which has no
-associated parameter value at all, as the program number is considered
-part of the message token.
-For note, key and channel pressure messages the parameter value is the
-velocity value.
-For control changes, it is the controller value, for pitch bend messages
-the pitch bend value.
+Input messages can be processed in two different ways, \[lq]key
+mode\[rq] and \[lq]data mode\[rq].
+Depending on the mode, the extra data payload of the message, which we
+refer to as the \f[I]parameter value\f[] (or just \f[I]value\f[] for
+short), is interpreted in different ways.
+The parameter value depends on the type of MIDI message.
+Program changes have no value at all.
+For notes, as well as key and channel pressure messages, it is the
+velocity value; for control changes, the controller value; and for pitch
+bend messages, the pitch bend value.
 Note that the latter is actually a 14 bit value which is considered as a
 signed quantity in the range \-8192..8191, where 0 denotes the center
 value.
@@ -504,12 +501,9 @@ But they are treated in the same key\-like fashion anyway, assuming that
 they are \[lq]pressed\[rq] and then \[lq]released\[rq] immediately
 afterwards.
 .PP
-\f[I]Data mode\f[] is available for all messages where the notion of
-step\-wise value \f[I]changes\f[] makes sense.
-Thus note messages (which always come in on/off pairs) and program
-changes (which don't have an associated value at all) are excluded here,
-but data mode can be used with all the remaining messages (key and
-channel pressure, control changes, and pitch bends).
+\f[I]Data mode\f[] is available for all messages whose parameter value
+may continuously change over time, i.e., key and channel pressure,
+control changes, and pitch bends.
 In this mode, the actual \f[I]amount\f[] of change in the value of the
 message (increment or decrement, a.k.a.
 \[lq]up\[rq] or \[lq]down\[rq]) is processed rather than the on/off
@@ -520,32 +514,28 @@ increment (\f[C]+\f[]), decrement (\f[C]\-\f[]), or both (\f[C]=\f[]).
 .PP
 Data mode usually tracks changes in the \f[I]absolute\f[] value of a
 control.
-However, for \f[C]CC\f[] messages there's also a special mode for
-so\-called \f[I]incremental\f[] controllers.
-The most common case of these are the (endless) rotary encoders and jog
-wheels you find on many DAW controllers.
-These emit a special \f[I]sign bit\f[] value indicating a relative
-change, where a value < 64 denotes an increment (usually representing
-clockwise rotation), and a value > 64 a decrement (counter\-clockwise
-rotation).
+However, for \f[C]CC\f[] messages there's also an alternative mode for
+so\-called \f[I]incremental\f[] controllers, or \f[I]encoders\f[] for
+short, which can be found in the form of endless rotary encoders on many
+DAW controllers.
+Encoders emit a special \f[I]sign bit\f[] value indicating a
+\f[I]relative\f[] change, where a value < 64 usually denotes an
+increment (representing clockwise rotation), and a value > 64 a
+decrement (counter\-clockwise rotation).
 The actual amount of change is in the lower 6 bits of the value.
 In the message syntax, these kinds of controls are indicated by using
 the suffix \f[C]<\f[], \f[C]>\f[] and \f[C]~\f[] in lieu of \f[C]\-\f[],
 \f[C]+\f[] and \f[C]=\f[], respectively.
 These suffixes are only permitted with \f[C]CC\f[] messages.
 .PP
-Each MIDI message can have at most one translation in each mode
-associated with it per translation section, so that translations are
-determined uniquely in each translation class.
-Note that the MIDI channel is part of the message, so messages with
-different MIDI channels count as different messages here.
-Also, data mode messages can have key mode translations associated with
-them, and vice versa (except for note and program change messages which
-are only processed in key mode).
-In such a case the key translation will always be output before the data
-translation.
-Thus, e.g., a \f[C]CC\f[] message can be translated to both an on/off
-value \f[I]and\f[] a data increment/decrement, in this order.
+Each MIDI token can have at most one translation associated with it per
+translation section, so that translations are determined uniquely in
+each translation class.
+However, note that the MIDI channel is part of the message token, so
+messages with different MIDI channels count as different messages here.
+The mode of a message (key or data) is also part of the message token,
+so in principle messages can have both key and data translations
+associated with them (this is rarely useful in practice, though).
 .SS Keyboard and Mouse Translations
 .PP
 The right\-hand side of a translation (i.e., everything following the
@@ -572,18 +562,26 @@ string\ \ ::=\ \[aq]"\[aq]\ {\ character\ }\ \[aq]"\[aq]
 .fi
 .PP
 Here, case \f[I]is\f[] significant (except in character strings, see the
-remarks below), so the special tokens \f[C]RELEASE\f[] and
-\f[C]SHIFT\f[] must be in all caps, and the \f[C]XK_\f[] symbols need to
-be written in mixed case exactly as they appear in the X11 keysymdef.h
-file.
-.PP
+remarks below), so the special \f[C]RELEASE\f[] and \f[C]SHIFT\f[]
+tokens must be in all caps, and the \f[C]XK\f[] symbols need to be
+written in mixed case exactly as they appear in the
+/usr/include/X11/keysymdef.h file.
 Besides the key codes from the keysymdef.h file, there are also some
 special additional key codes to denote mouse button
 (\f[C]XK_Button_1\f[], \f[C]XK_Button_2\f[], \f[C]XK_Button_3\f[]) and
 scroll wheel (\f[C]XK_Scroll_Up\f[], \f[C]XK_Scroll_Down\f[]) events.
-Sequences may have separate press and release sequences, separated by
-the special word \f[C]RELEASE\f[].
 .PP
+Any keycode can be followed by an optional \f[C]/D\f[], \f[C]/U\f[], or
+\f[C]/H\f[] flag, indicating that the key is just going down (without
+being released), going up, or going down and being held until the
+\[lq]off\[rq] event is received.
+So, in general, modifier key codes will be followed by \f[C]/D\f[], and
+precede the keycodes they are intended to modify.
+If a sequence requires different sets of modifiers for different
+keycodes, \f[C]/U\f[] can be used to release a modifier that was
+previously pressed with \f[C]/D\f[].
+Sequences may also have separate press and release sequences, separated
+by the special word \f[C]RELEASE\f[].
 Examples:
 .IP
 .nf
@@ -596,32 +594,22 @@ G5\ XK_Alt_L/D\ "v"\ XK_Alt_L/U\ "x"\ RELEASE\ "q"
 \f[]
 .fi
 .PP
-Any keycode can be followed by an optional \f[C]/D\f[], \f[C]/U\f[], or
-\f[C]/H\f[] flag, indicating that the key is just going down (without
-being released), going up, or going down and being held until the
-\[lq]off\[rq] event is received.
-.PP
-So, in general, modifier key codes will be followed by \f[C]/D\f[], and
-precede the keycodes they are intended to modify.
-If a sequence requires different sets of modifiers for different
-keycodes, \f[C]/U\f[] can be used to release a modifier that was
-previously pressed with \f[C]/D\f[].
-.PP
 One major pitfall for beginners is that character strings in double
-quotes are just a shorthand for the corresponding X key codes (ignoring
-case).
+quotes are just a shorthand for the corresponding X key codes, ignoring
+case.
 Thus, e.g., \f[C]"abc"\f[] actually denotes the keysym sequence
 \f[C]XK_a\ XK_b\ XK_c\f[], as does \f[C]"ABC"\f[].
-So in either case the lowercase string \f[C]abc\f[] will be output,
-which probably isn't what you want if you write \f[C]"ABC"\f[].
-But to output uppercase letters, it is necessary to explicitly add one
-of the shift modifiers to the output sequence, e.g.:
-\f[C]XK_Shift_L/D\ "abc"\f[].
+So in either case the \f[I]lowercase\f[] string \f[C]abc\f[] will be
+output.
+To output uppercase letters, it is always necessary to add one of the
+shift modifiers to the output sequence.
+E.g., \f[C]XK_Shift_L/D\ "abc"\f[] will output \f[C]ABC\f[] in
+uppercase.
 .PP
-Keyboard and mouse translations are handled differently depending on the
-input mode (cf.
+Translations are handled differently depending on the input mode (cf.
 \f[I]Key and Data Input\f[] above).
-In key mode, they translate to separate press and release sequences.
+In \f[I]key mode\f[], they translate to separate press and release
+sequences.
 At the end of the press sequence, all down keys marked by \f[C]/D\f[]
 will be released, and the last key not marked by \f[C]/D\f[],
 \f[C]/U\f[], or \f[C]/H\f[] will remain pressed.
@@ -632,23 +620,25 @@ sequence.
 Keycodes marked with \f[C]/H\f[] remain held between the press and
 release sequences.
 .PP
-Data mode is handled differently.
+\f[I]Data mode\f[] is handled differently.
 Instead of providing separate press and release sequences, the output of
 such translations is executed whenever the message value increases or
 decreases, respectively.
 At the end of such sequences, all down keys will be released.
-For instance, the following translations output the letter \f[C]"a"\f[]
-whenever the volume controller (\f[C]CC7\f[]) is increased, and the
-letter \f[C]"b"\f[] if it is decreased.
+.PP
+For instance, the following translations move the cursor left or right
+whenever the volume controller (\f[C]CC7\f[]) decreases and increases,
+respectively.
 Also, the number of times one of these keys is output corresponds to the
 actual change in the value.
-(Thus, if in the example \f[C]CC7\f[] increases by 4, say, \f[C]"a"\f[]
-will be output 4 times.)
+Thus, if in the example \f[C]CC7\f[] increases by 4, say, the program
+will press (and release) \f[C]XK_Right\f[] four times, moving the cursor
+4 positions to the right.
 .IP
 .nf
 \f[C]
-CC7+\ "a"
-CC7\-\ "b"
+CC7\-\ XK_Left
+CC7+\ XK_Right
 \f[]
 .fi
 .PP
@@ -668,8 +658,8 @@ CC60>\ XK_Right
 .fi
 .PP
 (The corresponding \[lq]bidirectional\[rq] translations, which are
-indicated with the \f[C]=\f[] and \f[C]~\f[] suffixes, are not often
-used with keyboard and mouse translations.
+indicated with the \f[C]=\f[] and \f[C]~\f[] suffixes, are rarely used
+with keyboard and mouse translations.
 Same goes for the special \f[C]SHIFT\f[] token.
 Thus we'll discuss these in later sections, see \f[I]MIDI
 Translations\f[] and \f[I]Shift State\f[] below.)
@@ -697,24 +687,24 @@ PB[1170]+\ "l"
 .fi
 .SS MIDI Translations
 .PP
-Most of the notations for MIDI messages on the left\-hand side of a
-translation rule also carry over to the output side, in order to
-translate MIDI input to MIDI output.
-As already discussed in Section \f[I]MIDI Output\f[] above, you need to
-invoke the midizap program with the \f[C]\-o\f[] option to make this
-work.
-(Otherwise, MIDI messages in the output translations will just be
-silently ignored.)
+Most of the notation for MIDI messages on the left\-hand side of a
+translation rule also carry over to the output side.
+The only real difference is that the increment suffixes \f[C]+\-=<>\f[]
+aren't permitted here, as they are only used to determine the input mode
+(key or data) of the entire translation.
+(The \f[C]~\f[] suffix \f[I]is\f[] allowed, however, to indicate output
+in incremental bit\-sign format in data translations, see below.)
 .PP
 The output sequence can involve as many MIDI messages as you want, and
 these can be combined freely with keyboard and mouse events in any
 order.
 There's no limitation on the type or number of MIDI messages that you
 can put into a translation rule.
-However, the \f[C]+\-<>\f[] suffixes aren't permitted, because the
-\f[I]input\f[] message determines whether it is a key\- or data\-mode
-kind of event, and whether it increments or decrements the value in the
-latter case.
+However, as already discussed in Section \f[I]MIDI Output\f[] above, you
+need to invoke the midizap program with the \f[C]\-o\f[] option to make
+MIDI output work.
+(Otherwise, MIDI messages in the output translations will just be
+silently ignored.)
 .PP
 For key\-mode inputs, the corresponding \[lq]on\[rq] or \[lq]off\[rq]
 event is generated for all MIDI messages in the output sequence, where
@@ -748,9 +738,9 @@ On the left\-hand side of a translation, there are two additional
 suffixes \f[C]=\f[] and \f[C]~\f[] for data translations which are most
 useful with pure MIDI translations, which is why we deferred their
 discussion until now.
-If the increment and decrement sequences for these messages are the
+If the increment and decrement sequences for a given translation are the
 same, the \f[C]=\f[] suffix can be used to indicate that this sequence
-should be output for both increments and decrements.
+should be output for \f[I]both\f[] increments and decrements.
 For instance, to map the modulation wheel (\f[C]CC1\f[]) to the volume
 controller (\f[C]CC7\f[]):
 .IP
@@ -769,12 +759,21 @@ CC1\-\ CC7
 \f[]
 .fi
 .PP
-The same goes for \f[C]<\f[]/\f[C]>\f[] and \f[C]~\f[] with sign\-bit
+The same goes for \f[C]<\f[], \f[C]>\f[] and \f[C]~\f[] with sign\-bit
 incremental encoders:
 .IP
 .nf
 \f[C]
 CC60~\ CC7
+\f[]
+.fi
+.PP
+Which is equivalent to:
+.IP
+.nf
+\f[C]
+CC60<\ CC7
+CC60>\ CC7
 \f[]
 .fi
 .PP
@@ -792,7 +791,7 @@ CC48=\ CC16~
 Specifying step sizes on the right\-hand side of incremental
 translations works as well, but there it scales the values \f[I]up\f[]
 rather than down.
-This is most commonly used when scaling up controller values to pitch
+This is most commonly used when upscaling controller values to pitch
 bends, which cover 128 times the range of a controller:
 .IP
 .nf
@@ -868,8 +867,8 @@ do that as follows:
 Having set up the translation for the shift key itself, we can now
 indicate that a translation should be valid only in shifted state with
 the \f[C]^\f[] prefix.
-This makes it possible to assign different functions, e.g., to buttons
-and faders which depend on the shift state.
+This makes it possible to assign, depending on the shift state,
+different functions to buttons and faders.
 Here's a typical example which maps a control change to either
 Mackie\-style fader values encoded as pitch bends, or incremental
 encoder values:
@@ -891,11 +890,11 @@ Mackie\-compatible DAW software does), then it's usually more convenient
 to simply pass those keys on to the application and have it take care of
 them.
 .PP
-However, midizap's internal shift status feature may come in handy if
-your controller simply doesn't have enough buttons and faders to control
-all the essential features of your target application.
-In this case the internal shift feature makes it possible to (almost)
-double the amount of controls available on the device.
+However, \f[C]SHIFT\f[] comes in handy if your controller simply doesn't
+have enough buttons and faders to control all the essential features of
+your target application.
+In this case the internal shift feature makes it possible to double the
+amount of controls available on the device.
 For instance, you can emulate a Mackie controller with both encoders and
 faders on a device which only has a single set of faders, by assigning
 the shifted faders to the encoders, as shown above.
@@ -972,8 +971,8 @@ so far, because they have motor faders, LEDs, etc.
 requiring feedback from the application.
 To accommodate these, you can use the \f[C]\-o2\f[] option of midizap,
 or the \f[C]JACK_PORTS\ 2\f[] directive in the midizaprc file, to create
-a second pair of MIDI input and output ports, named \f[C]midi_input2\f[]
-and \f[C]midi_output2\f[].
+a second pair of MIDI input and output ports, named \f[C]midi_in2\f[]
+and \f[C]midi_out2\f[].
 Use of this option also activates a second MIDI default section in the
 midizaprc file, labeled \f[C][MIDI2]\f[], which is used exclusively for
 translating MIDI from the second input port and sending the resulting
@@ -983,10 +982,10 @@ inverse of those in the \f[C][MIDI]\f[] section, or whatever it takes to
 translate the MIDI feedback from the application back to MIDI data which
 the controller understands.
 .PP
-You then wire up midizap's \f[C]midi_input\f[] and \f[C]midi_output\f[]
-ports to controller and application as before, but in addition you also
-connect the application back to midizap's \f[C]midi_input2\f[] port, and
-the \f[C]midi_output2\f[] port to the controller.
+You then wire up midizap's \f[C]midi_in\f[] and \f[C]midi_out\f[] ports
+to controller and application as before, but in addition you also
+connect the application back to midizap's \f[C]midi_in2\f[] port, and
+the \f[C]midi_out2\f[] port to the controller.
 This reverse path is what is needed to translate the feedback from the
 application and send it back to the controller.
 A full\-blown example for this kind of setup can be found in
@@ -1000,19 +999,18 @@ Please submit bug reports and pull requests at the midizap git
 repository (https://github.com/agraef/midizap).
 .PP
 The names of some of the debugging options are rather peculiar.
-That's mainly due to historical reasons and my laziness; midizap
-inherited them from Eric Messick's ShuttlePRO program on which midizap
-is based (see below).
-So they'll probably last until someone comes up with some really good
-names.
+That's mainly due to historical reasons and my laziness.
+midizap inherited them from Eric Messick's ShuttlePRO program on which
+midizap is based, so they'll probably last until someone comes up with
+some really good names.
 .PP
 midizap tries to keep things simple, which implies that it has its
 limitations.
 In particular, system messages are not supported right now, there's only
 one internal shift state, and midizap lacks some more interesting ways
 of mapping MIDI data.
-There are other, more powerful ways of doing these things, but they are
-also more complicated and usually require programming.
+There are other, more powerful utilities for doing these things, but
+they are also more complicated and usually require programming.
 So, while midizap often does the job reasonably well for simple mapping
 tasks, if things start getting fiddly then you're usually better off
 using a more comprehensive tool like Pd (http://puredata.info/).
@@ -1040,16 +1038,15 @@ This is a version of Eric Messick's ShuttlePRO program which has been
 redesigned to use Jack MIDI instead of the Contour Design Shuttle
 devices that the original program was written for.
 .PP
-ShuttlePRO (https://github.com/nanosyzygy/ShuttlePRO) was written in
-2013 by Eric Messick, based on earlier code by Trammell Hudson
-(<hudson@osresearch.net>) and Arendt David (<admin@prnet.org>).
-The present version of the program, written by Albert Graef, is based on
-his fork (https://github.com/agraef/ShuttlePRO) of the program.
-All the translation features of Eric's version are still there (in
-particular, key and mouse translations work exactly the same), but of
-course the code has undergone some significant changes to accommodate
-the MIDI input and output facilities.
+ShuttlePRO was written in 2013 by Eric Messick, based on earlier code by
+Trammell Hudson (<hudson@osresearch.net>) and Arendt David
+(<admin@prnet.org>).
+The present version of the program, written by Albert Graef, is actually
+based on his fork of ShuttlePRO (https://github.com/agraef/ShuttlePRO).
+All the translation features of the original program are still there (in
+particular, key and mouse translations work exactly the same), but it
+goes without saying that the code has undergone some significant changes
+to accommodate the MIDI input and output facilities.
 The Jack MIDI driver code is based on code from Spencer Jackson's
-osc2midi (https://github.com/ssj71/OSC2MIDI) utility, and on the
-simple_session_client.c example available in the Jack git
-repository (https://github.com/jackaudio/example-clients).
+osc2midi utility, and on the simple_session_client.c example available
+in the Jack git repository.
