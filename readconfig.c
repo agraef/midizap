@@ -577,8 +577,7 @@ stroke **press_first_stroke;
 stroke **release_first_stroke;
 stroke **alt_press_stroke;
 stroke **alt_release_stroke;
-int is_keystroke, is_bidirectional, is_anyshift;
-int is_midi;
+int is_keystroke, is_bidirectional, is_anyshift, is_midi, mode;
 char *current_translation;
 char *key_name;
 int first_release_stroke; // is this the first stroke of a release?
@@ -780,7 +779,7 @@ static int note_number(char c, char b, int k)
 }
 
 int
-parse_midi(char *tok, char *s, int lhs,
+parse_midi(char *tok, char *s, int lhs, int mode,
 	   int *status, int *data, int *step, int *incr, int *dir)
 {
   char *p = tok, *t;
@@ -867,8 +866,11 @@ parse_midi(char *tok, char *s, int lhs,
 	(*p == '+' || *p == '>') ? 1 : 0;
     } else {
       // only the "~" form is permitted in output messages, where it indicates
-      // an endless, sign-bit controller
-      if (*p != '~') return 0;
+      // an endless, sign-bit encoder
+      if (*p != '~')
+	return 0;
+      else if (!mode)
+	fprintf(stderr, "warning: incremental flag ignored in key mode: %s\n", tok);
       *incr = 2; *dir = 0;
     }
     p++;
@@ -955,8 +957,9 @@ start_translation(translation *tr, char *which_key)
   modifier_count = 0;
   midi_channel = 0;
   k = *which_key == '^' || (is_anyshift = *which_key == '?');
-  if (parse_midi(which_key+k, buf, 1, &status, &data, &step, &incr, &dir)) {
+  if (parse_midi(which_key+k, buf, 1, 0, &status, &data, &step, &incr, &dir)) {
     int chan = status & 0x0f;
+    mode = !!incr;
     switch (status & 0xf0) {
     case 0x90:
       // note on/off
@@ -1262,7 +1265,7 @@ add_midi(char *tok)
 {
   int status, data, step, incr, dir = 0;
   char buf[100];
-  if (parse_midi(tok, buf, 0, &status, &data, &step, &incr, &dir)) {
+  if (parse_midi(tok, buf, 0, mode, &status, &data, &step, &incr, &dir)) {
     if (status == 0) {
       // 'ch' token; this doesn't actually generate any output, it just sets
       // the default MIDI channel
