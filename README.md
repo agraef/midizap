@@ -1,5 +1,9 @@
 % midizap(1)
 
+# Name
+
+midizap -- zap through your multimedia applications with MIDI
+
 # Synopsis
 
 midizap [-h] [-k] [-o[2]] [-j *name*] [-r *rcfile*] [-d[rskmj]]
@@ -26,13 +30,13 @@ midizap [-h] [-k] [-o[2]] [-j *name*] [-r *rcfile*] [-d[rskmj]]
 
 # Description
 
-The midizap program translates Jack MIDI input into X keystrokes, mouse button presses, scroll wheel events, or, as an option, MIDI output. It does this by matching the `WM_CLASS` and `WM_NAME` properties of the window that has the keyboard focus against the regular expressions for each application section in its configuration (midizaprc) file. If a regex matches, the corresponding set of translations is used. Otherwise the program falls back to a set of translations in a default section at the end of the file, if available.
+midizap lets you control your favourite multimedia applications, like audio and video editors, or DAW (digital audio workstation) programs, using MIDI, the musical instruments digital interface. To these ends, it translates Jack MIDI input into X keystrokes, mouse button presses, scroll wheel events, or, as an option, MIDI output. It does this by matching the `WM_CLASS` and `WM_NAME` properties of the window that has the keyboard focus against the regular expressions for each application section in its configuration (midizaprc) file. If a regex matches, the corresponding set of translations is used. Otherwise the program falls back to a set of translations in a default section at the end of the file, if available.
 
 The midizaprc file is just an ordinary text file which you can edit to configure the program. An example.midizaprc file containing sample configurations for some applications is included in the sources. Also, in the examples directory you can find some more examples of configuration files for various purposes.
 
-midizap provides you with a way to hook up just about any MIDI controller to your favorite multimedia applications, like digital audio workstation (DAW) programs, as well as audio and video editors. The MIDI output option is useful if the target application supports MIDI, but can't work directly with your controller because of protocol incompatibilities. In particular, you can use midizap to turn pretty much any MIDI controller with enough faders and buttons into a Mackie-compatible mixing device for DAW programs. Another common use case is video editing software, which rarely offers built-in MIDI controller support. midizap allows you to map the faders, encoders and buttons of your MIDI controller to corresponding keyboard commands of your video software for cutting, marking, playback, scrolling and zooming.
+midizap provides you with a way to hook up just about any MIDI controller to your applications. This makes sense because MIDI controllers are readily supported by most operating systems, and are often more versatile than input devices tailored to certain types of applications. The MIDI output option is useful if the target application already supports MIDI, but can't work directly with your controller because of protocol incompatibilities. In particular, you can use midizap to turn pretty much any MIDI controller with enough faders and buttons into a Mackie-compatible mixing device. Another common use case is video editing software, which rarely offers built-in MIDI support. midizap allows you to map the faders, encoders and buttons of your MIDI controller to corresponding keyboard commands of your video software for cutting, marking, playback, scrolling and zooming.
 
-In other words, as long as the target application can be controlled with simple keyboard shortcuts and/or MIDI commands, chances are that midizap can make it work with your controller at least to some extent.
+In other words, as long as the target application can be controlled with simple keyboard shortcuts and/or MIDI commands, chances are that midizap can make it work (at least to some extent) with your controller.
 
 # Installation
 
@@ -132,7 +136,7 @@ Note the `-10` suffix on the output messages in the above example, which indicat
 
 E.g., the input note `C4` is mapped to `C3-10`, the note C in the third MIDI octave, which on channel 10 will produce the sound of a bass drum, at least on GM compatible synthesizers like Fluidsynth. The binding for the volume controller (`CC7`) at the end of the entry sends volume changes to the same drum channel (`CC7-10`), so that you can use the volume control on your keyboard to dial in the volume on the drum channel that you want. The program keeps track of the values of both input and output controllers on all MIDI channels internally, so with the translations above all that happens automagically.
 
-Besides MIDI notes and control change (`CC`) messages, the midizap program also recognizes key and channel pressure (`KP`, `CP`), program change (`PC`) and pitch bend (`PB`) messages, which should cover most common use cases; see below for details.
+Besides MIDI notes and control change (`CC`) messages, the midizap program also recognizes key and channel pressure (`KP`, `CP`), program change (`PC`), and pitch bend (`PB`) messages, which should cover most common use cases; see below for details.
 
 # Translation Syntax
 
@@ -249,11 +253,11 @@ CC60> XK_Right
 
 (The corresponding "bidirectional" translations, which are indicated with the `=` and `~` suffixes, are rarely used with keyboard and mouse translations. Same goes for the special `SHIFT` token. Thus we'll discuss these in later sections, see *MIDI Translations* and *Shift State* below.)
 
-Data messages can also have a *step size* associated with them, which enables you to downscale pressure, controller and pitch bend changes. The default step size is 1 (no scaling). To change it, the desired step size is written in brackets immediately after the message token, but before the increment suffix. Thus, e.g., `CC1[2]+` denotes a sequence to be executed once whenever the controller increases by an amount of 2. As another (more useful) example, `PB[1170]` will give you 7 steps up and down, which is useful to emulate a shuttle wheel with the pitch bend wheel available on many MIDI keyboards. For instance, we might map this to the `"j"` and `"k"` keys used to control the playback speed in various video editors as follows:
+In data mode, input messages can also have a *step size* associated with them, which enables you to scale down changes in the parameter value. The default step size is 1 (no scaling). To change it, the desired step size is written in brackets immediately after the message token to be translated, but before the increment suffix. For instance, to slow down the cursor movement in the example above by a factor of 4:
 
 ~~~
-PB[1170]- "j"
-PB[1170]+ "l"
+CC7[4]- XK_Left
+CC7[4]+ XK_Right
 ~~~
 
 ## MIDI Translations
@@ -261,6 +265,8 @@ PB[1170]+ "l"
 Most of the notation for MIDI messages on the left-hand side of a translation rule also carry over to the output side. The only real difference is that the increment suffixes `+-=<>` aren't permitted here, as they are only used to determine the input mode (key or data) of the entire translation. (The `~` suffix *is* allowed, however, to indicate output in incremental bit-sign format in data translations, see below.)
 
 The output sequence can involve as many MIDI messages as you want, and these can be combined freely with keyboard and mouse events in any order. There's no limitation on the type or number of MIDI messages that you can put into a translation rule. However, as already discussed in Section *MIDI Output* above, you need to invoke the midizap program with the `-o` option to make MIDI output work. (Otherwise, MIDI messages in the output translations will just be silently ignored.)
+
+There is one special MIDI token `CH` which can only be used on the output side. The `CH` token, which is followed by a MIDI channel number in the range 1..16, doesn't actually generate any MIDI message, but merely sets the default MIDI channel for subsequent MIDI messages in the same output sequence. This is convenient if multiple messages are output to the same MIDI channel. For instance, the sequence `C5-2 E5-2 G5-2`, which outputs a C major chord on MIDI channel 2, can also be abbreviated as `CH2 C5 E5 G5`.
 
 For key-mode inputs, the corresponding "on" or "off" event is generated for all MIDI messages in the output sequence, where the "on" value defaults to the maximum value (127 for controller values, 8191 for pitch bends). Thus, e.g., the following rule outputs a `CC80` message with controller value 127 each time middle C (`C5`) is pressed (and another `CC80` message with value 0 when the note is released again):
 
@@ -274,7 +280,14 @@ The value for the "on" state can also be denoted explicitly with a step size her
 C5 CC80[64]
 ~~~
 
-On the left-hand side of a translation, there are two additional suffixes `=` and `~` for data translations which are most useful with pure MIDI translations, which is why we deferred their discussion until now. If the increment and decrement sequences for a given translation are the same, the `=` suffix can be used to indicate that this sequence should be output for *both* increments and decrements. For instance, to map the modulation wheel (`CC1`) to the volume controller (`CC7`):
+For pitch bends, the step size can also be negative. For instance, the following rules assign two keys to bend down and up by the maximum amount (usually 2 semitones on GM-compatible synthesizers):
+
+~~~
+C2 PB[-8192] # bend down
+D2 PB[8191]  # bend up
+~~~
+
+There are two additional suffixes `=` and `~` for data translations which are most useful with pure MIDI translations, which is why we deferred their discussion until now. If the increment and decrement sequences for a given translation are the same, the `=` suffix can be used to indicate that this sequence should be output for *both* increments and decrements. For instance, to map the modulation wheel (`CC1`) to the volume controller (`CC7`):
 
 ~~~
 CC1= CC7
@@ -306,7 +319,7 @@ The `~` suffix can be used to denote incremental controllers in output messages,
 CC48= CC16~
 ~~~
 
-Specifying step sizes on the right-hand side of incremental translations works as well, but there it scales the values *up* rather than down. This is most commonly used when upscaling controller values to pitch bends, which cover 128 times the range of a controller:
+Step sizes also work on the right-hand side of data translations. You might use these to scale up value changes, e.g., when translating from control changes to pitch bends:
 
 ~~~
 CC1= PB[128]
@@ -318,7 +331,11 @@ Another possible use is to scale controller values *both* down and up with a com
 CC1[3]= CC1[2]
 ~~~
 
-There are two other special tokens on the output side, `CH` which selects the default MIDI channel for output, and `SHIFT` which is used for processing shift state. We'll discuss the latter in its own section below. The `CH` token, which is followed by a MIDI channel number in the range 1..16, doesn't actually generate any MIDI message, but merely sets the default MIDI channel for subsequent MIDI messages in the same output sequence. This is convenient if multiple messages are output to the same MIDI channel. For instance, the sequence `C5-2 E5-2 G5-2`, which outputs a C major chord on MIDI channel 2, can also be abbreviated as `CH2 C5 E5 G5`.
+The step size can also be negative here, which allows you to reverse the direction of a controller if needed. E.g., the following will output values going down from 127 to 0 as input values go up from 0 to 127.
+
+~~~
+CC1= CC1[-1]
+~~~
 
 ## Shift State
 
@@ -345,9 +362,7 @@ Having set up the translation for the shift key itself, we can now indicate that
 ^CC48= CC16~    # translate to encoder when shifted
 ~~~
 
-**NOTE:** To keep things simple, only one shift status is available in the present implementation. Also, when using a shift key in the manner described above, then its status is *only* available internally to the midizap program; the host application never gets to see it. If your host software does its own handling of shift keys (as most Mackie-compatible DAW software does), then it's usually more convenient to simply pass those keys on to the application and have it take care of them.
-
-However, `SHIFT` comes in handy if your controller simply doesn't have enough buttons and faders to control all the essential features of your target application. In this case the internal shift feature makes it possible to double the amount of controls available on the device. For instance, you can emulate a Mackie controller with both encoders and faders on a device which only has a single set of faders, by assigning the shifted faders to the encoders, as shown above.
+To keep things simple, only one shift status is available in the present implementation. Also note that when using a shift key in the manner described above, its status is *only* available internally to the midizap program; the host application never gets to see it. If your host software does its own handling of shift keys (as most Mackie-compatible DAWs do), then it's usually more convenient to simply pass those keys on to the application. However, `SHIFT` comes in handy if your controller simply doesn't have enough buttons and faders to control all the essential features of your target application. In this case the internal shift feature makes it possible to double the amount of controls available on the device. For instance, you can emulate a Mackie controller with both encoders and faders on a device which only has a single set of faders, by assigning the shifted faders to the encoders, as shown above.
 
 # Jack-Related Options
 

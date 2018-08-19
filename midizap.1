@@ -2,6 +2,9 @@
 .\"
 .TH "midizap" "1" "" "" ""
 .hy
+.SH Name
+.PP
+midizap \[en] zap through your multimedia applications with MIDI
 .SH Synopsis
 .PP
 midizap [\-h] [\-k] [\-o[2]] [\-j \f[I]name\f[]] [\-r \f[I]rcfile\f[]]
@@ -56,7 +59,10 @@ See Section \f[I]Basic Usage\f[].
 .RE
 .SH Description
 .PP
-The midizap program translates Jack MIDI input into X keystrokes, mouse
+midizap lets you control your favourite multimedia applications, like
+audio and video editors, or DAW (digital audio workstation) programs,
+using MIDI, the musical instruments digital interface.
+To these ends, it translates Jack MIDI input into X keystrokes, mouse
 button presses, scroll wheel events, or, as an option, MIDI output.
 It does this by matching the \f[C]WM_CLASS\f[] and \f[C]WM_NAME\f[]
 properties of the window that has the keyboard focus against the regular
@@ -74,23 +80,25 @@ Also, in the examples directory you can find some more examples of
 configuration files for various purposes.
 .PP
 midizap provides you with a way to hook up just about any MIDI
-controller to your favorite multimedia applications, like digital audio
-workstation (DAW) programs, as well as audio and video editors.
-The MIDI output option is useful if the target application supports
-MIDI, but can't work directly with your controller because of protocol
-incompatibilities.
+controller to your applications.
+This makes sense because MIDI controllers are readily supported by most
+operating systems, and are often more versatile than input devices
+tailored to certain types of applications.
+The MIDI output option is useful if the target application already
+supports MIDI, but can't work directly with your controller because of
+protocol incompatibilities.
 In particular, you can use midizap to turn pretty much any MIDI
 controller with enough faders and buttons into a Mackie\-compatible
-mixing device for DAW programs.
+mixing device.
 Another common use case is video editing software, which rarely offers
-built\-in MIDI controller support.
+built\-in MIDI support.
 midizap allows you to map the faders, encoders and buttons of your MIDI
 controller to corresponding keyboard commands of your video software for
 cutting, marking, playback, scrolling and zooming.
 .PP
 In other words, as long as the target application can be controlled with
 simple keyboard shortcuts and/or MIDI commands, chances are that midizap
-can make it work with your controller at least to some extent.
+can make it work (at least to some extent) with your controller.
 .SH Installation
 .PP
 First, make sure that you have the required dependencies installed.
@@ -335,7 +343,7 @@ above all that happens automagically.
 .PP
 Besides MIDI notes and control change (\f[C]CC\f[]) messages, the
 midizap program also recognizes key and channel pressure (\f[C]KP\f[],
-\f[C]CP\f[]), program change (\f[C]PC\f[]) and pitch bend (\f[C]PB\f[])
+\f[C]CP\f[]), program change (\f[C]PC\f[]), and pitch bend (\f[C]PB\f[])
 messages, which should cover most common use cases; see below for
 details.
 .SH Translation Syntax
@@ -664,25 +672,20 @@ Same goes for the special \f[C]SHIFT\f[] token.
 Thus we'll discuss these in later sections, see \f[I]MIDI
 Translations\f[] and \f[I]Shift State\f[] below.)
 .PP
-Data messages can also have a \f[I]step size\f[] associated with them,
-which enables you to downscale pressure, controller and pitch bend
-changes.
+In data mode, input messages can also have a \f[I]step size\f[]
+associated with them, which enables you to scale down changes in the
+parameter value.
 The default step size is 1 (no scaling).
 To change it, the desired step size is written in brackets immediately
-after the message token, but before the increment suffix.
-Thus, e.g., \f[C]CC1[2]+\f[] denotes a sequence to be executed once
-whenever the controller increases by an amount of 2.
-As another (more useful) example, \f[C]PB[1170]\f[] will give you 7
-steps up and down, which is useful to emulate a shuttle wheel with the
-pitch bend wheel available on many MIDI keyboards.
-For instance, we might map this to the \f[C]"j"\f[] and \f[C]"k"\f[]
-keys used to control the playback speed in various video editors as
-follows:
+after the message token to be translated, but before the increment
+suffix.
+For instance, to slow down the cursor movement in the example above by a
+factor of 4:
 .IP
 .nf
 \f[C]
-PB[1170]\-\ "j"
-PB[1170]+\ "l"
+CC7[4]\-\ XK_Left
+CC7[4]+\ XK_Right
 \f[]
 .fi
 .SS MIDI Translations
@@ -705,6 +708,18 @@ need to invoke the midizap program with the \f[C]\-o\f[] option to make
 MIDI output work.
 (Otherwise, MIDI messages in the output translations will just be
 silently ignored.)
+.PP
+There is one special MIDI token \f[C]CH\f[] which can only be used on
+the output side.
+The \f[C]CH\f[] token, which is followed by a MIDI channel number in the
+range 1..16, doesn't actually generate any MIDI message, but merely sets
+the default MIDI channel for subsequent MIDI messages in the same output
+sequence.
+This is convenient if multiple messages are output to the same MIDI
+channel.
+For instance, the sequence \f[C]C5\-2\ E5\-2\ G5\-2\f[], which outputs a
+C major chord on MIDI channel 2, can also be abbreviated as
+\f[C]CH2\ C5\ E5\ G5\f[].
 .PP
 For key\-mode inputs, the corresponding \[lq]on\[rq] or \[lq]off\[rq]
 event is generated for all MIDI messages in the output sequence, where
@@ -734,10 +749,20 @@ C5\ CC80[64]
 \f[]
 .fi
 .PP
-On the left\-hand side of a translation, there are two additional
-suffixes \f[C]=\f[] and \f[C]~\f[] for data translations which are most
-useful with pure MIDI translations, which is why we deferred their
-discussion until now.
+For pitch bends, the step size can also be negative.
+For instance, the following rules assign two keys to bend down and up by
+the maximum amount (usually 2 semitones on GM\-compatible synthesizers):
+.IP
+.nf
+\f[C]
+C2\ PB[\-8192]\ #\ bend\ down
+D2\ PB[8191]\ \ #\ bend\ up
+\f[]
+.fi
+.PP
+There are two additional suffixes \f[C]=\f[] and \f[C]~\f[] for data
+translations which are most useful with pure MIDI translations, which is
+why we deferred their discussion until now.
 If the increment and decrement sequences for a given translation are the
 same, the \f[C]=\f[] suffix can be used to indicate that this sequence
 should be output for \f[I]both\f[] increments and decrements.
@@ -788,11 +813,9 @@ CC48=\ CC16~
 \f[]
 .fi
 .PP
-Specifying step sizes on the right\-hand side of incremental
-translations works as well, but there it scales the values \f[I]up\f[]
-rather than down.
-This is most commonly used when upscaling controller values to pitch
-bends, which cover 128 times the range of a controller:
+Step sizes also work on the right\-hand side of data translations.
+You might use these to scale up value changes, e.g., when translating
+from control changes to pitch bends:
 .IP
 .nf
 \f[C]
@@ -811,19 +834,16 @@ CC1[3]=\ CC1[2]
 \f[]
 .fi
 .PP
-There are two other special tokens on the output side, \f[C]CH\f[] which
-selects the default MIDI channel for output, and \f[C]SHIFT\f[] which is
-used for processing shift state.
-We'll discuss the latter in its own section below.
-The \f[C]CH\f[] token, which is followed by a MIDI channel number in the
-range 1..16, doesn't actually generate any MIDI message, but merely sets
-the default MIDI channel for subsequent MIDI messages in the same output
-sequence.
-This is convenient if multiple messages are output to the same MIDI
-channel.
-For instance, the sequence \f[C]C5\-2\ E5\-2\ G5\-2\f[], which outputs a
-C major chord on MIDI channel 2, can also be abbreviated as
-\f[C]CH2\ C5\ E5\ G5\f[].
+The step size can also be negative here, which allows you to reverse the
+direction of a controller if needed.
+E.g., the following will output values going down from 127 to 0 as input
+values go up from 0 to 127.
+.IP
+.nf
+\f[C]
+CC1=\ CC1[\-1]
+\f[]
+.fi
 .SS Shift State
 .PP
 The special \f[C]SHIFT\f[] token toggles an internal shift state, which
@@ -880,16 +900,14 @@ encoder values:
 \f[]
 .fi
 .PP
-\f[B]NOTE:\f[] To keep things simple, only one shift status is available
-in the present implementation.
-Also, when using a shift key in the manner described above, then its
+To keep things simple, only one shift status is available in the present
+implementation.
+Also note that when using a shift key in the manner described above, its
 status is \f[I]only\f[] available internally to the midizap program; the
 host application never gets to see it.
 If your host software does its own handling of shift keys (as most
-Mackie\-compatible DAW software does), then it's usually more convenient
-to simply pass those keys on to the application and have it take care of
-them.
-.PP
+Mackie\-compatible DAWs do), then it's usually more convenient to simply
+pass those keys on to the application.
 However, \f[C]SHIFT\f[] comes in handy if your controller simply doesn't
 have enough buttons and faders to control all the essential features of
 your target application.
