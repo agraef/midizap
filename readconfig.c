@@ -12,10 +12,12 @@
   section takes the following form:
 
   [name] regex
-  CC<0..127> output         # control change
-  PC<0..127> output         # program change
-  PB output                 # pitch bend
-  <A-G>[#b]<0..11> output   # note
+  CC<0..127> output             # control change
+  PC<0..127> output             # program change
+  PB output                     # pitch bend
+  CP output                     # channel pressure
+  KP:<A-G>[#b]<-11..11> output  # key pressure (aftertouch)
+  <A-G>[#b]<-11..11> output     # note
 
   When focus is on a window whose class or title matches regex, the
   following translation class is in effect.  An empty regex for the last
@@ -28,11 +30,6 @@
   for debugging output, and needn't be unique.  The following lines
   indicate what output should be produced for the given MIDI messages.
 
-  Note that not all MIDI message types are supported right now (no
-  aftertouch, no system messages), but that subset should be enough to
-  handle most common use cases.  (In any case, adding more message types
-  should be a piece of cake.)
-
   MIDI messages are on channel 1 by default; a suffix of the form
   -<1..16> can be used to specify a different MIDI channel.  E.g., C3-10
   denotes note C3 on MIDI channel 10.
@@ -40,174 +37,12 @@
   Note messages are specified using the cutomary notation (note name
   A..G, optionally followed by an accidental, # or b, followed by a
   (zero-based) MIDI octave number. Note that all MIDI octaves start at
-  the note C, so B0 comes before C1. C5 denotes middle C, A5 is the
-  chamber pitch (usually at 440 Hz).  Enharmonic spellings are
+  the note C, so B0 comes before C1.  By default, C5 denotes middle C, A5
+  is the chamber pitch (usually at 440 Hz).  Enharmonic spellings are
   equivalent, so, e.g., D# and Eb denote exactly the same MIDI note.
 
   More details on the syntax of MIDI messages can be found in the
   comments preceding the parse_midi() routine below.
-
-  By default, all messages are interpreted in the same way as keys on a
-  computer keyboard, i.e., they can be "on" ("pressed") or "off"
-  ("released").  For notes, a nonzero velocity means "pressed", zero
-  "released".  Similarly, for control changes any nonzero value
-  indicates "pressed".  Same goes for pitch bends, but in this case 0
-  denotes the center value (considering pitch bend values as signed
-  quantities in the range -8192..8191).  Again, any nonzero (positive or
-  negative) value means "pressed", and 0 (the center value) "released".
-  Finally, while program changes don't actually come in "on"/"off"
-  pairs, they are treated in the same key-like fashion, assuming that
-  they are "pressed" and then "released" immediately afterwards.
-
-  output is a sequence of one or more key codes with optional up/down
-  indicators, or strings of printable characters enclosed in double
-  quotes, separated by whitespace.  Sequences may have separate press
-  and release sequences, separated by the word RELEASE.
-
-  Examples:
-
-  C5 "qwer"
-  D5 XK_Right
-  E5 XK_Alt_L/D XK_Right
-  F5 "V" XK_Left XK_Page_Up "v"
-  G5 XK_Alt_L/D "v" XK_Alt_L/U "x" RELEASE "q"
-
-  Any keycode can be followed by an optional /D, /U, or /H, indicating
-  that the key is just going down (without being released), going up,
-  or going down and being held until the "off" event is received.
-
-  So, in general, modifier key codes will be followed by /D, and
-  precede the keycodes they are intended to modify.  If a sequence
-  requires different sets of modifiers for different keycodes, /U can
-  be used to release a modifier that was previously pressed with /D.
-
-  By default, MIDI messages translate to separate press and release
-  sequences.  At the end of the press sequence, all down keys marked by
-  /D will be released, and the last key not marked by /D, /U, or /H will
-  remain pressed.  The release sequence will begin by releasing the last
-  held key.  If keys are to be pressed as part of the release sequence,
-  then any keys marked with /D will be repressed before continuing the
-  sequence.  Keycodes marked with /H remain held between the press and
-  release sequences.
-
-  By marking CC (control change) and PB (pitch bend) messages with a
-  trailing "+" or "-", they can also be used to report incremental
-  changes.  These work a bit differently from the key press semantics.
-  Instead of providing separate press and release sequences, the output
-  of such translations is executed whenever the controller increases or
-  decreases, respectively.  At the end of such sequences, all down keys
-  will be released.  For instance, the following translations output the
-  letter "a" whenever the volume controller (CC7) is increased, and the
-  letter "b" if it is decreased.  Also, the number of times one of these
-  keys is output corresponds to the actual change in the controller
-  value.  (Thus, if in the example CC7 increases by 32, say, 32 "a"s
-  will be output.)
-
-  CC7+ "a"
-  CC7- "b"
-
-  CC also has an alternative "incremental" mode which handles relative
-  control changes encoded in "sign bit" format.  Here, a value < 64
-  denotes an increase, and a value > 64 a decrease (thus the 7th bit is
-  the sign of the value change).  The lower 6 bits then denote the
-  amount of change (e.g., 2 increments the control by 2, whereas 66
-  decrements by 2).  This format is often used with endless rotary
-  encoders, such as the jog wheel on some DAW controllers like the
-  Mackie MCU.  It is denoted by using "<" and ">" in lieu of "-" and "+"
-  as the suffix of the CC message. Example:
-
-  CC60< XK_Left
-  CC60> XK_Right
-
-  If the "up" and "down" sequences for controller and pitch bend changes
-  are the same, the notation "=" can be used to indicate that the same
-  sequence should be output in either case. This most commonly arises in
-  pure MIDI translations. For instance, to map the modulation wheel
-  (CC1) to the volume controller (CC7):
-
-  CC1= CC7
-
-  Which is exactly the same as the two translations:
-
-  CC1+ CC7
-  CC1- CC7
-
-  The same goes for "<"/">" and "~" in incremental mode. E.g., CC1~ CC7
-  is exactly the same as:
-
-  CC1< CC7
-  CC1> CC7
-
-  Furthermore, incremental CC and PB messages can have a step size
-  associated with them, which enable you to scale controller and pitch
-  bend changes.  The default step size is 1 (no scaling).  To change it,
-  the desired step size is written in brackets immediately after the
-  message token, but before the increment suffix.  Thus, e.g., CC1[2]=
-  denotes a sequence to be executed once whenever the controller changes
-  by an amount of 2.  For instance, the following translation scales
-  down the values of a controller, effectively dividing them by 2, so
-  that the output range becomes 0..63 (127/2, rounded down):
-
-  CC1[2]= CC1
-
-  As another example, PB[1170] will give you 7 steps up and down, which
-  is useful to emulate a shuttle wheel such as those on the Contour
-  Design devices.  Example:
-
-  PB[1170]- "j"
-  PB[1170]+ "l"
-
-  Most of the notations for MIDI messages also carry over to the output
-  side, in order to translate MIDI input to MIDI output.  To make this
-  work, you need to invoke the midizap program with the -o option, which
-  equips the program with an additional MIDI output port, to which the
-  translated MIDI messages are sent.  (Otherwise, MIDI messages in the
-  output translations will be ignored.)
-
-  Bindings can involve as many MIDI messages as you want, and these can
-  be combined freely with keypress events in any order.  There's no
-  limitation on the type or number of MIDI messages that you can put
-  into a binding.
-
-  Note that on output, the +-=<> suffixes aren't supported, because the
-  *input* message determines whether it is a key press or value change
-  type of event, and which direction it goes in the latter case.  Only
-  the "~" suffix can be used to indicate an incremental CC message in
-  sign bit encoding.  Specifying step sizes with incremental CC and PB
-  messages works as well, but scales the values *up* rather than down on
-  the output side.  In fact, on the output side step sizes also work
-  with keypress-style messages (except PC), where they set the value for
-  the "on" state.
-
-  Also, on the output side there's a special token of the form
-  CH<1..16>, which doesn't actually generate any MIDI message.  Rather,
-  it sets the default MIDI channel for subsequent MIDI messages in the
-  same output sequence, which is convenient if multiple messages are
-  output to the same MIDI channel.
-
-  Finally, there's a special SHIFT token which toggles an internal shift
-  state.  If your controller has a dedicated shift key (as many
-  Mackie-like DAW controllers do), this makes it possible to have
-  different bindings depending on the internal shift state.  E.g., to
-  bind the shift key (`A#5`) on a Mackie controller:
-
-  ?A#5 SHIFT
-
-  Note that the "?" prefix tells the parser that this translation is
-  active in both unshifted and shifted state, so it is used to turn
-  shift state both on and off, giving a Caps Lock-style of toggle key.
-  If you'd rather have an ordinary shift key which turns on shift state
-  when pressed and immediately turns it off when released again, you can
-  do that as follows:
-
-  ?A#5 SHIFT RELEASE SHIFT
-
-  Having set up our shift key, we can now add translations like the
-  following (using the "^" prefix to indicate translations only valid in
-  shifted state):
-
-  CC48=  PB[129]-1 # translate controller to pitch bend when unshifted
-  ^CC48= CC16~     # translate controller to encoder when shifted
 
  */
 
@@ -459,6 +294,34 @@ static stroke **find_ccs(translation *tr, int shift,
 			  &tr->n_ccs[shift], &tr->a_ccs[shift]);
 }
 
+static stroke **find_kp(translation *tr, int shift,
+			 int chan, int data, int index)
+{
+  return find_stroke_data(&tr->kp[shift], chan, data, index, 0, 0,
+			  &tr->n_kp[shift], &tr->a_kp[shift]);
+}
+
+static stroke **find_kps(translation *tr, int shift,
+			 int chan, int data, int index, int step)
+{
+  return find_stroke_data(&tr->kps[shift], chan, data, index, step, 0,
+			  &tr->n_kps[shift], &tr->a_kps[shift]);
+}
+
+static stroke **find_cp(translation *tr, int shift,
+			 int chan, int index)
+{
+  return find_stroke_data(&tr->cp[shift], chan, 0, index, 0, 0,
+			  &tr->n_cp[shift], &tr->a_cp[shift]);
+}
+
+static stroke **find_cps(translation *tr, int shift,
+			 int chan, int index, int step)
+{
+  return find_stroke_data(&tr->cps[shift], chan, 0, index, step, 0,
+			  &tr->n_cps[shift], &tr->a_cps[shift]);
+}
+
 static stroke **find_pb(translation *tr, int shift,
 			 int chan, int index)
 {
@@ -661,6 +524,14 @@ print_stroke(stroke *s)
 	  printf("%s%d-%d ", note_names[s->data % 12],
 		 s->data / 12 + midi_octave, channel);
 	break;
+      case 0xa0:
+	if (s->step)
+	  printf("KP:%s%d[%d]-%d ", note_names[s->data % 12],
+		 s->data / 12 + midi_octave, s->step, channel);
+	else
+	  printf("KP:%s%d-%d ", note_names[s->data % 12],
+		 s->data / 12 + midi_octave, channel);
+	break;
       case 0xb0:
 	if (s->step)
 	  printf("CC%d[%d]-%d%s ", s->data, s->step, channel, s->incr?"~":"");
@@ -669,6 +540,12 @@ print_stroke(stroke *s)
 	break;
       case 0xc0:
 	printf("PC%d-%d ", s->data, channel);
+	break;
+      case 0xd0:
+	if (s->step)
+	  printf("CP[%d]-%d ", s->step, channel);
+	else
+	  printf("CP-%d ", channel);
 	break;
       case 0xe0:
 	if (s->step)
@@ -850,32 +727,33 @@ re_press_temp_modifiers(void)
 
    tok  ::= ( note | msg ) [ number ] [ "[" number "]" ] [ "-" number] [ incr ]
    note ::= ( "a" | ... | "g" ) [ "#" | "b" ]
-   msg  ::= "ch" | "pb" | "pc" | "cc"
+   msg  ::= "ch" | "pb" | "pc" | "cc" | "cp" | "kp:" note
    incr ::= "-" | "+" | "=" | "<" | ">" | "~"
 
    Case is insignificant. Numbers are always in decimal. The meaning of
-   the first number depends on the context (octave number for notes, the
-   actual data byte for other messages). This can optionally be followed
-   by a number in brackets, denoting a step size. Also optionally, the
-   suffix with the third number (after the dash) denotes the MIDI
-   channel; otherwise the default MIDI channel is used.
+   the first number depends on the context (octave number for notes and
+   key pressure, the actual data byte for other messages). This can
+   optionally be followed by a number in brackets, denoting a step
+   size. Also optionally, the suffix with the third number (after the
+   dash) denotes the MIDI channel; otherwise the default MIDI channel is
+   used.
 
-   Note that not all combinations are possible -- "pb" has no data byte;
-   on the lhs, a step size in brackets is only permitted with "cc" and
-   "pb"; and "ch" must *not* occur on the lhs at all, and is followed by
-   just a channel number.  (In fact, "ch" is no real MIDI message at
-   all; it just sets the default MIDI channel for subsequent messages in
-   the output sequence.)
+   Note that not all combinations are possible -- "pb" and "cp" have no
+   data byte; on the lhs, a step size in brackets is only permitted with
+   "cc", "pb", "cp" and "kp"; and "ch" must *not* occur on the lhs at
+   all, and is followed by just a channel number.  (In fact, "ch" is no
+   real MIDI message at all; it just sets the default MIDI channel for
+   subsequent messages in the output sequence.)
 
    The incr flag indicates an "incremental" controller or pitch bend
    value which responds to up ("+") and down ("-") changes; it is only
-   permitted in conjunction with "cc" and "pb", and (with one exception,
-   see below) only on the lhs of a translation. In addition, "<" and ">"
-   can be used in lieu of "-" and "-" to indicate a relative controller
-   in "sign bit" representation, where controller values > 64 denote
-   down, and values < 64 up changes. This notation is only permitted
-   with "cc". It is used for endless rotary encoders, jog wheels and the
-   like, as can be found, e.g., on Mackie-like units.
+   permitted in conjunction with "cc", "pb", "cp" and "kp", and (with
+   one exception, see below) only on the lhs of a translation. In
+   addition, "<" and ">" can be used in lieu of "-" and "-" to indicate
+   a relative controller in "sign bit" representation, where controller
+   values > 64 denote down, and values < 64 up changes. This notation is
+   only permitted with "cc". It is used for endless rotary encoders, jog
+   wheels and the like, as can be found, e.g., on Mackie-like units.
 
    Finally, the flags "=" and "~" are used in lieu of "+"/"-" or
    "<"/">", respectively, to denote a "bidirectional" translation which
@@ -908,17 +786,40 @@ parse_midi(char *tok, char *s, int lhs,
   char *p = tok, *t;
   int n, m = -1, k = midi_channel, l;
   s[0] = 0;
-  while (*p && !isdigit(*p) && !strchr("+-=<>~[", *p)) p++;
+  while (*p && !isdigit(*p) && !strchr("+-=<>~[:", *p)) p++;
   if (p == tok || p-tok > 10) return 0; // no valid token
   // the token by itself
   strncpy(s, tok, p-tok); s[p-tok] = 0;
   // normalize to lowercase
   for (t = s; *t; t++) *t = tolower(*t);
-  // octave number or data byte (not permitted with 'pb', otherwise required)
-  if (strcmp(s, "pb")) {
-    if ((*p == '-' || isdigit(*p)) &&
-	sscanf(p, "%d%n", &m, &n) == 1) {
-      p += n;
+  // octave number or data byte
+  if (strcmp(s, "pb") && strcmp(s, "cp")) {
+    if ((*p == '-' || isdigit(*p))) {
+      if (sscanf(p, "%d%n", &m, &n) == 1)
+	p += n;
+      else
+	return 0;
+    } else if (!strcmp(s, "kp")) {
+      // key pressure, must be followed by colon and note name
+      if (*p == ':' && p[1]) {
+	char c = *++p, b = *++p;
+	if (*p == '#' || tolower(*p) == 'b')
+	  p++;
+	else
+	  b = 0;
+	int k = note_number(c, b, 0);
+	if (k < 0) return 0;
+	if ((*p == '-' || isdigit(*p)) &&
+	    sscanf(p, "%d%n", &m, &n) == 1) {
+	  // octave number
+	  m = k + 12 * (m - midi_octave);
+	  p += n;
+	} else {
+	  return 0;
+	}
+      } else {
+	return 0;
+      }
     } else {
       return 0;
     }
@@ -951,9 +852,10 @@ parse_midi(char *tok, char *s, int lhs,
       return 0;
     }
   }
-  // incremental flag ("pb" and "cc" only)
+  // incremental flag ("cc", "pb", "cp" and "kp" only)
   if (*p && strchr("+-=<>~", *p)) {
-    if (strcmp(s, "pb") && strcmp(s, "cc")) return 0;
+    if (strcmp(s, "pb") && strcmp(s, "cc") &&
+	strcmp(s, "cp") && strcmp(s, "kp")) return 0;
     // these are only permitted with "cc"
     if (strchr("<>~", *p) && strcmp(s, "cc")) return 0;
     if (lhs) {
@@ -992,6 +894,13 @@ parse_midi(char *tok, char *s, int lhs,
     if (lhs && *step && !*incr) return 0;
     if (lhs && !*step) *step = 1; // default
     return 1;
+  } else if (strcmp(s, "cp") == 0) {
+    // channel pressure, no data byte
+    *status = 0xd0 | k; *data = 0;
+    // step size only permitted on lhs if incremental
+    if (lhs && *step && !*incr) return 0;
+    if (lhs && !*step) *step = 1; // default
+    return 1;
   } else if (strcmp(s, "pc") == 0) {
     // program change
     if (*step) return 0; // step size not permitted
@@ -1002,6 +911,14 @@ parse_midi(char *tok, char *s, int lhs,
     // control change
     if (m < 0 || m > 127) return 0;
     *status = 0xb0 | k; *data = m;
+    // step size only permitted on lhs if incremental
+    if (lhs && *step && !*incr) return 0;
+    if (lhs && !*step) *step = 1; // default
+    return 1;
+  } else if (strcmp(s, "kp") == 0) {
+    // key pressure
+    if (m < 0 || m > 127) return 0;
+    *status = 0xa0 | k; *data = m;
     // step size only permitted on lhs if incremental
     if (lhs && *step && !*incr) return 0;
     if (lhs && !*step) *step = 1; // default
@@ -1097,6 +1014,64 @@ start_translation(translation *tr, char *which_key)
 	  release_first_stroke = find_ccs(tr, k, chan, data, 1, step, incr>1);
 	  if (is_anyshift) {
 	    alt_release_stroke = find_ccs(tr, 0, chan, data, 1, step, incr>1);
+	  }
+	}
+      }
+      break;
+    case 0xa0:
+      if (!incr) {
+	// kp on/off
+	first_stroke = find_kp(tr, k, chan, data, 0);
+	release_first_stroke = find_kp(tr, k, chan, data, 1);
+	if (is_anyshift) {
+	  alt_press_stroke = find_kp(tr, 0, chan, data, 0);
+	  alt_release_stroke = find_kp(tr, 0, chan, data, 1);
+	}
+	is_keystroke = 1;
+      } else {
+	// kp (step up, down)
+	if (step <= 0) {
+	  fprintf(stderr, "zero or negative step size not permitted here: [%s]%s\n", current_translation, which_key);
+	  return 1;
+	}
+	first_stroke = find_kps(tr, k, chan, data, dir>0, step);
+	if (is_anyshift) {
+	  alt_press_stroke = find_kps(tr, 0, chan, data, dir>0, step);
+	}
+	if (!dir) {
+	  is_bidirectional = 1;
+	  release_first_stroke = find_kps(tr, k, chan, data, 1, step);
+	  if (is_anyshift) {
+	    alt_release_stroke = find_kps(tr, 0, chan, data, 1, step);
+	  }
+	}
+      }
+      break;
+    case 0xd0:
+      if (!incr) {
+	// cp on/off
+	first_stroke = find_cp(tr, k, chan, 0);
+	release_first_stroke = find_cp(tr, k, chan, 1);
+	if (is_anyshift) {
+	  alt_press_stroke = find_cp(tr, 0, chan, 0);
+	  alt_release_stroke = find_cp(tr, 0, chan, 1);
+	}
+	is_keystroke = 1;
+      } else {
+	// cp (step up, down)
+	if (step <= 0) {
+	  fprintf(stderr, "zero or negative step size not permitted here: [%s]%s\n", current_translation, which_key);
+	  return 1;
+	}
+	first_stroke = find_cps(tr, k, chan, dir>0, step);
+	if (is_anyshift) {
+	  alt_press_stroke = find_cps(tr, 0, chan, dir>0, step);
+	}
+	if (!dir) {
+	  is_bidirectional = 1;
+	  release_first_stroke = find_cps(tr, k, chan, 1, step);
+	  if (is_anyshift) {
+	    alt_release_stroke = find_cps(tr, 0, chan, 1, step);
 	  }
 	}
       }

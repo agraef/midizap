@@ -55,74 +55,79 @@
 # CC<0..127>: control change message for the given controller
 # PC<0..127>: program change message
 # PB: pitch bend message
-# <A..G><#b><0..10> (MIDI notes): MIDI note (on or off)
+# CP: channel pressure
+# KP:<note>: key pressure (aftertouch)
+# <A..G><#b><num>: MIDI note (on or off)
 
-# Note messages are specified using the cutomary notation (note name
+# Note messages are specified using the customary notation (note name
 # A..G, optionally followed by an accidental, # or b, followed by a MIDI
-# octave number. Enharmonic spellings are equivalent, so, e.g., D# and
-# Eb denote exactly the same MIDI note. All MIDI octaves start at the
-# note C, so B0 comes before C1. By default, octave numbers are
-# zero-based, so C0 is MIDI note 0, C5 denotes middle C, A5 is the
-# chamber pitch (usually at 440 Hz), etc. However, you can adjust this
-# to your liking by specifying the offset of the lowest MIDI octave.
-# Two of the most common alternatives are listed below (uncomment one of
-# the following lines to use these):
+# octave number.  The same notation is also used with aftertouch (KP)
+# messages, which always apply to a specific note (in contrast, channel
+# pressure (CP) always applies to all notes on a single MIDI channel).
+# Enharmonic spellings are equivalent, so, e.g., D# and Eb denote
+# exactly the same MIDI note.  All MIDI octaves start at the note C, so
+# B0 comes before C1.  By default, octave numbers are zero-based, so C0
+# is MIDI note 0, C5 denotes middle C, A5 is the chamber pitch, etc.
+# However, you can adjust this to your liking by specifying the offset
+# of the lowest MIDI octave.  Two of the most common alternatives are
+# listed below (uncomment one of the following lines to use these):
 
 #MIDI_OCTAVE -1 # ASA (Acoustical Society of America; middle C is C4)
 #MIDI_OCTAVE -2 # alternate MIDI (various manufacturers; middle C is C3)
 
-# The program distinguishes between messages on different MIDI
-# channels. By default, messages are assumed to be on MIDI channel 1,
-# but the MIDI channel can be specified explicitly following a dash at
-# the end of the message token. E.g., a message on MIDI channel 10 would
-# be denoted, e.g., CC7-10 or C#3-10.
+# The program distinguishes between messages on different MIDI channels.
+# By default, messages are assumed to be on MIDI channel 1, but the MIDI
+# channel can be specified explicitly following a dash at the end of the
+# message token.  E.g., a message on MIDI channel 10 would be denoted,
+# e.g., CC7-10 or C#3-10.
 
 # Each of these messages can be either "on" or "off", and so they can
 # have different "press" and "release" keystrokes associated with them.
 # E.g., a "note on" message with non-zero velocity emulates a button
 # press, while the corresponding "note off" emulates a button release,
 # just as if the MIDI keys were just ordinary keys on a computer
-# keyboard. The same holds true for control change messages (here any
-# non-zero controller value means "on", zero "off"), and pitch bends
-# (here the center value of the pitch wheel means "off", any other value
-# means "on"). The program change messages play a somewhat special role
-# in that they don't actually have any "off" messages associated with
-# them, so to keep in line with the other kinds of MIDI messages we
-# consider them as being "pressed" and then "released" immediately
-# afterwards.
+# keyboard.  The same holds true for control change, channel and key
+# pressure messages (here any non-zero value means "on", zero "off"),
+# and pitch bends (here the center value of the pitch wheel means "off",
+# any other value means "on").  The program change messages play a
+# somewhat special role in that they don't actually have any "off"
+# messages associated with them, so to keep in line with the other kinds
+# of MIDI messages we consider them as being "pressed" and then
+# "released" immediately afterwards.
 
-# In addition, control change and pitch bend messages can also be
-# interpreted as incremental changes, and have associated key bindings
-# which are executed each time the controller or pitch bend value
-# increases or decreases, respectively. Such bindings are indicated with
-# the suffixes "+" and "-". Thus, e.g., a key sequence bound to CC7+
-# will be executed each time the value of controller 7 increases, and
-# CC7- will be executed each time it decreases. PB+ and PB- do they same
-# for pitch bends. You can also use the "=" suffix to indicate that the
-# same translation should be applied to both increases and decreases of
-# the controller or pitch bend value. Thus, e.g., CC7= indicates that
-# the same translation applies for both CC7+ and CC7-. This is most
-# commonly used with pure MIDI -> MIDI translations.
+# In addition, control change, channel and key pressure, and pitch bend
+# messages can also have their value changes translated, in which case
+# they have associated key bindings which are executed each time the
+# value increases or decreases, respectively.  Such bindings are
+# indicated with the suffixes "+" and "-".  Thus, e.g., a key sequence
+# bound to CC7+ will be executed each time the value of controller 7
+# increases, and CC7- will be executed each time it decreases.  The same
+# applies to channel and key pressure as well as pitch bend messages.
+# You can also use the "=" suffix to indicate that the same translation
+# should be applied to both increases and decreases of the controller or
+# pitch bend value.  Thus, e.g., CC7= indicates that the same
+# translation applies for both CC7+ and CC7-.  This is most commonly
+# used with pure MIDI -> MIDI translations.
 
-# There is also another special mode for the incremental bindings,
-# incremental "bit-sign" mode. The suffixes "<", ">" and"~" can be used
-# in lieu of "+", "-" and "=" with the CC token to properly interpret
-# the control values of endless rotary encoders and jog wheels on
-# Mackie-like devices. These encoders send values < 64 for increases,
-# and > 64 for decreases, where the first 6 bits of the value denote the
-# actual amount of change relative to the current value.
+# There is also another special mode for these incremental bindings,
+# incremental "bit-sign" mode.  The suffixes "<", ">" and "~" can be
+# used in lieu of "+", "-" and "=" with the CC token to properly
+# interpret the control values of endless rotary encoders and jog wheels
+# on Mackie-like devices.  These encoders send values < 64 for
+# increases, and > 64 for decreases, where the first 6 bits of the value
+# denote the actual amount of change relative to the current value.
 
 # As already mentioned, translations can also contain other MIDI
 # messages, in order to translate MIDI input to MIDI output to be passed
-# on to to other MIDI devices and applications. In fact, X KeySyms and
-# MIDI messages can be mixed freely in the output. To enable this,
+# on to to other MIDI devices and applications.  In fact, X KeySyms and
+# MIDI messages can be mixed freely in the output.  To enable this,
 # invoke the program with the '-o' option.  This creates a MIDI output
 # port, which can then be hooked up to other Jack MIDI applications.
 # (Otherwise, MIDI messages in the translations will just be ignored.)
 
 # Debugging options: You want to run the program in a terminal window to
-# see its output when using these. The following line, when uncommented,
-# prints the section recognized for the window in focus:
+# see its output when using these.  The following line, when
+# uncommented, prints the section recognized for the window in focus:
 
 #DEBUG_REGEX
 
@@ -137,10 +142,10 @@
 
 #DEBUG_KEYS
 
-# Finally, the following option prints all MIDI input (with the input port
-# number in the first, and the actual data value in the last column). This is
-# useful as a simple MIDI monitor, especially if you want to figure out which
-# tokens to use in your translations.
+# Finally, the following option prints all MIDI input (with the input
+# port number in the first, and the actual data value in the last
+# column).  This is useful as a simple MIDI monitor, especially if you
+# want to figure out which tokens to use in your translations.
 
 #DEBUG_MIDI
 
@@ -152,7 +157,7 @@
 
 # Sample bindings for video editing and mouse emulation.
 
-# These mostly assume a Mackie MCU-like DAW controller device. We use
+# These mostly assume a Mackie MCU-like DAW controller device.  We use
 # this as an example throughout, since devices of this kind are standard
 # gear in many studios, and they offer an abundance of useful controls.
 # If you don't have one of these lying around, there are inexpensive MCU
@@ -160,7 +165,7 @@
 
 # On most MCU-style devices there are some playback controls and cursor
 # keys which generate various note events, and a jog wheel which
-# generates CC60 messages. We put all of these to good use here. Note
+# generates CC60 messages.  We put all of these to good use here.  Note
 # that the CC60 control requires use of the aforementioned special
 # incremental mode for endless rotary encoders.
 
@@ -229,8 +234,8 @@
 [MIDI]
 
 # The special "MIDI" default section is only active when MIDI output is
-# enabled (midizap -o). This allows you to translate midizap's MIDI
-# input for use with other MIDI devices and applications. Here's a
+# enabled (midizap -o).  This allows you to translate midizap's MIDI
+# input for use with other MIDI devices and applications.  Here's a
 # simple example for illustration purposes, which shows how to map both
 # the MCU master fader and the jog wheel to CC7, so that they can be
 # used as volume controls.
@@ -242,13 +247,13 @@
  PB[128]-9= CC7
  CC60~      CC7
 
-# Drumkit example. The following translations should work on most MIDI
-# keyboards. We assume that the keyboard is set to MIDI channel 1 (the
-# usual default). The first four white keys (C, D, E and F) in the
+# Drumkit example.  The following translations should work on most MIDI
+# keyboards.  We assume that the keyboard is set to MIDI channel 1 (the
+# usual default).  The first four white keys (C, D, E and F) in the
 # fourth MIDI octave are mapped to the notes of a little drumkit on MIDI
 # channel 10, and the volume controller (CC7) is bound to the volume
 # controller on the same channel, so that you can change the output
-# volume as you play the drumkit. Note that you need a GM-compatible
+# volume as you play the drumkit.  Note that you need a GM-compatible
 # software synthesizer such as Fluidsynth/Qsynth to make this work.
 
  C4    C3-10
@@ -261,10 +266,10 @@
 
 [MIDI2]
 
-# Auxiliary MIDI translations. This is only used when midizap is invoked
-# with the -o2 option, so that it creates a second pair of MIDI input
-# and output ports. Input for this section only comes from the second
-# input port, and output goes to the second output port. This is
+# Auxiliary MIDI translations.  This is only used when midizap is
+# invoked with the -o2 option, so that it creates a second pair of MIDI
+# input and output ports.  Input for this section only comes from the
+# second input port, and output goes to the second output port.  This is
 # typically used for feedback to controllers featuring motor faders,
 # LEDs and the like, in which case the translations are often the
 # inverse of what's in the [MIDI] section.
@@ -293,10 +298,10 @@
  CC60< XK_Scroll_Up
  CC60> XK_Scroll_Down
 
-# The following bindings should work on any MIDI keyboard. The C, D and
+# The following bindings should work on any MIDI keyboard.  The C, D and
 # E keys in the middle octave are bound to the three mouse buttons, and
-# the modulation wheel (CC1) emulates the mouse wheel. The F, G, A and B
-# keys in the middle octave are mapped to the cursor keys (Left, Up,
+# the modulation wheel (CC1) emulates the mouse wheel.  The F, G, A and
+# B keys in the middle octave are mapped to the cursor keys (Left, Up,
 # Down, Right).
 
  C5    XK_Button_1

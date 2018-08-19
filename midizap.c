@@ -61,6 +61,8 @@ send_key(KeySym key, int press)
 
 // cached controller and pitch bend values
 static int16_t ccvalue[16][128];
+static int16_t kpvalue[16][128];
+static int16_t cpvalue[16];
 static int16_t pbvalue[16] =
   {8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192,
    8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192};
@@ -112,6 +114,52 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
       if (msg[2] > 127) msg[2] = 127;
     } else {
       msg[2] = 0;
+    }
+    break;
+  case 0xa0:
+    if (dir) {
+      // increment (dir==1) or decrement (dir==-1) the current value,
+      // clamping it to the 0..127 data byte range
+      if (!step) step = 1;
+      dir *= step;
+      if (dir > 0) {
+	if (kpvalue[chan][data] >= 127) return;
+	kpvalue[chan][data] += dir;
+	if (kpvalue[chan][data] > 127) kpvalue[chan][data] = 127;
+      } else {
+	if (kpvalue[chan][data] == 0) return;
+	kpvalue[chan][data] += dir;
+	if (kpvalue[chan][data] < 0) kpvalue[chan][data] = 0;
+      }
+      msg[2] = kpvalue[chan][data];
+    } else if (!index) {
+      msg[2] = step?step:127;
+      if (msg[2] > 127) msg[2] = 127;
+    } else {
+      msg[2] = 0;
+    }
+    break;
+  case 0xd0:
+    if (dir) {
+      // increment (dir==1) or decrement (dir==-1) the current value,
+      // clamping it to the 0..127 data byte range
+      if (!step) step = 1;
+      dir *= step;
+      if (dir > 0) {
+	if (cpvalue[chan] >= 127) return;
+	cpvalue[chan] += dir;
+	if (cpvalue[chan] > 127) cpvalue[chan] = 127;
+      } else {
+	if (cpvalue[chan] == 0) return;
+	cpvalue[chan] += dir;
+	if (cpvalue[chan] < 0) cpvalue[chan] = 0;
+      }
+      msg[1] = cpvalue[chan];
+    } else if (!index) {
+      msg[1] = step?step:127;
+      if (msg[1] > 127) msg[1] = 127;
+    } else {
+      msg[1] = 0;
     }
     break;
   case 0xe0: {
@@ -226,6 +274,34 @@ static stroke *find_ccs(translation *tr, int shift,
 			  tr->n_ccs[shift]);
 }
 
+static stroke *find_kp(translation *tr, int shift,
+		       int chan, int data, int index)
+{
+  return find_stroke_data(tr->kp[shift], chan, data, index, 0, 0,
+			  tr->n_kp[shift]);
+}
+
+static stroke *find_kps(translation *tr, int shift,
+			int chan, int data, int index, int *step)
+{
+  return find_stroke_data(tr->kps[shift], chan, data, index, step, 0,
+			  tr->n_kps[shift]);
+}
+
+static stroke *find_cp(translation *tr, int shift,
+		       int chan, int index)
+{
+  return find_stroke_data(tr->cp[shift], chan, 0, index, 0, 0,
+			  tr->n_cp[shift]);
+}
+
+static stroke *find_cps(translation *tr, int shift,
+			int chan, int index, int *step)
+{
+  return find_stroke_data(tr->cps[shift], chan, 0, index, step, 0,
+			  tr->n_cps[shift]);
+}
+
 static stroke *find_pb(translation *tr, int shift,
 		       int chan, int index)
 {
@@ -255,6 +331,16 @@ fetch_stroke(translation *tr, uint8_t portno, int status, int chan, int data,
 	return find_ccs(tr, shift, chan, data, dir>0, step, incr);
       else
 	return find_cc(tr, shift, chan, data, index);
+    case 0xa0:
+      if (dir)
+	return find_kps(tr, shift, chan, data, dir>0, step);
+      else
+	return find_kp(tr, shift, chan, data, index);
+    case 0xd0:
+      if (dir)
+	return find_cps(tr, shift, chan, dir>0, step);
+      else
+	return find_cp(tr, shift, chan, index);
     case 0xe0:
       if (dir)
 	return find_pbs(tr, shift, chan, dir>0, step);
@@ -309,10 +395,21 @@ static char *debug_key(translation *tr, char *name,
     sprintf(name, "%s%s%d-%d", prefix, note_names[data % 12],
 	    data / 12 + midi_octave, chan+1);
     break;
-  case 0xa0:
-    sprintf(name, "%sKP:%s%d-%d", prefix, note_names[data % 12],
-	    data / 12 + midi_octave, chan+1);
+  case 0xa0: {
+    int step = 1;
+    if (tr) (void)find_kps(tr, shift, chan, data, dir>0, &step);
+    if (!dir)
+      suffix = "";
+    else
+      suffix = (dir<0)?"-":"+";
+    if (dir && step != 1)
+      sprintf(name, "%sKP:%s%d[%d]-%d%s", prefix, note_names[data % 12],
+	      data / 12 + midi_octave, step, chan+1, suffix);
+    else
+      sprintf(name, "%sKP:%s%d-%d%s", prefix, note_names[data % 12],
+	      data / 12 + midi_octave, chan+1, suffix);
     break;
+  }
   case 0xb0: {
     int step = 1, is_incr = 0;
     if (tr) (void)find_ccs(tr, shift, chan, data, dir>0, &step, &is_incr);
@@ -331,9 +428,19 @@ static char *debug_key(translation *tr, char *name,
   case 0xc0:
     sprintf(name, "%sPC%d-%d", prefix, data, chan+1);
     break;
-  case 0xd0:
-    sprintf(name, "%sCP-%d", prefix, chan+1);
+  case 0xd0: {
+    int step = 1;
+    if (tr) (void)find_cps(tr, shift, chan, dir>0, &step);
+    if (!dir)
+      suffix = "";
+    else
+      suffix = (dir<0)?"-":"+";
+    if (dir && step != 1)
+      sprintf(name, "%sCP[%d]-%d%s", prefix, step, chan+1, suffix);
+    else
+      sprintf(name, "%sCP-%d%s", prefix, chan+1, suffix);
     break;
+  }
   case 0xe0: {
     int step = 1;
     if (tr) (void)find_pbs(tr, shift, chan, dir>0, &step);
@@ -569,6 +676,8 @@ get_focused_window_translation()
 }
 
 static int8_t inccvalue[2][16][128];
+static int8_t inkpvalue[2][16][128];
+static int8_t incpvalue[2][16];
 static int16_t inpbvalue[2][16] =
   {{8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192,
     8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192},
@@ -585,6 +694,8 @@ static int keydown_tracker = 0;
 static uint8_t notedown[2][16][128];
 static uint8_t inccdown[2][16][128];
 static uint8_t inpbdown[2][16];
+static uint8_t inkpdown[2][16][128];
+static uint8_t incpdown[2][16];
 
 int
 check_incr(translation *tr, uint8_t portno, int chan, int data)
@@ -608,6 +719,26 @@ check_incr(translation *tr, uint8_t portno, int chan, int data)
 }
 
 int
+check_ccs(translation *tr, uint8_t portno, int chan, int data)
+{
+  if (tr && tr->portno == portno &&
+      (find_ccs(tr, shift, chan, data, 0, 0, 0) ||
+       find_ccs(tr, shift, chan, data, 1, 0, 0)))
+    return 1;
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      (find_ccs(tr, shift, chan, data, 0, 0, 0) ||
+       find_ccs(tr, shift, chan, data, 1, 0, 0)))
+    return 1;
+  tr = default_translation;
+  if (tr && tr->portno == portno &&
+      (find_ccs(tr, shift, chan, data, 0, 0, 0) ||
+       find_ccs(tr, shift, chan, data, 1, 0, 0)))
+    return 1;
+  return 0;
+}
+
+int
 get_cc_step(translation *tr, uint8_t portno, int chan, int data, int dir)
 {
   int step;
@@ -621,6 +752,82 @@ get_cc_step(translation *tr, uint8_t portno, int chan, int data, int dir)
   tr = default_translation;
   if (tr && tr->portno == portno &&
       find_ccs(tr, shift, chan, data, dir>0, &step, 0))
+    return step;
+  return 1;
+}
+
+int
+check_kps(translation *tr, uint8_t portno, int chan, int data)
+{
+  if (tr && tr->portno == portno &&
+      (find_kps(tr, shift, chan, data, 0, 0) ||
+       find_kps(tr, shift, chan, data, 1, 0)))
+    return 1;
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      (find_kps(tr, shift, chan, data, 0, 0) ||
+       find_kps(tr, shift, chan, data, 1, 0)))
+    return 1;
+  tr = default_translation;
+  if (tr && tr->portno == portno &&
+      (find_kps(tr, shift, chan, data, 0, 0) ||
+       find_kps(tr, shift, chan, data, 1, 0)))
+    return 1;
+  return 0;
+}
+
+int
+get_kp_step(translation *tr, uint8_t portno, int chan, int data, int dir)
+{
+  int step;
+  if (tr && tr->portno == portno &&
+      find_kps(tr, shift, chan, data, dir>0, &step))
+    return step;
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      find_kps(tr, shift, chan, data, dir>0, &step))
+    return step;
+  tr = default_translation;
+  if (tr && tr->portno == portno &&
+      find_kps(tr, shift, chan, data, dir>0, &step))
+    return step;
+  return 1;
+}
+
+int
+check_cps(translation *tr, uint8_t portno, int chan)
+{
+  if (tr && tr->portno == portno &&
+      (find_cps(tr, shift, chan, 0, 0) ||
+       find_cps(tr, shift, chan, 1, 0)))
+    return 1;
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      (find_cps(tr, shift, chan, 0, 0) ||
+       find_cps(tr, shift, chan, 1, 0)))
+    return 1;
+  tr = default_translation;
+  if (tr && tr->portno == portno &&
+      (find_cps(tr, shift, chan, 0, 0) ||
+       find_cps(tr, shift, chan, 1, 0)))
+    return 1;
+  return 0;
+}
+
+int
+get_cp_step(translation *tr, uint8_t portno, int chan, int dir)
+{
+  int step;
+  if (tr && tr->portno == portno &&
+      find_cps(tr, shift, chan, dir>0, &step))
+    return step;
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      find_cps(tr, shift, chan, dir>0, &step))
+    return step;
+  tr = default_translation;
+  if (tr && tr->portno == portno &&
+      find_cps(tr, shift, chan, dir>0, &step))
     return step;
   return 1;
 }
@@ -744,7 +951,8 @@ handle_event(uint8_t *msg, uint8_t portno)
 	  }
 	}
       }
-    } else if (inccvalue[portno][chan][msg[1]] != msg[2]) {
+    } else if (check_ccs(tr, portno, chan, msg[1]) &&
+	       inccvalue[portno][chan][msg[1]] != msg[2]) {
       int dir = inccvalue[portno][chan][msg[1]] > msg[2] ? -1 : 1;
       int step = get_cc_step(tr, portno, chan, msg[1], dir);
       if (step) {
@@ -754,6 +962,66 @@ handle_event(uint8_t *msg, uint8_t portno)
 	  if (d < step) break;
 	  send_strokes(tr, portno, status, chan, msg[1], 0, dir);
 	  inccvalue[portno][chan][msg[1]] += dir*d;
+	}
+      }
+    }
+    end_debug();
+    break;
+  case 0xa0:
+    start_debug();
+    if (msg[2]) {
+      if (!keydown_tracker || !inkpdown[portno][chan][msg[1]]) {
+	send_strokes(tr, portno, status, chan, msg[1], 0, 0);
+	inkpdown[portno][chan][msg[1]] = 1;
+      }
+    } else {
+      if (!keydown_tracker || inkpdown[portno][chan][msg[1]]) {
+	send_strokes(tr, portno, status, chan, msg[1], 1, 0);
+	inkpdown[portno][chan][msg[1]] = 0;
+      }
+    }
+    debug_count = 0;
+    if (check_kps(tr, portno, chan, msg[1]) &&
+	inkpvalue[portno][chan][msg[1]] != msg[2]) {
+      int dir = inkpvalue[portno][chan][msg[1]] > msg[2] ? -1 : 1;
+      int step = get_kp_step(tr, portno, chan, msg[1], dir);
+      if (step) {
+	while (inkpvalue[portno][chan][msg[1]] != msg[2]) {
+	  int d = abs(inkpvalue[portno][chan][msg[1]] - msg[2]);
+	  if (d > step) d = step;
+	  if (d < step) break;
+	  send_strokes(tr, portno, status, chan, msg[1], 0, dir);
+	  inkpvalue[portno][chan][msg[1]] += dir*d;
+	}
+      }
+    }
+    end_debug();
+    break;
+  case 0xd0:
+    start_debug();
+    if (msg[1]) {
+      if (!keydown_tracker || !incpdown[portno][chan]) {
+	send_strokes(tr, portno, status, chan, 0, 0, 0);
+	incpdown[portno][chan] = 1;
+      }
+    } else {
+      if (!keydown_tracker || incpdown[portno][chan]) {
+	send_strokes(tr, portno, status, chan, 0, 1, 0);
+	incpdown[portno][chan] = 0;
+      }
+    }
+    debug_count = 0;
+    if (check_cps(tr, portno, chan) &&
+	incpvalue[portno][chan] != msg[1]) {
+      int dir = incpvalue[portno][chan] > msg[1] ? -1 : 1;
+      int step = get_cp_step(tr, portno, chan, dir);
+      if (step) {
+	while (incpvalue[portno][chan] != msg[1]) {
+	  int d = abs(incpvalue[portno][chan] - msg[1]);
+	  if (d > step) d = step;
+	  if (d < step) break;
+	  send_strokes(tr, portno, status, chan, 0, 0, dir);
+	  incpvalue[portno][chan] += dir*d;
 	}
       }
     }
