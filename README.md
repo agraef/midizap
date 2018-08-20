@@ -60,7 +60,7 @@ It is also possible to specify the configuration file to be used, by invoking mi
 
 # Basic Usage
 
-The midizap program is a command line application, so you typically run it from the terminal, but of course it is also possible to invoke it from your desktop environment's startup files once you've set up everything to your liking.
+The midizap program is a command line application, so you typically run it from the terminal. However, it is also possible to launch it from your Jack session manager (see *Jack-Related Options* below) or from your desktop environment's startup files once you've set up everything to your liking.
 
 Try `midizap -h` for a brief summary of the available options with which the program can be invoked.
 
@@ -408,6 +408,8 @@ Spencer Jackson's [osc2midi][] utility makes for a great companion to midizap if
 
 Eric Messick's [ShuttlePRO][nanosyzygy/ShuttlePRO] program, on which midizap is based, provides pretty much the same functionality for the Contour Design Shuttle devices.
 
+The [Bome MIDI Translator][] is a popular MIDI and keystroke mapping tool for Mac and Windows. It is proprietary software and isn't available for Linux, but if you're looking for a midizap alternative which runs on Mac and Windows, this seems to be your best bet.
+
 # Authors
 
 midizap is free and open source software licensed under the GPLv3, please check the accompanying LICENSE file for details.
@@ -417,10 +419,11 @@ Copyright 2018 Albert Graef (<aggraef@gmail.com>)
 
 This is a version of Eric Messick's ShuttlePRO program which has been redesigned to use Jack MIDI instead of the Contour Design Shuttle devices that the original program was written for.
 
-ShuttlePRO was written in 2013 by Eric Messick, based on earlier code by Trammell Hudson (<hudson@osresearch.net>) and Arendt David (<admin@prnet.org>). The present version of the program, written by Albert Graef, is actually based on his [fork of ShuttlePRO][agraef/ShuttlePRO]. All the translation features of the original program are still there (in particular, key and mouse translations work exactly the same), but it goes without saying that the code has undergone some significant changes to accommodate the MIDI input and output facilities. The Jack MIDI driver code is based on code from Spencer Jackson's osc2midi utility, and on the simple_session_client.c example available in the Jack git repository.
+ShuttlePRO was written in 2013 by Eric Messick, based on earlier code by Trammell Hudson (<hudson@osresearch.net>) and Arendt David (<admin@prnet.org>). The present version of the program, written by Albert Graef, is based on his [fork of ShuttlePRO][agraef/ShuttlePRO]. All the translation features of the original program are still there (in particular, key and mouse translations work exactly the same), but it goes without saying that the code has undergone some significant changes to accommodate the MIDI input and output facilities. The Jack MIDI driver code is based on code from Spencer Jackson's osc2midi utility, and on the simple_session_client.c example available in the Jack git repository.
 
 [agraef/midizap]: https://github.com/agraef/midizap
 [agraef/ShuttlePRO]: https://github.com/agraef/ShuttlePRO
 [nanosyzygy/ShuttlePRO]: https://github.com/nanosyzygy/ShuttlePRO
 [osc2midi]: https://github.com/ssj71/OSC2MIDI
 [jackaudio/example-clients]: https://github.com/jackaudio/example-clients
+[Bome MIDI Translator]: https://www.bome.com/products/miditranslator
