@@ -17,9 +17,14 @@ JACK_PORTS 2
 # dedicated buttons as a Mackie device. But it offers enough controls to be
 # usable as a basic DAW controller. I tested it with Ardour.
 
-# Setup: In Ardour, enable the Mackie control surface, then connect Ardour's
+# SETUP: In Ardour, enable the Mackie control surface, then connect Ardour's
 # "mackie control" ports to midizap's midi_out and midi_in2 ports, and the
 # APCmini to midizap's midi_in and midi_out2 ports.
+
+# "BLINKENLIGHTS" ADD-ON: Decoding MCU metering feedback is beyond midizap's
+# capabilities, but there's a Pd patch in APCmini-meter.pd which you can hook
+# up to Ardour's Mackie control output to show the channel meters in the
+# unused top 5x8 button grid.
 
 # PROTOCOL DOCUMENTATION: The Mackie protocol is fairly ubiquitous, but since
 # the manufacturers can't be bothered to properly *document* their stuff these
