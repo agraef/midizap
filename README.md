@@ -2,7 +2,7 @@
 
 # Name
 
-midizap -- zap through your multimedia applications with MIDI
+midizap -- control your multimedia applications with MIDI
 
 # Synopsis
 
@@ -23,18 +23,18 @@ midizap [-h] [-k] [-o[2]] [-j *name*] [-r *rcfile*] [-d[rskmj]]
 :   Set the Jack client name. Default: "midizap". See Section *Jack-Related Options*.
 
 -r *rcfile*
-:   Set the configuration file name. Default: Taken from the MIDIZAP_CONFIG_FILE environment variable if it exists, or ~/.midizaprc if it exists, /etc/midizaprc otherwise. See Section *Configuration File*.
+:   Set the configuration file name. Default: taken from the MIDIZAP_CONFIG_FILE environment variable if it exists, or ~/.midizaprc if it exists, /etc/midizaprc otherwise. See Section *Configuration File*.
 
 -d[rskmj]
 :   Enable various debugging options: r = regex (print matched translation sections), s = strokes (print the parsed configuration file in a human-readable format), k = keys (print executed translations), m = midi (MIDI monitor, print all recognizable MIDI input), j = jack (additional Jack debugging output). Just `-d` enables all debugging options. See Section *Basic Usage*.
 
 # Description
 
-midizap lets you control your favourite multimedia applications, like audio and video editors, or DAW (digital audio workstation) programs, using MIDI, the musical instruments digital interface. To these ends, it translates Jack MIDI input into X keystrokes, mouse button presses, scroll wheel events, or, as an option, MIDI output. It does this by matching the `WM_CLASS` and `WM_NAME` properties of the window that has the keyboard focus against the regular expressions for each application section in its configuration (midizaprc) file. If a regex matches, the corresponding set of translations is used. Otherwise the program falls back to a set of translations in a default section at the end of the file, if available.
+midizap lets you control your favorite multimedia applications using [MIDI][]. To these ends, it translates Jack MIDI input into X keystrokes, mouse button presses, scroll wheel events, and, as an option, MIDI output. It does this by matching the `WM_CLASS` and `WM_NAME` properties of the window that has the keyboard focus against the regular expressions for each application section in its configuration (midizaprc) file. If a regex matches, the corresponding set of translations is used. Otherwise the program falls back to a set of translations in a default section at the end of the file, if available.
 
 The midizaprc file is just an ordinary text file which you can edit to configure the program. An example.midizaprc file containing sample configurations for some applications is included in the sources. Also, in the examples directory you can find some more examples of configuration files for various purposes.
 
-midizap provides you with a way to hook up just about any MIDI controller to your applications. This makes sense because MIDI controllers are readily supported by most operating systems, and are often more versatile than input devices tailored to certain types of applications. The MIDI output option is useful if the target application already supports MIDI, but can't work directly with your controller because of protocol incompatibilities. In particular, you can use midizap to turn pretty much any MIDI controller with enough faders and buttons into a Mackie-compatible mixing device. Another common use case is video editing software, which rarely offers built-in MIDI support. midizap allows you to map the faders, encoders and buttons of your MIDI controller to corresponding keyboard commands of your video software for cutting, marking, playback, scrolling and zooming.
+midizap provides you with a way to hook up just about any MIDI controller to your applications. MIDI controllers are readily supported by all major operating systems, and are often cheaper and more versatile than special-purpose input devices, so they're always an option to consider, especially if you already have one lying around that you'd like to put to good use again. Even if your target application already supports MIDI, midizap's MIDI output option will be useful if your controller can't work directly with the application because of protocol incompatibilities. In particular, you can use midizap to turn pretty much any MIDI controller with enough faders and buttons into a Mackie-compatible mixing device ready to be used with most DAW (digital audio workstation) programs. Another common use case is video editing software, which rarely offers built-in MIDI support. midizap allows you to map the faders, encoders and buttons of your MIDI controller to keyboard commands of your video editor for cutting, marking, playback, scrolling, zooming, etc.
 
 In other words, as long as the target application can be controlled with simple keyboard shortcuts and/or MIDI commands, chances are that midizap can make it work (at least to some extent) with your controller.
 
@@ -65,10 +65,6 @@ The midizap program is a command line application, so you typically run it from 
 Try `midizap -h` for a brief summary of the available options with which the program can be invoked.
 
 midizap uses [Jack][] for doing all its MIDI input and output, so you need to be able to run Jack and connect the Jack MIDI inputs and outputs of the program. While it's possible to do all of that from the command line as well, we recommend using a Jack front-end and patchbay program like [QjackCtl][] to manage Jack and to set up the MIDI connections. In QjackCtl's setup, make sure that you have selected `seq` as the MIDI driver. This exposes the ALSA sequencer ports of your MIDI hardware and other non-Jack ALSA MIDI applications as Jack MIDI ports, so that they can easily be connected to midizap. (Here and in the following, we're assuming that you're using Jack1. Jack2 works in a very similar way, but may require some more fiddling; in particular, you may have to use [a2jmidid][] as a separate ALSA-Jack MIDI bridge in order to have the ALSA MIDI devices show properly as Jack MIDI devices.) 
-
-[Jack]: http://jackaudio.org/
-[QjackCtl]: https://qjackctl.sourceforge.io/
-[a2jmidid]: http://repo.or.cz/a2jmidid.git
 
 Having that set up, start Jack, make sure that your MIDI controller is connected, and try running `midizap` from the command line (without any arguments). In QjackCtl, open the Connections dialog and activate the second tab named "MIDI", which shows all available Jack MIDI inputs and outputs. On the right side of the MIDI tab, you should now see a client named `midizap` with one MIDI input port named `midi_in`. That's the one you need to connect to your MIDI controller, whose output port should be visible under the `alsa_midi` client on the left side of the dialog.
 
@@ -118,9 +114,6 @@ The example.midizaprc file comes with a sample configuration in the special `[MI
 
 You can try it and test that it works by running `midizap -o`, firing up a MIDI synthesizer such as [FluidSynth][] or its graphical front-end [Qsynth][], and employing QjackCtl to connect its input it to midizap's output port. In the sample configuration, the notes `C4` thru `F4` in the small octave have been set up so that you can operate a little drumkit, and a binding for the volume controller (`CC7`) has been added as well. The relevant portion from the configuration entry looks as follows:
 
-[FluidSynth]: http://www.fluidsynth.org/
-[Qsynth]: https://qsynth.sourceforge.io/
-
 ~~~
 [MIDI]
 
@@ -140,27 +133,23 @@ Besides MIDI notes and control change (`CC`) messages, the midizap program also 
 
 # Translation Syntax
 
-The midizap configuration file consists of sections defining translation classes. Each section generally looks like this:
+The midizap configuration file consists of sections defining translation classes. Each section generally looks like this, specifying the name of a translation class, optionally a regular expression to be matched against the window class or title, and a list of translations:
 
 ~~~
 [name] regex
-CC<0..127> <output>             # control change
-PC<0..127> <output>             # program change
-PB <output>                     # pitch bend
-CP <output>                     # channel pressure
-<A..G><#b><number> <output>     # note
-KP:<A..G><#b><number> <output>  # key pressure (aftertouch)
+<A..G><#b><0..12> <output>  # note
+KP:<note> <output>          # key pressure (aftertouch)
+PC<0..127> <output>         # program change
+CC<0..127> <output>         # control change
+CP <output>                 # channel pressure
+PB <output>                 # pitch bend
 ~~~
-
-After the first line with the section header, each subsequent line indicates a translation rule belonging to that section. Note that we used `<X..Y>` here to indicate ranges, `<number>` to denote a MIDI octave number, and `<output>` as a placeholder for the output sequence. We'll describe each of these elements in much more detail below.
 
 The `#` character at the beginning of a line and after whitespace is special; it indicates that the rest of the line is a comment, which is skipped by the parser. Empty lines and lines containing nothing but whitespace are also ignored.
 
-Each `[name] regex` line introduces the list of MIDI message translations for the named translation class. The name is only used for debugging output, and needn't be unique. The following lines indicate what output should be produced for the given MIDI messages.
+Each `[name] regex` line introduces the list of MIDI message translations for the named translation class. The name is only used for debugging output, and needn't be unique. When focus is on a window whose class or title matches the regular expression `regex`, the corresponding translations are in effect. An empty regex for the last class will always match, allowing default translations. Any output sequences not bound in a matched section will be loaded from the default section if they are bound there.
 
-When focus is on a window whose class or title matches the regular expression `regex`, the following translation class is in effect. An empty regex for the last class will always match, allowing default translations. Any output sequences not bound in a matched section will be loaded from the default section if they are bound there.
-
-The left-hand side (first token) of each translation denotes the MIDI message to be translated. MIDI messages are on channel 1 by default; a suffix of the form `-<1..16>` can be used to specify a MIDI channel. E.g., `C3-10` denotes note `C3` on MIDI channel 10.
+The translations define what output should be produced for the given MIDI input. Each translation must be on a line by itself. The left-hand side (first token) of each translation denotes the MIDI message to be translated. MIDI messages are on channel 1 by default; a suffix of the form `-<1..16>` can be used to specify a MIDI channel. E.g., `C3-10` denotes note `C3` on MIDI channel 10.
 
 Note messages are specified using the customary notation (note name `A..G`, optionally followed by an accidental, `#` or `b`, followed by the MIDI octave number. The same notation is used for key pressure (`KP`) messages. Note that all MIDI octaves start at the note C, so `B0` comes before `C1`. By default, `C5` denotes middle C. Enharmonic spellings are equivalent, so, e.g., `D#` and `Eb` denote exactly the same MIDI note.
 
@@ -231,13 +220,17 @@ F5 "V" XK_Left XK_Page_Up "v"
 G5 XK_Alt_L/D "v" XK_Alt_L/U "x" RELEASE "q"
 ~~~
 
-One major pitfall for beginners is that character strings in double quotes are just a shorthand for the corresponding X key codes, ignoring case. Thus, e.g., `"abc"` actually denotes the keysym sequence `XK_a XK_b XK_c`, as does `"ABC"`. So in either case the *lowercase* string `abc` will be output. To output uppercase letters, it is always necessary to add one of the shift modifiers to the output sequence. E.g., `XK_Shift_L/D "abc"` will output `ABC` in uppercase.
+One pitfall for beginners is that character strings in double quotes are just a shorthand for the corresponding X key codes, ignoring case. Thus, e.g., `"abc"` actually denotes the keysym sequence `XK_a XK_b XK_c`, as does `"ABC"`. So in either case the *lowercase* string `abc` will be output. To output uppercase letters, it is always necessary to add one of the shift modifiers to the output sequence. E.g., `XK_Shift_L/D "abc"` will output `ABC` in uppercase.
 
-Translations are handled differently depending on the input mode (cf. *Key and Data Input* above). In *key mode*, they translate to separate press and release sequences. At the end of the press sequence, all down keys marked by `/D` will be released, and the last key not marked by `/D`, `/U`, or `/H` will remain pressed. The release sequence will begin by releasing the last held key. If keys are to be pressed as part of the release sequence, then any keys marked with `/D` will be repressed before continuing the sequence. Keycodes marked with `/H` remain held between the press and release sequences.
+Translations are handled differently depending on the input mode (cf. *Key and Data Input* above). In *key mode*, there are separate press and release sequences. The former is invoked when the input key goes "down" (i.e., when the "on" status is received), the latter when the input key goes "up" again ("off" status). More precisely, at the end of the press sequence, all down keys marked by `/D` will be released, and the last key not marked by `/D`, `/U`, or `/H` will remain pressed. The release sequence will begin by releasing the last held key. If keys are to be pressed as part of the release sequence, then any keys marked with `/D` will be repressed before continuing the sequence. Keycodes marked with `/H` remain held between the press and release sequences. For instance, let's take a look at one of the more conspicuous translations in the example above:
 
-*Data mode* is handled differently. Instead of providing separate press and release sequences, the output of such translations is executed whenever the message value increases or decreases, respectively. At the end of such sequences, all down keys will be released.
+~~~
+G5 XK_Alt_L/D "v" XK_Alt_L/U "x" RELEASE "q"
+~~~
 
-For instance, the following translations move the cursor left or right whenever the volume controller (`CC7`) decreases and increases, respectively. Also, the number of times one of these keys is output corresponds to the actual change in the value. Thus, if in the example `CC7` increases by 4, say, the program will press (and release) `XK_Right` four times, moving the cursor 4 positions to the right.
+When the `G5` key is pressed on the MIDI keyboard, the key sequence `Alt+v x` is initiated, keeping the `x` key pressed (so it may start auto-repeating after a while). The program then sits there waiting (possibly executing other translations) until you release the `G5` key again, at which point the `x` key is released and the `q` key is pressed (and released).
+
+In contrast, in *data mode* there are no separate press and release sequences. Only a single sequence is output whenever the message value increases or decreases. At the end of the sequence, all down keys will be released. For instance, the following translations move the cursor left or right whenever the volume controller (`CC7`) decreases and increases, respectively. Also, the number of times one of these keys is output corresponds to the actual change in the value. Thus, if in the example `CC7` increases by 4, say, the program will press (and release) `XK_Right` four times, moving the cursor 4 positions to the right.
 
 ~~~
 CC7- XK_Left
@@ -253,7 +246,7 @@ CC60> XK_Right
 
 (The corresponding "bidirectional" translations, which are indicated with the `=` and `~` suffixes, are rarely used with keyboard and mouse translations. Same goes for the special `SHIFT` token. Thus we'll discuss these in later sections, see *MIDI Translations* and *Shift State* below.)
 
-In data mode, input messages can also have a *step size* associated with them, which enables you to scale down changes in the parameter value. The default step size is 1 (no scaling). To change it, the desired step size is written in brackets immediately after the message token to be translated, but before the increment suffix. For instance, to slow down the cursor movement in the example above by a factor of 4:
+In data mode, input messages can also have a *step size* associated with them, which enables you to scale down changes in the parameter value. The default step size is 1 (no scaling). To change it, the desired step size is written in brackets immediately after the message token to be translated, but before the increment suffix. A step size *k* indicates that the translation is executed whenever the input value has changed by *k* units. For instance, to slow down the cursor movement in the example above by a factor of 4:
 
 ~~~
 CC7[4]- XK_Left
@@ -274,13 +267,13 @@ For key-mode inputs, the corresponding "on" or "off" event is generated for all 
 C5 CC80
 ~~~
 
-The value for the "on" state can also be denoted explicitly with a step size here. For instance, the following variation of the rule above produces a `CC80` message with value 64 (rather than the default "on" value of 127) whenever the MIDI note `C5` is pressed:
+The value for the "on" state can also be denoted explicitly with a step size:
 
 ~~~
 C5 CC80[64]
 ~~~
 
-For pitch bends, the step size can also be negative. For instance, the following rules assign two keys to bend down and up by the maximum amount (usually 2 semitones on GM-compatible synthesizers):
+For pitch bends, the step size can also be negative. For instance, the following rules assign two keys to bend down and up by the maximum amount possible:
 
 ~~~
 C2 PB[-8192] # bend down
@@ -325,13 +318,7 @@ Step sizes also work on the right-hand side of data translations. You might use 
 CC1= PB[128]
 ~~~
 
-Another possible use is to scale controller values *both* down and up with a combination of step sizes on the left- and right-hand sides, to achieve (an approximation of) a rational scaling factor (2/3 in this example):
-
-~~~
-CC1[3]= CC1[2]
-~~~
-
-The step size can also be negative here, which allows you to reverse the direction of a controller if needed. E.g., the following will output values going down from 127 to 0 as input values go up from 0 to 127.
+The step size can also be negative, which allows you to reverse the direction of a controller if needed. E.g., the following will output values going down from 127 to 0 as input values go up from 0 to 127:
 
 ~~~
 CC1= CC1[-1]
@@ -394,21 +381,21 @@ You then wire up midizap's `midi_in` and `midi_out` ports to controller and appl
 
 # Bugs
 
-There probably are some. Please submit bug reports and pull requests at the midizap [git repository][agraef/midizap].
+There probably are some. Please submit bug reports and pull requests at the midizap [git repository][agraef/midizap]. Contributions are also welcome. In particular, we're looking for interesting configurations to be included in the distribution.
 
-The names of some of the debugging options are rather peculiar. That's mainly due to historical reasons and my laziness. midizap inherited them from Eric Messick's ShuttlePRO program on which midizap is based, so they'll probably last until someone comes up with some really good names.
+The names of some of the debugging options are rather peculiar. midizap inherited them from Eric Messick's ShuttlePRO program on which midizap is based, so they'll probably last until someone comes up with something better.
 
-midizap tries to keep things simple, which implies that it has its limitations. In particular, system messages are not supported right now, there's only one internal shift state, and midizap lacks some more interesting ways of mapping MIDI data. There are other, more powerful utilities for doing these things, but they are also more complicated and usually require programming. So, while midizap often does the job reasonably well for simple mapping tasks, if things start getting fiddly then you're usually better off using a more comprehensive tool like [Pd][].
+There's no Mac or Windows support (yet). midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now.
 
-[Pd]: http://puredata.info/
+midizap tries to keep things simple, which implies that it has its limitations. In particular, system messages are not supported right now, and midizap lacks some more interesting ways of mapping, filtering and recombining MIDI data. There are other, more powerful utilities which do these things, but they are also more complicated and usually require at least some programming skills. midizap often does the job reasonably well for simple mapping tasks. But if things start getting fiddly then you should consider using a more comprehensive tool like [Pd][] instead.
 
 # See Also
 
-Spencer Jackson's [osc2midi][] utility makes for a great companion to midizap if you also need to convert between MIDI and OSC (Open Sound Control).
-
 Eric Messick's [ShuttlePRO][nanosyzygy/ShuttlePRO] program, on which midizap is based, provides pretty much the same functionality for the Contour Design Shuttle devices.
 
-The [Bome MIDI Translator][] is a popular MIDI and keystroke mapping tool for Mac and Windows. It is proprietary software and isn't available for Linux, but if you're looking for a midizap alternative which runs on Mac and Windows, this seems to be your best bet.
+Spencer Jackson's [osc2midi][] utility makes for a great companion to midizap if you also need to convert between MIDI and [Open Sound Control][OSC].
+
+The [Bome MIDI Translator][] seems to be a popular MIDI and keystroke mapping tool for Mac and Windows. It is proprietary software and isn't available for Linux, but it should be worth a look if you need a midizap alternative which runs on these systems.
 
 # Authors
 
@@ -417,9 +404,19 @@ midizap is free and open source software licensed under the GPLv3, please check 
 Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)  
 Copyright 2018 Albert Graef (<aggraef@gmail.com>)
 
-This is a version of Eric Messick's ShuttlePRO program which has been redesigned to use Jack MIDI instead of the Contour Design Shuttle devices that the original program was written for.
+This is a version of Eric Messick's ShuttlePRO program, written by Albert Graef, which has been redesigned to work with Jack MIDI instead of the Contour Design Shuttle devices that the original program was written for.
 
-ShuttlePRO was written in 2013 by Eric Messick, based on earlier code by Trammell Hudson (<hudson@osresearch.net>) and Arendt David (<admin@prnet.org>). The present version of the program, written by Albert Graef, is based on his [fork of ShuttlePRO][agraef/ShuttlePRO]. All the translation features of the original program are still there (in particular, key and mouse translations work exactly the same), but it goes without saying that the code has undergone some significant changes to accommodate the MIDI input and output facilities. The Jack MIDI driver code is based on code from Spencer Jackson's osc2midi utility, and on the simple_session_client.c example available in the Jack git repository.
+ShuttlePRO was written in 2013 by Eric Messick, based on earlier code by Trammell Hudson (<hudson@osresearch.net>) and Arendt David (<admin@prnet.org>). The present version of the program is actually based on a [fork of ShuttlePRO][agraef/ShuttlePRO]. All the translation features of the original program are still there (in particular, key and mouse translations work exactly the same), but it goes without saying that the code has undergone some significant changes to accommodate the MIDI input and output facilities. The Jack MIDI backend is based on code from Spencer Jackson's osc2midi utility, and on the simple_session_client.c example available in the Jack git repository.
+
+[MIDI]: https://www.midi.org/
+[OSC]: http://opensoundcontrol.org/
+
+[Jack]: http://jackaudio.org/
+[a2jmidid]: http://repo.or.cz/a2jmidid.git
+[QjackCtl]: https://qjackctl.sourceforge.io/
+[FluidSynth]: http://www.fluidsynth.org/
+[Qsynth]: https://qsynth.sourceforge.io/
+[Pd]: http://puredata.info/
 
 [agraef/midizap]: https://github.com/agraef/midizap
 [agraef/ShuttlePRO]: https://github.com/agraef/ShuttlePRO
