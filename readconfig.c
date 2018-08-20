@@ -563,7 +563,10 @@ print_stroke(stroke *s)
 void
 print_stroke_sequence(char *name, char *up_or_down, stroke *s)
 {
-  printf("%s[%s]: ", name, up_or_down);
+  if (up_or_down && *up_or_down)
+    printf("%s[%s]: ", name, up_or_down);
+  else
+    printf("%s: ", name);
   while (s) {
     print_stroke(s);
     s = s->next;

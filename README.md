@@ -98,8 +98,8 @@ One useful feature is that you can invoke the program with various debugging opt
 $ midizap -drk
 Loading configuration: /home/user/.midizaprc
 translation: Default for emacs@hostname (class emacs)
-CC1-1-[]: XK_Scroll_Down/D XK_Scroll_Down/U 
-CC1-1-[]: XK_Scroll_Down/D XK_Scroll_Down/U 
+CC1-1-: XK_Scroll_Down/D XK_Scroll_Down/U 
+CC1-1-: XK_Scroll_Down/D XK_Scroll_Down/U 
 G5-1[D]: XK_Up/D 
 G5-1[U]: XK_Up/U 
 A5-1[D]: XK_Down/D 
