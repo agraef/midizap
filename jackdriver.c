@@ -424,7 +424,7 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
     if (verbose && (status & JackServerStarted)) {
       printf("JACK server started\n");
     }
-    if (verbose && status & JackNameNotUnique) {
+    if (verbose && (status & JackNameNotUnique)) {
       client_name = jack_get_client_name(seq->jack_client);
       printf("JACK client name changed to: %s\n", client_name);
     }
