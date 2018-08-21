@@ -7,9 +7,6 @@ bindir=$(DESTDIR)$(prefix)/bin
 mandir=$(DESTDIR)$(prefix)/share/man/man1
 datadir=$(DESTDIR)/etc
 
-# We still keep this alias around for backward compatibility:
-INSTALL_DIR=$(bindir)
-
 # Check to see whether we have Jack installed. Needs pkg-config.
 JACK := $(shell pkg-config --libs jack 2>/dev/null)
 
@@ -26,7 +23,7 @@ all: midizap
 # This also creates the manual page (see below).
 world: all man
 
-install: $(INSTALL_TARGETS)
+install: all
 	install -d $(bindir) $(datadir) $(mandir)
 	install midizap $(bindir)
 	install -m 0644 example.midizaprc $(datadir)/midizaprc
