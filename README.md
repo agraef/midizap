@@ -30,7 +30,7 @@ midizap [-h] [-k] [-o[2]] [-j *name*] [-r *rcfile*] [-d[rskmj]]
 
 # Description
 
-midizap lets you control your favorite multimedia applications using [MIDI][]. To these ends, it translates Jack MIDI input into X keystrokes, mouse button presses, scroll wheel events, and, as an option, MIDI output. It does this by matching the `WM_CLASS` and `WM_NAME` properties of the window that has the keyboard focus against the regular expressions for each application section in its configuration (midizaprc) file. If a regex matches, the corresponding set of translations is used. Otherwise the program falls back to a set of translations in a default section at the end of the file, if available.
+midizap lets you control your favorite multimedia applications using [MIDI][]. To these ends, it translates Jack MIDI input into X keystrokes, mouse button presses, scroll wheel events, and, as an option, MIDI output. It does this by matching the `WM_CLASS` and `WM_NAME` properties of the window that has the keyboard focus against the regular expressions for each application section in its configuration (midizaprc) file. If a regex matches, the corresponding set of translations is used. If a matching section cannot be found, or if it doesn't define a suitable translation, the program falls back to a set of translations in a default section at the end of the file, if available.
 
 The midizaprc file is just an ordinary text file which you can edit to configure the program. An example.midizaprc file containing sample configurations for some applications is included in the sources. Also, in the examples directory you can find some more examples of configuration files for various purposes.
 
