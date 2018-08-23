@@ -56,7 +56,7 @@ The ~/.midizaprc file, if it exists, takes priority over /etc/midizaprc, so it b
 
 It is also possible to specify the configuration file to be used, by invoking midizap with the `-r` option on the command line, e.g.: `midizap -r myconfig.midizaprc`. This is often used with more specialized configurations dealing with specific applications or MIDI controllers.
 
-**NOTE:** The program automatically reloads the midizaprc file whenever it notices that the file has been changed. Thus you can edit the file while the program keeps running, and have the changes take effect immediately without having to restart the program. When working on new translations, you may want to run the program in a terminal, and employ some or all of the debugging options explained below to see exactly how your translations are being processed.
+The program automatically reloads the midizaprc file whenever it notices that the file has been changed. Thus you can edit the file while the program keeps running, and have the changes take effect immediately without having to restart the program. When working on new translations, you may want to run the program in a terminal, and employ some or all of the debugging options explained below to see exactly how your translations are being processed.
 
 # Basic Usage
 
@@ -104,7 +104,7 @@ A5-1[U]: XK_Down/U
 
 It goes without saying that these debugging options will be very helpful when you start developing your own bindings. The `-d` option can be combined with various option characters to choose exactly which kinds of debugging output you want; `r` ("regex") prints the matched translation section (if any) along with the window name and class of the focused window; `s` ("strokes") prints the parsed contents of the configuration file in a human-readable form whenever the file is loaded; `k` ("keys") shows the recognized translations as the program executes them, in the same format as `s`; `m` ("MIDI") prints *any* MIDI input, so that you can figure out which MIDI tokens to use for configuring the translations for your controller; and `j` adds some debugging output from the Jack driver. You can also just use `-d` to enable all debugging output. (Most of these options are also available as directives in the midizaprc file; please check the distributed example.midizaprc for details.)
 
-Have a look at the distributed midizaprc file for more examples. Most of the other translations in the file assume a Mackie-like device with standard playback controls and a jog wheel. Any standard DAW controller which can be switched into Mackie mode should work with these out of the box. In any case, you may now want to start editing the configuration, to remove entries that you don't need, and to make the translations work with your controller and favorite applications.
+Have a look at the distributed midizaprc file for more examples. Most of the other translations in the file assume a Mackie-like device with standard playback controls and a jog wheel. Any standard DAW controller which can be switched into Mackie mode should work with these out of the box. There are also some more generic examples, like the one above, which will work with almost any kind of MIDI keyboard. The examples are mostly for illustrative and testing purposes, though, to help you get started. You will want to edit them and add translations for your own controllers and favorite applications.
 
 # MIDI Output
 
@@ -151,7 +151,7 @@ Each `[name] regex` line introduces the list of MIDI message translations for th
 
 The translations define what output should be produced for the given MIDI input. Each translation must be on a line by itself. The left-hand side (first token) of each translation denotes the MIDI message to be translated. MIDI messages are on channel 1 by default; a suffix of the form `-<1..16>` can be used to specify a MIDI channel. E.g., `C3-10` denotes note `C3` on MIDI channel 10.
 
-Note messages are specified using the customary notation (note name `A..G`, optionally followed by an accidental, `#` or `b`, followed by the MIDI octave number. The same notation is used for key pressure (`KP`) messages. Note that all MIDI octaves start at the note C, so `B0` comes before `C1`. By default, `C5` denotes middle C. Enharmonic spellings are equivalent, so, e.g., `D#` and `Eb` denote exactly the same MIDI note.
+Note messages are specified using the customary notation (note name `A..G`, optionally followed by an accidental, `#` or `b`, followed by the MIDI octave number). The same notation is used for key pressure (`KP`) messages. Note that all MIDI octaves start at the note C, so `B0` comes before `C1`. By default, `C5` denotes middle C. Enharmonic spellings are equivalent, so, e.g., `D#` and `Eb` denote exactly the same MIDI note.
 
 We will go into most of the other syntactic bits and pieces of MIDI message designations later, but it's good to have the following grammar in EBNF notation handy for reference:
 
@@ -163,23 +163,23 @@ msg   ::= "CH" | "PB" | "PC" | "CC" | "CP" | "KP:" note
 incr  ::= "-" | "+" | "=" | "<" | ">" | "~"
 ~~~
 
-Case is ignored here, so `CC`, `cc` or even `Cc` are considered to be exactly the same token by the parser, although by convention we usually write them in uppercase. Numbers are always integers in decimal. The meaning of the first number depends on the context (octave number for notes and key pressure, controller or program number in the range 0..127 for other messages). This can optionally be followed by a number in brackets, denoting a nonzero step size. Also optionally, the suffix with the third number (after the dash) denotes the MIDI channel in the range 1..16; otherwise the default MIDI channel is used (which is always 1 on the left-hand side, but can be set on the right-hand side with `CH`). The optional incr (increment) flag at the end of a token indicates a "data" translation which responds to numeric (up/down) value changes rather than key presses, cf. *Key and Data Input* below.
+Case is ignored here, so `CC`, `cc` or even `Cc` are considered to be exactly the same token by the parser, although by convention we usually write them in uppercase. Numbers are always integers in decimal. The meaning of the first number depends on the context (octave number for notes and key pressure, controller or program number in the range 0..127 for other messages). This can optionally be followed by a number in brackets, denoting a nonzero step size. Also optionally, the suffix with the third number (after the dash) denotes the MIDI channel in the range 1..16; otherwise the default MIDI channel is used (which is always 1 on the left-hand side, but can be set on the right-hand side with `CH`). The optional incr (increment) flag at the end of a token indicates a "data" translation which responds to incremental (up/down) value changes rather than key presses, cf. *Key and Data Input* below.
 
 ## Octave Numbering
 
 A note on the octave numbers in MIDI note designations is in order here. There are various different standards for numbering octaves, and different programs use different standards, which can be rather confusing. E.g., there's the ASA (Acoustical Society of America) standard where middle C is C4, also known as "scientific" or "American standard" pitch notation. At least two other standards exist specifically for MIDI octave numbering, one in which middle C is C3 (so the lowest MIDI octave starts at C-2), and zero-based octave numbers, which start at C0 and have middle C at C5. There's not really a single "best" standard here, but the latter tends to appeal to mathematically inclined and computer-savvy people, and is also what is used by default in the midizaprc file.
 
-However, if you prefer a different numbering scheme then you can easily change this by specifying the desired offset for the lowest MIDI octave with the special `MIDI_OCTAVE` directive in the configuration file. For instance:
+However, you may want to change this, e.g., if you're working with documentation or MIDI monitoring software which uses a different numbering scheme. To do this, just specify the desired offset for the lowest MIDI octave with the special `MIDI_OCTAVE` directive in the configuration file. For instance:
 
 ~~~
 MIDI_OCTAVE -1 # ASA pitches (middle C is C4)
 ~~~
 
-This is useful, in particular, if you use some external MIDI monitoring software to figure out which notes to put into your midizaprc file. To these ends, just check how the program prints middle C, and adjust the `MIDI_OCTAVE` offset in your midizaprc file accordingly. (Note that midizap's built-in MIDI monitoring facility always prints out MIDI notes using the `MIDI_OCTAVE` offset that is in effect. Thus in this case the printed note tokens will always be in exactly the form that is to be used in the midizaprc file, no matter what the `MIDI_OCTAVE` offset happens to be.)
+Note that this transposes *all* existing notes in translations following the directive, so if you add this option to an existing configuration, you probably have to edit the note messages in it accordingly.
 
 ## Key and Data Input
 
-Input messages can be processed in two different ways, "key mode" and "data mode". Depending on the mode, the extra data payload of the message, which we refer to as the *parameter value* (or just *value* for short), is interpreted in different ways. The parameter value depends on the type of MIDI message. Program changes have no value at all. For notes, as well as key and channel pressure messages, it is the velocity value; for control changes, the controller value; and for pitch bend messages, the pitch bend value. Note that the latter is actually a 14 bit value which is considered as a signed quantity in the range -8192..8191, where 0 denotes the center value. In all other cases, the parameter value is an unsigned 7 bit quantity in the range 0..127.
+Input messages can be processed in two different ways, "key mode" and "data mode". Depending on the mode, the extra data payload of the message, which we refer to as the *parameter value* (or just *value* for short), is interpreted in different ways. The parameter value corresponds to the type of MIDI message. Program changes have no value at all. For notes, as well as key and channel pressure messages, it is the velocity value; for control changes, the controller value; and for pitch bend messages, the pitch bend value. Note that the latter is actually a 14 bit value which is considered as a signed quantity in the range -8192..8191, where 0 denotes the center value. In all other cases, the parameter value is an unsigned 7 bit quantity in the range 0..127. (MIDI aficionados will notice that what we call the parameter value here, is actually the second data byte, or, in case of pitch bends, the combined first and second data byte of the MIDI message.)
 
 *Key mode* is the default mode and is available for all message types. In this mode, MIDI messages are considered as keys which can be "pressed" ("on") or "released" ("off"). Any nonzero data value means "pressed", zero "released". Two special cases need to be considered here:
 
@@ -189,9 +189,11 @@ Input messages can be processed in two different ways, "key mode" and "data mode
 
 *Data mode* is available for all messages whose parameter value may continuously change over time, i.e., key and channel pressure, control changes, and pitch bends. In this mode, the actual *amount* of change in the value of the message (increment or decrement, a.k.a. "up" or "down") is processed rather than the on/off state. Data mode is indicated with a special suffix on the message token which indicates the direction of the change which the rule should apply to: increment (`+`), decrement (`-`), or both (`=`).
 
-Data mode usually tracks changes in the *absolute* value of a control. However, for `CC` messages there's also an alternative mode for so-called *incremental* controllers, or *encoders* for short, which can be found in the form of endless rotary encoders on many DAW controllers. Encoders emit a special *sign bit* value indicating a *relative* change, where a value < 64 usually denotes an increment (representing clockwise rotation), and a value > 64 a decrement (counter-clockwise rotation). The actual amount of change is in the lower 6 bits of the value. In the message syntax, these kinds of controls are indicated by using the suffix `<`, `>` and `~` in lieu of `-`, `+` and `=`, respectively. These suffixes are only permitted with `CC` messages.
+Data mode usually tracks changes in the *absolute* value of a control. However, for `CC` messages there's also an alternative mode for so-called *incremental* controllers, or *encoders* for short, which can found on some DAW controllers. (These usually take the form of jog wheels or rotary encoders which can be turned endlessly in either direction. In contrast, absolute-valued controllers are usually faders or knobs which are confined to a range between minimum and maximum values.)
 
-Each MIDI token can have at most one translation associated with it per translation section, so that translations are determined uniquely in each translation class. However, note that the MIDI channel is part of the message token, so messages with different MIDI channels count as different messages here. The mode of a message (key or data) is also part of the message token, so in principle messages can have both key and data translations associated with them (this is rarely useful in practice, though).
+Encoders emit a special *sign bit* value indicating a *relative* change, where a value < 64 usually denotes an increment (representing clockwise rotation), and a value > 64 a decrement (counter-clockwise rotation). The actual amount of change is in the lower 6 bits of the value. In the message syntax, these kinds of controls are indicated by using the suffixes `<`, `>` and `~` in lieu of `-`, `+` and `=`, respectively. These suffixes are only permitted with `CC` messages.
+
+Translations must be determined uniquely in each translation class. That is, there must at most be one translation for each MIDI token in each translation section. Note, however, that the MIDI channel is part of the token, so tokens with different MIDI channels count as different messages here. The same goes for the mode of a message (key or data), so messages can have both key and data translations associated with them (which is rarely used in practice, though).
 
 ## Keyboard and Mouse Translations
 
@@ -230,7 +232,7 @@ G5 XK_Alt_L/D "v" XK_Alt_L/U "x" RELEASE "q"
 
 When the `G5` key is pressed on the MIDI keyboard, the key sequence `Alt+v x` is initiated, keeping the `x` key pressed (so it may start auto-repeating after a while). The program then sits there waiting (possibly executing other translations) until you release the `G5` key again, at which point the `x` key is released and the `q` key is pressed (and released).
 
-In contrast, in *data mode* there are no separate press and release sequences. Only a single sequence is output whenever the message value increases or decreases. At the end of the sequence, all down keys will be released. For instance, the following translations move the cursor left or right whenever the volume controller (`CC7`) decreases and increases, respectively. Also, the number of times one of these keys is output corresponds to the actual change in the value. Thus, if in the example `CC7` increases by 4, say, the program will press (and release) `XK_Right` four times, moving the cursor 4 positions to the right.
+In contrast, in *data mode* only a single sequence is output whenever the message value increases or decreases. At the end of the sequence, all down keys will be released. For instance, the following translations move the cursor left or right whenever the volume controller (`CC7`) decreases and increases, respectively. Also, the number of times one of these keys is output corresponds to the actual change in the value. Thus, if in the example `CC7` increases by 4, say, the program will press (and release) `XK_Right` four times, moving the cursor 4 positions to the right.
 
 ~~~
 CC7- XK_Left
@@ -252,6 +254,8 @@ In data mode, input messages can also have a *step size* associated with them, w
 CC7[4]- XK_Left
 CC7[4]+ XK_Right
 ~~~
+
+Note that there is no step size with input messages in key mode. The message is either just "on" or "off", with any nonzero value denoting off.
 
 ## MIDI Translations
 
@@ -293,7 +297,7 @@ CC1+ CC7
 CC1- CC7
 ~~~
 
-The same goes for `<`, `>` and `~` with sign-bit incremental encoders:
+The same goes for `<`, `>` and `~` with sign-bit encoders:
 
 ~~~
 CC60~ CC7
@@ -349,7 +353,7 @@ Having set up the translation for the shift key itself, we can now indicate that
 ^CC48= CC16~    # translate to encoder when shifted
 ~~~
 
-To keep things simple, only one shift status is available in the present implementation. Also note that when using a shift key in the manner described above, its status is *only* available internally to the midizap program; the host application never gets to see it. If your host software does its own handling of shift keys (as most Mackie-compatible DAWs do), then it's usually more convenient to simply pass those keys on to the application. However, `SHIFT` comes in handy if your controller simply doesn't have enough buttons and faders to control all the essential features of your target application. In this case the internal shift feature makes it possible to double the amount of controls available on the device. For instance, you can emulate a Mackie controller with both encoders and faders on a device which only has a single set of faders, by assigning the shifted faders to the encoders, as shown above.
+To keep things simple, only one shift status is available in the present implementation. Also note that when using a shift key in the manner described above, its status is *only* available internally to the midizap program; the host application never gets to see it. If your host software does its own handling of shift keys (as most Mackie-compatible DAWs do), it's usually more convenient to simply pass those keys on to the application. However, `SHIFT` comes in handy if your controller simply doesn't have enough buttons and faders to control all the essential features of your target application. In this case the internal shift feature makes it possible to double the amount of controls available on the device. For instance, you can emulate a Mackie controller with both encoders and faders on a device which only has a single set of faders, by assigning the shifted faders to the encoders, as shown above.
 
 # Jack-Related Options
 
@@ -371,11 +375,11 @@ JACK_PORTS 1
 
 You may want to place this directive directly into a configuration file if the configuration is primarily aimed at doing MIDI translations, so you'd like to have the MIDI output enabled by default. Typically, such configurations will include just a default `[MIDI]` section and little else. As explained below, it's also possible to have *two* pairs of input and output ports, in order to deal with controller feedback from the application. This is achieved by either invoking midizap with the `-o2` option, or by employing the `JACK_PORTS 2` directive in the configuration file.
 
-Last but not least, midizap also supports Jack session management, which makes it possible to record the options the program was invoked with, along with all the MIDI connections. This feature can be used with any Jack session management software. Specifically, QjackCtl has its own built-in Jack session manager which is available in its Session dialog. To use this, launch midizap and any other Jack applications you want to have in the session, use QjackCtl to set up all the connections as needed, and then the "Save" (or "Save and Quit") option in the Session dialog to have the session recorded. Now, at any later time you can relaunch the same session with the "Load" (or "Recent") option in the same dialog.
+Last but not least, midizap also supports Jack session management, which makes it possible to record the options the program was invoked with, along with all the MIDI connections. This feature can be used with any Jack session management software. Specifically, QjackCtl has its own built-in Jack session manager which is available in its Session dialog. To use this, launch midizap and any other Jack applications you want to have in the session, use QjackCtl to set up all the connections as needed, and then hit the "Save" (or "Save and Quit") button in the Session dialog to have the session recorded. Now, at any later time you can relaunch the same session with the "Load" (or "Recent") button in the same dialog.
 
 # Secondary MIDI Ports
 
-Some MIDI controllers need a more elaborate setup than what we've seen so far, because they have motor faders, LEDs, etc. requiring feedback from the application. To accommodate these, you can use the `-o2` option of midizap, or the `JACK_PORTS 2` directive in the midizaprc file, to create a second pair of MIDI input and output ports, named `midi_in2` and `midi_out2`. Use of this option also activates a second MIDI default section in the midizaprc file, labeled `[MIDI2]`, which is used exclusively for translating MIDI from the second input port and sending the resulting MIDI data to the second output port. Typically, the translations in the `[MIDI2]` section will be the inverse of those in the `[MIDI]` section, or whatever it takes to translate the MIDI feedback from the application back to MIDI data which the controller understands.
+Some MIDI controllers need a more elaborate setup than what we've seen so far, because they have motor faders, LEDs, etc. requiring feedback from the application. To accommodate these, you can use the `-o2` option of midizap, or the `JACK_PORTS 2` directive in the midizaprc file, to create a second pair of MIDI input and output ports, named `midi_in2` and `midi_out2`. Use of this option also activates a second MIDI default section in the midizaprc file, labeled `[MIDI2]`, which is used exclusively for translating MIDI input from the second input port and sending the resulting MIDI output to the second output port. Typically, the translations in the `[MIDI2]` section will be the inverse of those in the `[MIDI]` section, or whatever it takes to translate the MIDI feedback from the application back to MIDI data which the controller understands.
 
 You then wire up midizap's `midi_in` and `midi_out` ports to controller and application as before, but in addition you also connect the application back to midizap's `midi_in2` port, and the `midi_out2` port to the controller. This reverse path is what is needed to translate the feedback from the application and send it back to the controller. A full-blown example for this kind of setup can be found in examples/APCmini.midizaprc in the sources, which shows how to emulate a Mackie controller with AKAI's APCmini device, so that it readily works with DAW software such as Ardour and Reaper.
 
@@ -387,11 +391,11 @@ The names of some of the debugging options are rather peculiar. midizap inherite
 
 There's no Mac or Windows support (yet). midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now.
 
-midizap tries to keep things simple, which implies that it has its limitations. In particular, system messages are not supported right now, and midizap lacks some more interesting ways of mapping, filtering and recombining MIDI data. There are other, more powerful utilities which do these things, but they are also more complicated and usually require at least some programming skills. midizap often does the job reasonably well for simple mapping tasks. But if things start getting fiddly then you should consider using a more comprehensive tool like [Pd][] instead.
+midizap tries to keep things simple, which implies that it has its limitations. In particular, system messages are not supported right now, and midizap lacks some more interesting ways of mapping, filtering and recombining MIDI data. There are other, more powerful utilities which do these things, but they are also more complicated and usually require at least some programming skills. midizap often does the job reasonably well for simple mapping tasks, but if things start getting fiddly then you should consider using a more comprehensive tool like [Pd][] instead.
 
 # See Also
 
-Eric Messick's [ShuttlePRO][nanosyzygy/ShuttlePRO] program, on which midizap is based, provides pretty much the same functionality for the Contour Design Shuttle devices.
+midizap is based on a [fork][agraef/ShuttlePRO] of Eric Messick's [ShuttlePRO program][nanosyzygy/ShuttlePRO], which provides pretty much the same functionality for the Contour Design Shuttle devices.
 
 Spencer Jackson's [osc2midi][] utility makes for a great companion to midizap if you also need to convert between MIDI and [Open Sound Control][OSC].
 
@@ -404,9 +408,7 @@ midizap is free and open source software licensed under the GPLv3, please check 
 Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)  
 Copyright 2018 Albert Graef (<aggraef@gmail.com>)
 
-This is a version of Eric Messick's ShuttlePRO program, written by Albert Graef, which has been redesigned to work with Jack MIDI instead of the Contour Design Shuttle devices that the original program was written for.
-
-ShuttlePRO was written in 2013 by Eric Messick, based on earlier code by Trammell Hudson (<hudson@osresearch.net>) and Arendt David (<admin@prnet.org>). The present version of the program is actually based on a [fork of ShuttlePRO][agraef/ShuttlePRO]. All the translation features of the original program are still there (in particular, key and mouse translations work exactly the same), but it goes without saying that the code has undergone some significant changes to accommodate the MIDI input and output facilities. The Jack MIDI backend is based on code from Spencer Jackson's osc2midi utility, and on the simple_session_client.c example available in the Jack git repository.
+This is a version of Eric Messick's ShuttlePRO program which has been redesigned to work with Jack MIDI instead of the Contour Design Shuttle devices. ShuttlePRO was written in 2013 by Eric Messick, based on earlier code by Trammell Hudson and Arendt David. The MIDI support was added by Albert Graef. All the key and mouse translation features of the original program still work as before, but it goes without saying that the configuration language and the translation code have undergone some substantial changes to accommodate the MIDI input and output facilities. The Jack MIDI backend is based on code from Spencer Jackson's osc2midi utility, and on the simple_session_client.c example available in the Jack git repository.
 
 [MIDI]: https://www.midi.org/
 [OSC]: http://opensoundcontrol.org/

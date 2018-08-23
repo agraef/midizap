@@ -150,8 +150,8 @@ invoking midizap with the \f[C]\-r\f[] option on the command line, e.g.:
 This is often used with more specialized configurations dealing with
 specific applications or MIDI controllers.
 .PP
-\f[B]NOTE:\f[] The program automatically reloads the midizaprc file
-whenever it notices that the file has been changed.
+The program automatically reloads the midizaprc file whenever it notices
+that the file has been changed.
 Thus you can edit the file while the program keeps running, and have the
 changes take effect immediately without having to restart the program.
 When working on new translations, you may want to run the program in a
@@ -281,9 +281,12 @@ Most of the other translations in the file assume a Mackie\-like device
 with standard playback controls and a jog wheel.
 Any standard DAW controller which can be switched into Mackie mode
 should work with these out of the box.
-In any case, you may now want to start editing the configuration, to
-remove entries that you don't need, and to make the translations work
-with your controller and favorite applications.
+There are also some more generic examples, like the one above, which
+will work with almost any kind of MIDI keyboard.
+The examples are mostly for illustrative and testing purposes, though,
+to help you get started.
+You will want to edit them and add translations for your own controllers
+and favorite applications.
 .SH MIDI Output
 .PP
 As already mentioned, the midizap program can also be made to function
@@ -397,7 +400,7 @@ E.g., \f[C]C3\-10\f[] denotes note \f[C]C3\f[] on MIDI channel 10.
 .PP
 Note messages are specified using the customary notation (note name
 \f[C]A..G\f[], optionally followed by an accidental, \f[C]#\f[] or
-\f[C]b\f[], followed by the MIDI octave number.
+\f[C]b\f[], followed by the MIDI octave number).
 The same notation is used for key pressure (\f[C]KP\f[]) messages.
 Note that all MIDI octaves start at the note C, so \f[C]B0\f[] comes
 before \f[C]C1\f[].
@@ -433,7 +436,7 @@ denotes the MIDI channel in the range 1..16; otherwise the default MIDI
 channel is used (which is always 1 on the left\-hand side, but can be
 set on the right\-hand side with \f[C]CH\f[]).
 The optional incr (increment) flag at the end of a token indicates a
-\[lq]data\[rq] translation which responds to numeric (up/down) value
+\[lq]data\[rq] translation which responds to incremental (up/down) value
 changes rather than key presses, cf.
 \f[I]Key and Data Input\f[] below.
 .SS Octave Numbering
@@ -453,8 +456,10 @@ There's not really a single \[lq]best\[rq] standard here, but the latter
 tends to appeal to mathematically inclined and computer\-savvy people,
 and is also what is used by default in the midizaprc file.
 .PP
-However, if you prefer a different numbering scheme then you can easily
-change this by specifying the desired offset for the lowest MIDI octave
+However, you may want to change this, e.g., if you're working with
+documentation or MIDI monitoring software which uses a different
+numbering scheme.
+To do this, just specify the desired offset for the lowest MIDI octave
 with the special \f[C]MIDI_OCTAVE\f[] directive in the configuration
 file.
 For instance:
@@ -465,15 +470,10 @@ MIDI_OCTAVE\ \-1\ #\ ASA\ pitches\ (middle\ C\ is\ C4)
 \f[]
 .fi
 .PP
-This is useful, in particular, if you use some external MIDI monitoring
-software to figure out which notes to put into your midizaprc file.
-To these ends, just check how the program prints middle C, and adjust
-the \f[C]MIDI_OCTAVE\f[] offset in your midizaprc file accordingly.
-(Note that midizap's built\-in MIDI monitoring facility always prints
-out MIDI notes using the \f[C]MIDI_OCTAVE\f[] offset that is in effect.
-Thus in this case the printed note tokens will always be in exactly the
-form that is to be used in the midizaprc file, no matter what the
-\f[C]MIDI_OCTAVE\f[] offset happens to be.)
+Note that this transposes \f[I]all\f[] existing notes in translations
+following the directive, so if you add this option to an existing
+configuration, you probably have to edit the note messages in it
+accordingly.
 .SS Key and Data Input
 .PP
 Input messages can be processed in two different ways, \[lq]key
@@ -481,7 +481,7 @@ mode\[rq] and \[lq]data mode\[rq].
 Depending on the mode, the extra data payload of the message, which we
 refer to as the \f[I]parameter value\f[] (or just \f[I]value\f[] for
 short), is interpreted in different ways.
-The parameter value depends on the type of MIDI message.
+The parameter value corresponds to the type of MIDI message.
 Program changes have no value at all.
 For notes, as well as key and channel pressure messages, it is the
 velocity value; for control changes, the controller value; and for pitch
@@ -491,6 +491,9 @@ signed quantity in the range \-8192..8191, where 0 denotes the center
 value.
 In all other cases, the parameter value is an unsigned 7 bit quantity in
 the range 0..127.
+(MIDI aficionados will notice that what we call the parameter value
+here, is actually the second data byte, or, in case of pitch bends, the
+combined first and second data byte of the MIDI message.)
 .PP
 \f[I]Key mode\f[] is the default mode and is available for all message
 types.
@@ -523,26 +526,30 @@ Data mode usually tracks changes in the \f[I]absolute\f[] value of a
 control.
 However, for \f[C]CC\f[] messages there's also an alternative mode for
 so\-called \f[I]incremental\f[] controllers, or \f[I]encoders\f[] for
-short, which can be found in the form of endless rotary encoders on many
-DAW controllers.
+short, which can found on some DAW controllers.
+(These usually take the form of jog wheels or rotary encoders which can
+be turned endlessly in either direction.
+In contrast, absolute\-valued controllers are usually faders or knobs
+which are confined to a range between minimum and maximum values.)
+.PP
 Encoders emit a special \f[I]sign bit\f[] value indicating a
 \f[I]relative\f[] change, where a value < 64 usually denotes an
 increment (representing clockwise rotation), and a value > 64 a
 decrement (counter\-clockwise rotation).
 The actual amount of change is in the lower 6 bits of the value.
 In the message syntax, these kinds of controls are indicated by using
-the suffix \f[C]<\f[], \f[C]>\f[] and \f[C]~\f[] in lieu of \f[C]\-\f[],
-\f[C]+\f[] and \f[C]=\f[], respectively.
+the suffixes \f[C]<\f[], \f[C]>\f[] and \f[C]~\f[] in lieu of
+\f[C]\-\f[], \f[C]+\f[] and \f[C]=\f[], respectively.
 These suffixes are only permitted with \f[C]CC\f[] messages.
 .PP
-Each MIDI token can have at most one translation associated with it per
-translation section, so that translations are determined uniquely in
-each translation class.
-However, note that the MIDI channel is part of the message token, so
-messages with different MIDI channels count as different messages here.
-The mode of a message (key or data) is also part of the message token,
-so in principle messages can have both key and data translations
-associated with them (this is rarely useful in practice, though).
+Translations must be determined uniquely in each translation class.
+That is, there must at most be one translation for each MIDI token in
+each translation section.
+Note, however, that the MIDI channel is part of the token, so tokens
+with different MIDI channels count as different messages here.
+The same goes for the mode of a message (key or data), so messages can
+have both key and data translations associated with them (which is
+rarely used in practice, though).
 .SS Keyboard and Mouse Translations
 .PP
 The right\-hand side of a translation (i.e., everything following the
@@ -644,10 +651,8 @@ translations) until you release the \f[C]G5\f[] key again, at which
 point the \f[C]x\f[] key is released and the \f[C]q\f[] key is pressed
 (and released).
 .PP
-In contrast, in \f[I]data mode\f[] there are no separate press and
-release sequences.
-Only a single sequence is output whenever the message value increases or
-decreases.
+In contrast, in \f[I]data mode\f[] only a single sequence is output
+whenever the message value increases or decreases.
 At the end of the sequence, all down keys will be released.
 For instance, the following translations move the cursor left or right
 whenever the volume controller (\f[C]CC7\f[]) decreases and increases,
@@ -705,6 +710,10 @@ CC7[4]\-\ XK_Left
 CC7[4]+\ XK_Right
 \f[]
 .fi
+.PP
+Note that there is no step size with input messages in key mode.
+The message is either just \[lq]on\[rq] or \[lq]off\[rq], with any
+nonzero value denoting off.
 .SS MIDI Translations
 .PP
 Most of the notation for MIDI messages on the left\-hand side of a
@@ -798,7 +807,7 @@ CC1\-\ CC7
 .fi
 .PP
 The same goes for \f[C]<\f[], \f[C]>\f[] and \f[C]~\f[] with sign\-bit
-incremental encoders:
+encoders:
 .IP
 .nf
 \f[C]
@@ -908,8 +917,8 @@ Also note that when using a shift key in the manner described above, its
 status is \f[I]only\f[] available internally to the midizap program; the
 host application never gets to see it.
 If your host software does its own handling of shift keys (as most
-Mackie\-compatible DAWs do), then it's usually more convenient to simply
-pass those keys on to the application.
+Mackie\-compatible DAWs do), it's usually more convenient to simply pass
+those keys on to the application.
 However, \f[C]SHIFT\f[] comes in handy if your controller simply doesn't
 have enough buttons and faders to control all the essential features of
 your target application.
@@ -980,10 +989,10 @@ Specifically, QjackCtl has its own built\-in Jack session manager which
 is available in its Session dialog.
 To use this, launch midizap and any other Jack applications you want to
 have in the session, use QjackCtl to set up all the connections as
-needed, and then the \[lq]Save\[rq] (or \[lq]Save and Quit\[rq]) option
-in the Session dialog to have the session recorded.
+needed, and then hit the \[lq]Save\[rq] (or \[lq]Save and Quit\[rq])
+button in the Session dialog to have the session recorded.
 Now, at any later time you can relaunch the same session with the
-\[lq]Load\[rq] (or \[lq]Recent\[rq]) option in the same dialog.
+\[lq]Load\[rq] (or \[lq]Recent\[rq]) button in the same dialog.
 .SH Secondary MIDI Ports
 .PP
 Some MIDI controllers need a more elaborate setup than what we've seen
@@ -995,8 +1004,8 @@ a second pair of MIDI input and output ports, named \f[C]midi_in2\f[]
 and \f[C]midi_out2\f[].
 Use of this option also activates a second MIDI default section in the
 midizaprc file, labeled \f[C][MIDI2]\f[], which is used exclusively for
-translating MIDI from the second input port and sending the resulting
-MIDI data to the second output port.
+translating MIDI input from the second input port and sending the
+resulting MIDI output to the second output port.
 Typically, the translations in the \f[C][MIDI2]\f[] section will be the
 inverse of those in the \f[C][MIDI]\f[] section, or whatever it takes to
 translate the MIDI feedback from the application back to MIDI data which
@@ -1039,14 +1048,16 @@ MIDI data.
 There are other, more powerful utilities which do these things, but they
 are also more complicated and usually require at least some programming
 skills.
-midizap often does the job reasonably well for simple mapping tasks.
-But if things start getting fiddly then you should consider using a more
+midizap often does the job reasonably well for simple mapping tasks, but
+if things start getting fiddly then you should consider using a more
 comprehensive tool like Pd (http://puredata.info/) instead.
 .SH See Also
 .PP
-Eric Messick's ShuttlePRO (https://github.com/nanosyzygy/ShuttlePRO)
-program, on which midizap is based, provides pretty much the same
-functionality for the Contour Design Shuttle devices.
+midizap is based on a fork (https://github.com/agraef/ShuttlePRO) of
+Eric Messick's ShuttlePRO
+program (https://github.com/nanosyzygy/ShuttlePRO), which provides
+pretty much the same functionality for the Contour Design Shuttle
+devices.
 .PP
 Spencer Jackson's osc2midi (https://github.com/ssj71/OSC2MIDI) utility
 makes for a great companion to midizap if you also need to convert
@@ -1069,20 +1080,16 @@ Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)
 .PD
 Copyright 2018 Albert Graef (<aggraef@gmail.com>)
 .PP
-This is a version of Eric Messick's ShuttlePRO program, written by
-Albert Graef, which has been redesigned to work with Jack MIDI instead
-of the Contour Design Shuttle devices that the original program was
-written for.
-.PP
+This is a version of Eric Messick's ShuttlePRO program which has been
+redesigned to work with Jack MIDI instead of the Contour Design Shuttle
+devices.
 ShuttlePRO was written in 2013 by Eric Messick, based on earlier code by
-Trammell Hudson (<hudson@osresearch.net>) and Arendt David
-(<admin@prnet.org>).
-The present version of the program is actually based on a fork of
-ShuttlePRO (https://github.com/agraef/ShuttlePRO).
-All the translation features of the original program are still there (in
-particular, key and mouse translations work exactly the same), but it
-goes without saying that the code has undergone some significant changes
-to accommodate the MIDI input and output facilities.
+Trammell Hudson and Arendt David.
+The MIDI support was added by Albert Graef.
+All the key and mouse translation features of the original program still
+work as before, but it goes without saying that the configuration
+language and the translation code have undergone some substantial
+changes to accommodate the MIDI input and output facilities.
 The Jack MIDI backend is based on code from Spencer Jackson's osc2midi
 utility, and on the simple_session_client.c example available in the
 Jack git repository.
