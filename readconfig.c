@@ -1258,7 +1258,7 @@ add_keystroke(char *keySymName, int press_release)
   if (sym != 0) {
     add_keysym(sym, press_release);
   } else {
-    fprintf(stderr, "unrecognized KeySym: %s\n", keySymName);
+    fprintf(stderr, "unrecognized keysym: %s\n", keySymName);
   }
 }
 
@@ -1293,9 +1293,9 @@ add_midi(char *tok)
     // inspect the token that was actually recognized (if any) to give some
     // useful error message here
     if (strcmp(buf, "ch"))
-      fprintf(stderr, "bad MIDI message: %s\n", tok);
+      fprintf(stderr, "unrecognized keysym: %s\n", tok);
     else
-      fprintf(stderr, "bad MIDI channel: %s\n", tok);
+      fprintf(stderr, "invalid MIDI channel: %s\n", tok);
   }
 }
 
