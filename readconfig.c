@@ -201,6 +201,7 @@ free_strokes(stroke *s)
   stroke *next;
   while (s != NULL) {
     next = s->next;
+    if (s->steps) free(s->steps);
     free(s);
     s = next;
   }
@@ -234,13 +235,27 @@ static void free_stroke_data(stroke_data *sd, uint16_t n)
   for (i = 0; i < n; i++) {
     free_strokes(sd[i].s[0]);
     free_strokes(sd[i].s[1]);
+    if (sd[i].steps[0]) free(sd[i].steps[0]);
+    if (sd[i].steps[1]) free(sd[i].steps[1]);
   }
   free(sd);
 }
 
+
+static int *stepsdup(int n_steps, int *steps)
+{
+  if (n_steps) {
+    int *ret = malloc(n_steps*sizeof(int));
+    memcpy(ret, steps, n_steps*sizeof(int));
+    return ret;
+  } else
+    return 0;
+}
+
 static stroke **find_stroke_data(stroke_data **sd,
 				 int chan, int data, int index,
-				 int step, int incr,
+				 int step, int n_steps, int *steps,
+				 int incr, int mod,
 				 uint16_t *n, uint16_t *a)
 {
   uint16_t i;
@@ -248,7 +263,10 @@ static stroke **find_stroke_data(stroke_data **sd,
     if ((*sd)[i].chan == chan && (*sd)[i].data == data) {
       // existing entry
       (*sd)[i].step[index] = step;
+      (*sd)[i].n_steps[index] = n_steps;
+      (*sd)[i].steps[index] = stepsdup(n_steps, steps);
       (*sd)[i].is_incr = incr;
+      (*sd)[i].mod = mod;
       return &(*sd)[i].s[index];
     }
   }
@@ -262,77 +280,91 @@ static stroke **find_stroke_data(stroke_data **sd,
   (*sd)[*n].chan = chan;
   (*sd)[*n].data = data;
   (*sd)[*n].step[index] = step;
+  (*sd)[*n].n_steps[index] = n_steps;
+  (*sd)[*n].steps[index] = stepsdup(n_steps, steps);
   (*sd)[*n].is_incr = incr;
+  (*sd)[*n].mod = mod;
   return &(*sd)[(*n)++].s[index];
 }
 
 static stroke **find_note(translation *tr, int shift,
-			  int chan, int data, int index)
+			  int chan, int data, int index, int mod,
+			  int step, int n_steps, int *steps)
 {
-  return find_stroke_data(&tr->note[shift], chan, data, index, 0, 0,
+  return find_stroke_data(&tr->note[shift], chan, data, index,
+			  step, n_steps, steps, 0, mod,
 			  &tr->n_note[shift], &tr->a_note[shift]);
 }
 
 static stroke **find_pc(translation *tr, int shift,
-			 int chan, int data, int index)
+			int chan, int data, int index)
 {
-  return find_stroke_data(&tr->pc[shift], chan, data, index, 0, 0,
+  return find_stroke_data(&tr->pc[shift], chan, data, index, 0, 0, 0, 0, 0,
 			  &tr->n_pc[shift], &tr->a_pc[shift]);
 }
 
 static stroke **find_cc(translation *tr, int shift,
-			 int chan, int data, int index)
+			int chan, int data, int index, int mod,
+			int step, int n_steps, int *steps)
 {
-  return find_stroke_data(&tr->cc[shift], chan, data, index, 0, 0,
+  return find_stroke_data(&tr->cc[shift], chan, data, index,
+			  step, n_steps, steps, 0, mod,
 			  &tr->n_cc[shift], &tr->a_cc[shift]);
 }
 
 static stroke **find_ccs(translation *tr, int shift,
 			 int chan, int data, int index, int step, int incr)
 {
-  return find_stroke_data(&tr->ccs[shift], chan, data, index, step, incr,
+  return find_stroke_data(&tr->ccs[shift], chan, data, index, step, 0, 0,
+			  incr, 0,
 			  &tr->n_ccs[shift], &tr->a_ccs[shift]);
 }
 
 static stroke **find_kp(translation *tr, int shift,
-			 int chan, int data, int index)
+			int chan, int data, int index, int mod,
+			int step, int n_steps, int *steps)
 {
-  return find_stroke_data(&tr->kp[shift], chan, data, index, 0, 0,
+  return find_stroke_data(&tr->kp[shift], chan, data, index,
+			  step, n_steps, steps, 0, mod,
 			  &tr->n_kp[shift], &tr->a_kp[shift]);
 }
 
 static stroke **find_kps(translation *tr, int shift,
 			 int chan, int data, int index, int step)
 {
-  return find_stroke_data(&tr->kps[shift], chan, data, index, step, 0,
+  return find_stroke_data(&tr->kps[shift], chan, data, index, step, 0, 0, 0, 0,
 			  &tr->n_kps[shift], &tr->a_kps[shift]);
 }
 
 static stroke **find_cp(translation *tr, int shift,
-			 int chan, int index)
+			int chan, int index, int mod,
+			int step, int n_steps, int *steps)
 {
-  return find_stroke_data(&tr->cp[shift], chan, 0, index, 0, 0,
+  return find_stroke_data(&tr->cp[shift], chan, 0, index,
+			  step, n_steps, steps, 0, mod,
 			  &tr->n_cp[shift], &tr->a_cp[shift]);
 }
 
 static stroke **find_cps(translation *tr, int shift,
 			 int chan, int index, int step)
 {
-  return find_stroke_data(&tr->cps[shift], chan, 0, index, step, 0,
+  return find_stroke_data(&tr->cps[shift], chan, 0, index, step, 0, 0, 0, 0,
 			  &tr->n_cps[shift], &tr->a_cps[shift]);
 }
 
 static stroke **find_pb(translation *tr, int shift,
-			 int chan, int index)
+			int chan, int index, int mod,
+			int step, int n_steps, int *steps)
 {
-  return find_stroke_data(&tr->pb[shift], chan, 0, index, 0, 0,
+  return find_stroke_data(&tr->pb[shift], chan, 0, index,
+			  step, n_steps, steps, 0, mod,
 			  &tr->n_pb[shift], &tr->a_pb[shift]);
 }
 
 static stroke **find_pbs(translation *tr, int shift,
 			 int chan, int index, int step)
 {
-  return find_stroke_data(&tr->pbs[shift], chan, 0, index, step, 0,
+  return find_stroke_data(&tr->pbs[shift], chan, 0, index, step, 0, 0, 0, 0,
 			  &tr->n_pbs[shift], &tr->a_pbs[shift]);
 }
 
@@ -495,10 +527,39 @@ KeySym_to_string(KeySym ks)
   return NULL;
 }
 
-static char *note_names[] = { "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B" };
+static char *note_name(int n)
+{
+  static char *note_names[] = { "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B" };
+  if (n < 0 && n%12)
+    return note_names[12+n%12];
+  else
+    return note_names[n%12];
+}
+
+static int note_octave(int n)
+{
+  if (n < 0 && n%12)
+    return n/12-1 + midi_octave;
+  else
+    return n/12 + midi_octave;
+}
+
+static int datavals(int val, int step, int *steps, int n_steps)
+{
+  if (val < 0)
+    return -datavals(-val, step, steps, n_steps);
+  else if (val < n_steps)
+    return steps[val];
+  else if (n_steps)
+    return steps[n_steps-1];
+  else if (step)
+    return step*val;
+  else
+    return val;
+}
 
 void
-print_stroke(stroke *s)
+print_stroke(stroke *s, int mod, int step, int n_steps, int *steps, int val)
 {
   char *str;
 
@@ -517,23 +578,54 @@ print_stroke(stroke *s)
       int channel = (s->status & 0x0f) + 1;
       switch (status) {
       case 0x90:
-	if (s->step)
-	  printf("%s%d[%d]-%d ", note_names[s->data % 12],
-		 s->data / 12 + midi_octave, s->step, channel);
+	if (mod) {
+	  int d = s->data + datavals(val/mod, step, steps, n_steps);
+	  int v = datavals(val%mod, s->step, s->steps, s->n_steps);
+	  printf("%s%d[%d]-%d ", note_name(d),
+		 note_octave(d), v, channel);
+	} else if (s->steps) {
+	  printf("%s%d[", note_name(s->data),
+		 note_octave(s->data));
+	  for (int i = 0; i < s->n_steps; i++)
+	    printf("%s%d", i?",":"", s->steps[i]);
+	  printf("]-%d ", channel);
+	} else if (s->step)
+	  printf("%s%d[%d]-%d ", note_name(s->data),
+		 note_octave(s->data), s->step, channel);
 	else
-	  printf("%s%d-%d ", note_names[s->data % 12],
-		 s->data / 12 + midi_octave, channel);
+	  printf("%s%d-%d ", note_name(s->data),
+		 note_octave(s->data), channel);
 	break;
       case 0xa0:
-	if (s->step)
-	  printf("KP:%s%d[%d]-%d ", note_names[s->data % 12],
-		 s->data / 12 + midi_octave, s->step, channel);
+	if (mod) {
+	  int d = s->data + datavals(val/mod, step, steps, n_steps);
+	  int v = datavals(val%mod, s->step, s->steps, s->n_steps);
+	  printf("KP:%s%d[%d]-%d ", note_name(d),
+		 note_octave(d), v, channel);
+	} else if (s->steps) {
+	  printf("KP:%s%d[", note_name(s->data),
+		 note_octave(s->data));
+	  for (int i = 0; i < s->n_steps; i++)
+	    printf("%s%d", i?",":"", s->steps[i]);
+	  printf("]-%d ", channel);
+	} else if (s->step)
+	  printf("KP:%s%d[%d]-%d ", note_name(s->data),
+		 note_octave(s->data), s->step, channel);
 	else
-	  printf("KP:%s%d-%d ", note_names[s->data % 12],
-		 s->data / 12 + midi_octave, channel);
+	  printf("KP:%s%d-%d ", note_name(s->data),
+		 note_octave(s->data), channel);
 	break;
       case 0xb0:
-	if (s->step)
+	if (mod) {
+	  int d = s->data + datavals(val/mod, step, steps, n_steps);
+	  int v = datavals(val%mod, s->step, s->steps, s->n_steps);
+	  printf("CC%d[%d]-%d ", d, v, channel);
+	} else if (s->steps) {
+	  printf("CC%d[", s->data);
+	  for (int i = 0; i < s->n_steps; i++)
+	    printf("%s%d", i?",":"", s->steps[i]);
+	  printf("]-%d ", channel);
+	} else if (s->step)
 	  printf("CC%d[%d]-%d%s ", s->data, s->step, channel, s->incr?"~":"");
 	else
 	  printf("CC%d-%d%s ", s->data, channel, s->incr?"~":"");
@@ -542,13 +634,29 @@ print_stroke(stroke *s)
 	printf("PC%d-%d ", s->data, channel);
 	break;
       case 0xd0:
-	if (s->step)
+	if (mod) {
+	  int v = datavals(val%mod, s->step, s->steps, s->n_steps);
+	  printf("CP[%d]-%d ", v, channel);
+	} else if (s->steps) {
+	  printf("CP[");
+	  for (int i = 0; i < s->n_steps; i++)
+	    printf("%s%d", i?",":"", s->steps[i]);
+	  printf("]-%d ", channel);
+	} else if (s->step)
 	  printf("CP[%d]-%d ", s->step, channel);
 	else
 	  printf("CP-%d ", channel);
 	break;
       case 0xe0:
-	if (s->step)
+	if (mod) {
+	  int v = datavals(val%mod, s->step, s->steps, s->n_steps);
+	  printf("PB[%d]-%d ", v, channel);
+	} else if (s->steps) {
+	  printf("PB[");
+	  for (int i = 0; i < s->n_steps; i++)
+	    printf("%s%d", i?",":"", s->steps[i]);
+	  printf("]-%d ", channel);
+	} else if (s->step)
 	  printf("PB[%d]-%d ", s->step, channel);
 	else
 	  printf("PB-%d ", channel);
@@ -561,14 +669,15 @@ print_stroke(stroke *s)
 }
 
 void
-print_stroke_sequence(char *name, char *up_or_down, stroke *s)
+print_stroke_sequence(char *name, char *up_or_down, stroke *s,
+		      int mod, int step, int n_steps, int *steps, int val)
 {
   if (up_or_down && *up_or_down)
     printf("%s[%s]: ", name, up_or_down);
   else
     printf("%s: ", name);
   while (s) {
-    print_stroke(s);
+    print_stroke(s, mod, step, n_steps, steps, val);
     s = s->next;
   }
   printf("\n");
@@ -630,7 +739,7 @@ append_shift(void)
 }
 
 void
-append_midi(int status, int data, int step, int incr)
+append_midi(int status, int data, int step, int n_steps, int *steps, int incr)
 {
   stroke *s = (stroke *)allocate(sizeof(stroke));
 
@@ -641,6 +750,8 @@ append_midi(int status, int data, int step, int incr)
   s->status = status;
   s->data = data;
   s->step = step;
+  s->n_steps = n_steps;
+  s->steps = stepsdup(n_steps, steps);
   s->incr = incr;
   // if this is a keystroke event, for all messages but program change (which
   // has no "on" and "off" states), mark the event as "dirty" so that the
@@ -781,12 +892,47 @@ static int note_number(char c, char b, int k)
   }
 }
 
+static char *parse_steps(char *tok, char *p,
+			 int *step, int *n_steps, int **steps)
+{
+  int l, n;
+  if (sscanf(++p, "%d%n", &l, &n) == 1) {
+    p += n;
+    if (*p == ',') {
+      int n_st = 1;
+      static int st[128];
+      st[0] = l;
+      while (*p == ',') {
+	if (sscanf(++p, "%d%n", &l, &n) == 1) {
+	  p += n;
+	} else
+	  return 0;
+	if (n_st < 128)
+	  st[n_st++] = l;
+	else if (n_st == 128)
+	  fprintf(stderr, "warning: too many steps: %s\n", tok);
+      }
+      *n_steps = n_st;
+      *steps = st;
+      *step = 0;
+    } else {
+      *n_steps = 0;
+      *steps = 0;
+      *step = l;
+    }
+    return p;
+  } else {
+    return 0;
+  }
+}
+
 int
 parse_midi(char *tok, char *s, int lhs, int mode,
-	   int *status, int *data, int *step, int *incr, int *dir)
+	   int *status, int *data, int *step, int *n_steps, int **steps,
+	   int *incr, int *dir, int *mod)
 {
   char *p = tok, *t;
-  int n, m = -1, k = midi_channel, l;
+  int n, m = -1, k = midi_channel;
   s[0] = 0;
   while (*p && !isdigit(*p) && !strchr("+-=<>~[:", *p)) p++;
   if (p == tok || p-tok > 10) return 0; // no valid token
@@ -826,14 +972,30 @@ parse_midi(char *tok, char *s, int lhs, int mode,
       return 0;
     }
   }
-  // step size
+  // step size / modulus
+  *mod = 0;
+  int step2 = 0, n_steps2 = 0, *steps2 = 0;
   if (*p == '[') {
-    if (sscanf(++p, "%d%n", &l, &n) == 1) {
-      if (!l || (lhs && l<0)) return 0; // must be nonzero / positive on lhs
-      p += n;
+    if ((p = parse_steps(tok, p, step, n_steps, steps))) {
+      if (*n_steps) {
+	// only permitted on the rhs in mod translations
+	if (lhs || mode < 2) return 0;
+      } else if (!*step || (lhs && *step<0))
+	// must be nonzero / positive on lhs
+	return 0;
       if (*p != ']') return 0;
       p++;
-      *step = l;
+      if (*p == '[') {
+	// possible step size on lhs for mod translations (we just record it
+	// here, will be resolved later)
+	if ((p = parse_steps(tok, p, &step2, &n_steps2, &steps2))) {
+	  if (!n_steps2 && !step2) return 0; // must be nonzero
+	} else {
+	  return 0;
+	}
+	if (*p != ']') return 0;
+	p++;
+      }
     } else {
       return 0;
     }
@@ -841,6 +1003,8 @@ parse_midi(char *tok, char *s, int lhs, int mode,
     // sentinel value; for the lhs, this will be filled in below; for
     // the rhs this indicates the default value
     *step = 0;
+    *n_steps = 0;
+    *steps = 0;
   }
   // suffix with MIDI channel (not permitted with 'ch')
   if (p[0] == '-' && isdigit(p[1])) {
@@ -872,7 +1036,7 @@ parse_midi(char *tok, char *s, int lhs, int mode,
       // an endless, sign-bit encoder
       if (*p != '~')
 	return 0;
-      else if (!mode)
+      else if (mode)
 	fprintf(stderr, "warning: incremental flag ignored in key mode: %s\n", tok);
       *incr = 2; *dir = 0;
     }
@@ -886,6 +1050,8 @@ parse_midi(char *tok, char *s, int lhs, int mode,
   if (strcmp(s, "ch") == 0) {
     if (lhs) return 0; // not permitted on lhs
     if (*step) return 0; // step size not permitted
+    if (*n_steps) return 0; // steps not permitted
+    if (steps2 || n_steps2) return 0; // not permitted
     // we return a bogus status of 0 here, along with the MIDI channel
     // in the data byte; also check that the MIDI channel is in the
     // proper range
@@ -895,23 +1061,28 @@ parse_midi(char *tok, char *s, int lhs, int mode,
   } else if (strcmp(s, "pb") == 0) {
     // pitch bend, no data byte
     *status = 0xe0 | k; *data = 0;
-    // negative step size is always permitted on rhs here, even in key mode
-    // step size only permitted on lhs if incremental
-    if (lhs && *step && !*incr) return 0;
+    // step size on lhs indicates modulus if non-incremental
+    if (lhs && *step && !*incr) {
+      *mod = *step; *step = step2;
+      *n_steps = n_steps2; *steps = steps2;
+    }
     if (lhs && !*step) *step = 1; // default
     return 1;
   } else if (strcmp(s, "cp") == 0) {
     // channel pressure, no data byte
     *status = 0xd0 | k; *data = 0;
-    // negative step size not permitted on rhs in key mode
-    if (!lhs && *step < 0 && !mode) return 0;
-    // step size only permitted on lhs if incremental
-    if (lhs && *step && !*incr) return 0;
+    // step size on lhs indicates modulus if non-incremental
+    if (lhs && *step && !*incr) {
+      *mod = *step; *step = step2;
+      *n_steps = n_steps2; *steps = steps2;
+    }
     if (lhs && !*step) *step = 1; // default
     return 1;
   } else if (strcmp(s, "pc") == 0) {
     // program change
     if (*step) return 0; // step size not permitted
+    if (*n_steps) return 0; // steps not permitted
+    if (steps2 || n_steps2) return 0; // not permitted
     if (m < 0 || m > 127) return 0;
     *status = 0xc0 | k; *data = m;
     return 1;
@@ -919,27 +1090,31 @@ parse_midi(char *tok, char *s, int lhs, int mode,
     // control change
     if (m < 0 || m > 127) return 0;
     *status = 0xb0 | k; *data = m;
-    // negative step size not permitted on rhs in key mode
-    if (!lhs && *step < 0 && !mode) return 0;
-    // step size only permitted on lhs if incremental
-    if (lhs && *step && !*incr) return 0;
+    // step size on lhs indicates modulus if non-incremental
+    if (lhs && *step && !*incr) {
+      *mod = *step; *step = step2;
+      *n_steps = n_steps2; *steps = steps2;
+    }
     if (lhs && !*step) *step = 1; // default
     return 1;
   } else if (strcmp(s, "kp") == 0) {
     // key pressure
     if (m < 0 || m > 127) return 0;
     *status = 0xa0 | k; *data = m;
-    // negative step size not permitted on rhs in key mode
-    if (!lhs && *step < 0 && !mode) return 0;
-    // step size only permitted on lhs if incremental
-    if (lhs && *step && !*incr) return 0;
+    // step size on lhs indicates modulus if non-incremental
+    if (lhs && *step && !*incr) {
+      *mod = *step; *step = step2;
+      *n_steps = n_steps2; *steps = steps2;
+    }
     if (lhs && !*step) *step = 1; // default
     return 1;
   } else {
-    // negative step size not permitted on rhs
-    if (!lhs && *step < 0) return 0;
-    // step size not permitted on lhs
-    if (lhs && *step) return 0;
+    // step size on lhs indicates modulus
+    if (lhs && *step) {
+      *mod = *step; *step = step2;
+      *n_steps = n_steps2; *steps = steps2;
+    }
+    if (lhs && !*step) *step = 1; // default
     // we must be looking at a MIDI note here, with m denoting the
     // octave number; first character is the note name (must be a..g);
     // optionally, the second character may denote an accidental (# or b)
@@ -953,7 +1128,7 @@ parse_midi(char *tok, char *s, int lhs, int mode,
 int
 start_translation(translation *tr, char *which_key)
 {
-  int k, status, data, step, incr, dir;
+  int k, status, data, step, n_steps, *steps, incr, dir, mod;
   char buf[100];
 
   //printf("start_translation(%s)\n", which_key);
@@ -970,19 +1145,29 @@ start_translation(translation *tr, char *which_key)
   modifier_count = 0;
   midi_channel = 0;
   k = *which_key == '^' || (is_anyshift = *which_key == '?');
-  if (parse_midi(which_key+k, buf, 1, 0, &status, &data, &step, &incr, &dir)) {
+  if (parse_midi(which_key+k, buf, 1, 0, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod)) {
     int chan = status & 0x0f;
-    mode = !!incr;
+    mode = incr?0:mod?2:1;
     switch (status & 0xf0) {
     case 0x90:
-      // note on/off
-      first_stroke = find_note(tr, k, chan, data, 0);
-      release_first_stroke = find_note(tr, k, chan, data, 1);
-      if (is_anyshift) {
-	alt_press_stroke = find_note(tr, 0, chan, data, 0);
-	alt_release_stroke = find_note(tr, 0, chan, data, 1);
+      if (mod) {
+	// note mod
+	first_stroke = find_note(tr, k, chan, data, 0, mod,
+				 step, n_steps, steps);
+	if (is_anyshift) {
+	  alt_press_stroke = find_note(tr, 0, chan, data, 0, mod,
+				       step, n_steps, steps);
+	}
+      } else {
+	// note on/off
+	first_stroke = find_note(tr, k, chan, data, 0, 0, 0, 0, 0);
+	release_first_stroke = find_note(tr, k, chan, data, 1, 0, 0, 0, 0);
+	if (is_anyshift) {
+	  alt_press_stroke = find_note(tr, 0, chan, data, 0, 0, 0, 0, 0);
+	  alt_release_stroke = find_note(tr, 0, chan, data, 1, 0, 0, 0, 0);
+	}
+	is_keystroke = 1;
       }
-      is_keystroke = 1;
       break;
     case 0xc0:
       // pc: To make our live easier and for consistency with the other
@@ -999,16 +1184,7 @@ start_translation(translation *tr, char *which_key)
       is_keystroke = 1;
       break;
     case 0xb0:
-      if (!incr) {
-	// cc on/off
-	first_stroke = find_cc(tr, k, chan, data, 0);
-	release_first_stroke = find_cc(tr, k, chan, data, 1);
-	if (is_anyshift) {
-	  alt_press_stroke = find_cc(tr, 0, chan, data, 0);
-	  alt_release_stroke = find_cc(tr, 0, chan, data, 1);
-	}
-	is_keystroke = 1;
-      } else {
+      if (incr) {
 	// cc (step up, down)
 	if (step <= 0) {
 	  fprintf(stderr, "zero or negative step size not permitted here: [%s]%s\n", current_translation, which_key);
@@ -1032,19 +1208,27 @@ start_translation(translation *tr, char *which_key)
 	    alt_release_stroke = find_ccs(tr, 0, chan, data, 1, step, incr>1);
 	  }
 	}
+      } else if (mod) {
+	// cc mod
+	first_stroke = find_cc(tr, k, chan, data, 0, mod,
+			       step, n_steps, steps);
+	if (is_anyshift) {
+	  alt_press_stroke = find_cc(tr, 0, chan, data, 0, mod,
+				     step, n_steps, steps);
+	}
+      } else {
+	// cc on/off
+	first_stroke = find_cc(tr, k, chan, data, 0, 0, 0, 0, 0);
+	release_first_stroke = find_cc(tr, k, chan, data, 1, 0, 0, 0, 0);
+	if (is_anyshift) {
+	  alt_press_stroke = find_cc(tr, 0, chan, data, 0, 0, 0, 0, 0);
+	  alt_release_stroke = find_cc(tr, 0, chan, data, 1, 0, 0, 0, 0);
+	}
+	is_keystroke = 1;
       }
       break;
     case 0xa0:
-      if (!incr) {
-	// kp on/off
-	first_stroke = find_kp(tr, k, chan, data, 0);
-	release_first_stroke = find_kp(tr, k, chan, data, 1);
-	if (is_anyshift) {
-	  alt_press_stroke = find_kp(tr, 0, chan, data, 0);
-	  alt_release_stroke = find_kp(tr, 0, chan, data, 1);
-	}
-	is_keystroke = 1;
-      } else {
+      if (incr) {
 	// kp (step up, down)
 	if (step <= 0) {
 	  fprintf(stderr, "zero or negative step size not permitted here: [%s]%s\n", current_translation, which_key);
@@ -1061,19 +1245,27 @@ start_translation(translation *tr, char *which_key)
 	    alt_release_stroke = find_kps(tr, 0, chan, data, 1, step);
 	  }
 	}
+      } else if (mod) {
+	// kp mod
+	first_stroke = find_kp(tr, k, chan, data, 0, mod,
+			       step, n_steps, steps);
+	if (is_anyshift) {
+	  alt_press_stroke = find_kp(tr, 0, chan, data, 0, mod,
+				     step, n_steps, steps);
+	}
+      } else {
+	// kp on/off
+	first_stroke = find_kp(tr, k, chan, data, 0, 0, 0, 0, 0);
+	release_first_stroke = find_kp(tr, k, chan, data, 1, 0, 0, 0, 0);
+	if (is_anyshift) {
+	  alt_press_stroke = find_kp(tr, 0, chan, data, 0, 0, 0, 0, 0);
+	  alt_release_stroke = find_kp(tr, 0, chan, data, 1, 0, 0, 0, 0);
+	}
+	is_keystroke = 1;
       }
       break;
     case 0xd0:
-      if (!incr) {
-	// cp on/off
-	first_stroke = find_cp(tr, k, chan, 0);
-	release_first_stroke = find_cp(tr, k, chan, 1);
-	if (is_anyshift) {
-	  alt_press_stroke = find_cp(tr, 0, chan, 0);
-	  alt_release_stroke = find_cp(tr, 0, chan, 1);
-	}
-	is_keystroke = 1;
-      } else {
+      if (incr) {
 	// cp (step up, down)
 	if (step <= 0) {
 	  fprintf(stderr, "zero or negative step size not permitted here: [%s]%s\n", current_translation, which_key);
@@ -1090,19 +1282,27 @@ start_translation(translation *tr, char *which_key)
 	    alt_release_stroke = find_cps(tr, 0, chan, 1, step);
 	  }
 	}
+      } else if (mod) {
+	// cp mod
+	first_stroke = find_cp(tr, k, chan, 0, mod,
+			       step, n_steps, steps);
+	if (is_anyshift) {
+	  alt_press_stroke = find_cp(tr, 0, chan, 0, mod,
+				     step, n_steps, steps);
+	}
+      } else {
+	// cp on/off
+	first_stroke = find_cp(tr, k, chan, 0, 0, 0, 0, 0);
+	release_first_stroke = find_cp(tr, k, chan, 1, 0, 0, 0, 0);
+	if (is_anyshift) {
+	  alt_press_stroke = find_cp(tr, 0, chan, 0, 0, 0, 0, 0);
+	  alt_release_stroke = find_cp(tr, 0, chan, 1, 0, 0, 0, 0);
+	}
+	is_keystroke = 1;
       }
       break;
     case 0xe0:
-      if (!incr) {
-	// pb on/off
-	first_stroke = find_pb(tr, k, chan, 0);
-	release_first_stroke = find_pb(tr, k, chan, 1);
-	if (is_anyshift) {
-	  alt_press_stroke = find_pb(tr, 0, chan, 0);
-	  alt_release_stroke = find_pb(tr, 0, chan, 1);
-	}
-	is_keystroke = 1;
-      } else {
+      if (incr) {
 	// pb (step up, down)
 	if (step <= 0) {
 	  fprintf(stderr, "zero or negative step size not permitted here: [%s]%s\n", current_translation, which_key);
@@ -1119,6 +1319,23 @@ start_translation(translation *tr, char *which_key)
 	    alt_release_stroke = find_pbs(tr, 0, chan, 1, step);
 	  }
 	}
+      } else if (mod) {
+	// pb mod
+	first_stroke = find_pb(tr, k, chan, 0, mod,
+			       step, n_steps, steps);
+	if (is_anyshift) {
+	  alt_press_stroke = find_pb(tr, 0, chan, 0, mod,
+				     step, n_steps, steps);
+	}
+      } else {
+	// pb on/off
+	first_stroke = find_pb(tr, k, chan, 0, 0, 0, 0, 0);
+	release_first_stroke = find_pb(tr, k, chan, 1, 0, 0, 0, 0);
+	if (is_anyshift) {
+	  alt_press_stroke = find_pb(tr, 0, chan, 0, 0, 0, 0, 0);
+	  alt_release_stroke = find_pb(tr, 0, chan, 1, 0, 0, 0, 0);
+	}
+	is_keystroke = 1;
       }
       break;
     default:
@@ -1187,7 +1404,7 @@ add_release(int all_keys)
       stroke *s = *press_first_stroke;
       while (s) {
 	if (!s->keysym && !s->shift && s->dirty) {
-	  append_midi(s->status, s->data, s->step, s->incr);
+	  append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr);
 	  s->dirty = 0;
 	}
 	s = s->next;
@@ -1209,7 +1426,7 @@ add_release(int all_keys)
       } else if (s->shift) {
 	append_shift();
       } else {
-	append_midi(s->status, s->data, s->step, s->incr);
+	append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr);
       }
       s = s->next;
     }
@@ -1224,7 +1441,7 @@ add_release(int all_keys)
       } else if (s->shift) {
 	append_shift();
       } else {
-	append_midi(s->status, s->data, s->step, s->incr);
+	append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr);
       }
       s = s->next;
     }
@@ -1237,7 +1454,7 @@ add_release(int all_keys)
 	} else if (s->shift) {
 	  append_shift();
 	} else {
-	  append_midi(s->status, s->data, s->step, s->incr);
+	  append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr);
 	}
 	s = s->next;
       }
@@ -1276,16 +1493,16 @@ add_string(char *str)
 void
 add_midi(char *tok)
 {
-  int status, data, step, incr, dir = 0;
+  int status, data, step, n_steps, *steps, incr, dir = 0, mod = 0;
   char buf[100];
-  if (parse_midi(tok, buf, 0, mode, &status, &data, &step, &incr, &dir)) {
+  if (parse_midi(tok, buf, 0, mode, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod)) {
     if (status == 0) {
       // 'ch' token; this doesn't actually generate any output, it just sets
       // the default MIDI channel
       midi_channel = data;
     } else {
       if ((status & 0xf0) != 0xe0 || step != 0)
-	append_midi(status, data, step, incr!=0);
+	append_midi(status, data, step, n_steps, steps, incr!=0);
       else
 	fprintf(stderr, "zero step size not permitted: %s\n", tok);
     }
@@ -1309,10 +1526,10 @@ finish_translation(void)
   add_release(1);
   if (debug_strokes) {
     if (is_keystroke) {
-      print_stroke_sequence(key_name, "D", *press_first_stroke);
-      print_stroke_sequence(key_name, "U", *release_first_stroke);
+      print_stroke_sequence(key_name, "D", *press_first_stroke, 0, 0, 0, 0, 0);
+      print_stroke_sequence(key_name, "U", *release_first_stroke, 0, 0, 0, 0, 0);
     } else {
-      print_stroke_sequence(key_name, "", *first_stroke);
+      print_stroke_sequence(key_name, "", *first_stroke, 0, 0, 0, 0, 0);
     }
     printf("\n");
   }

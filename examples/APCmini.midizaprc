@@ -173,6 +173,25 @@ A#5 D#7
 B5  E7
 C6  F7
 
+# meter feedback
+
+# The Mackie protocol packs all 8 channel meters into a single channel
+# pressure message which we need to transform into the corresponding
+# note messages for the LEDs.  Note that we only use the upper 5x8 part
+# of the grid here, in order not to clobber the 3 rows at the bottom
+# with the rec/solo/mute buttons.  This means that the meters, which
+# actually have 8 different values, have to be squashed into 5 LEDs per
+# channel.
+
+?CP[16] C2[0,1] G#2[0,0,0,1] E3[0,0,0,0,0,5] C4[0,0,0,0,0,0,0,5] G#4[0,0,0,0,0,0,0,0,3]
+
+# Here's an alternative decoding, which creates horizontal meters
+# covering the full range, with the first channel on top.  Note,
+# however, that this ranges across the entire 8x8 grid and will thus
+# clobber the rec/solo/mute controls!
+
+#?CP[16][-8] G#4[0,1] A4[0,0,1] A#4[0,0,0,1] B4[0,0,0,0,1] C5[0,0,0,0,0,5] C#5[0,0,0,0,0,0,5] D5[0,0,0,0,0,0,0,5] D#5[0,0,0,0,0,0,0,0,3]
+
 # no feedback for faders (faders aren't motorized)
 
 # NOTE: Feedback for rec/solo/mute/select also needs to be recognized in shift

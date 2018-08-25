@@ -54,6 +54,8 @@ typedef struct _stroke {
   // keysym == shift == 0 => MIDI event
   int status, data; // status and, if applicable, first data byte
   int step; // step size (1, 127 or 8191 by default, depending on status)
+  // discrete steps (for special "modulus" translations only)
+  int n_steps, *steps;
   // the incremental bit indicates an incremental control change (typically
   // used with endless rotary encoders) to be represented as a sign bit value
   uint8_t incr;
@@ -67,10 +69,12 @@ typedef struct _stroke_data {
   uint8_t chan, data;
   // stroke data, indexed by press/release or up/down index
   stroke *s[2];
-  // step size (CP, KP, CC and PB only)
-  int step[2];
+  // step size
+  int step[2], n_steps[2], *steps[2];
   // incr flag (CC only)
   uint8_t is_incr;
+  // modulus
+  uint8_t mod;
 } stroke_data;
 
 typedef struct _translation {
@@ -100,7 +104,9 @@ typedef struct _translation {
 extern void reload_callback(void);
 extern int read_config_file(void);
 extern translation *get_translation(char *win_title, char *win_class);
-extern void print_stroke_sequence(char *name, char *up_or_down, stroke *s);
+extern void print_stroke_sequence(char *name, char *up_or_down, stroke *s,
+				  int mod, int step, int n_steps, int *steps,
+				  int val);
 extern translation *default_translation, *default_midi_translation[2];
 extern int debug_regex, debug_strokes, debug_keys, debug_midi;
 extern int default_debug_regex, default_debug_strokes, default_debug_keys,

@@ -77,8 +77,25 @@ static int dataval(int val, int min, int max)
     return val;
 }
 
+static int datavals(int val, int step, int *steps, int n_steps)
+{
+  if (val < 0)
+    return -datavals(-val, step, steps, n_steps);
+  else if (val < n_steps)
+    return steps[val];
+  else if (n_steps)
+    return steps[n_steps-1];
+  else if (step)
+    return step*val;
+  else
+    return val;
+}
+
 void
-send_midi(uint8_t portno, int status, int data, int step, int incr, int index, int dir)
+send_midi(uint8_t portno, int status, int data,
+	  int step, int n_steps, int *steps,
+	  int incr, int index, int dir,
+	  int mod, int mod_step, int mod_n_steps, int *mod_steps, int val)
 {
   if (!jack_num_outputs) return; // MIDI output not enabled
   uint8_t msg[3];
@@ -87,7 +104,14 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
   msg[1] = data;
   switch (status & 0xf0) {
   case 0x90:
-    if (!index) {
+    if (mod) {
+      int d = msg[1] + datavals(val/mod, mod_step, mod_steps, mod_n_steps);
+      int v = datavals(val%mod, step, steps, n_steps);
+      if (d > 127 || d < 0) return;
+      if (v > 127 || v < 0) return;
+      msg[1] = d;
+      msg[2] = v;
+    } else if (!index) {
       msg[2] = dataval(step, 0, 127);
     } else {
       msg[2] = 0;
@@ -118,6 +142,13 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
 	}
 	msg[2] = ccvalue[chan][data];
       }
+    } else if (mod) {
+      int d = msg[1] + datavals(val/mod, mod_step, mod_steps, mod_n_steps);
+      int v = datavals(val%mod, step, steps, n_steps);
+      if (d > 127 || d < 0) return;
+      if (v > 127 || v < 0) return;
+      msg[1] = d;
+      msg[2] = v;
     } else if (!index) {
       msg[2] = dataval(step, 0, 127);
     } else {
@@ -140,6 +171,13 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
 	if (kpvalue[chan][data] < 0) kpvalue[chan][data] = 0;
       }
       msg[2] = kpvalue[chan][data];
+    } else if (mod) {
+      int d = msg[1] + datavals(val/mod, mod_step, mod_steps, mod_n_steps);
+      int v = datavals(val%mod, step, steps, n_steps);
+      if (d > 127 || d < 0) return;
+      if (v > 127 || v < 0) return;
+      msg[1] = d;
+      msg[2] = v;
     } else if (!index) {
       msg[2] = dataval(step, 0, 127);
     } else {
@@ -162,6 +200,10 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
 	if (cpvalue[chan] < 0) cpvalue[chan] = 0;
       }
       msg[1] = cpvalue[chan];
+    } else if (mod) {
+      int v = datavals(val%mod, step, steps, n_steps);
+      if (v > 127 || v < 0) return;
+      msg[1] = v;
     } else if (!index) {
       msg[1] = dataval(step, 0, 127);
     } else {
@@ -185,6 +227,10 @@ send_midi(uint8_t portno, int status, int data, int step, int incr, int index, i
 	if (pbvalue[chan] < 0) pbvalue[chan] = 0;
       }
       pbval = pbvalue[chan];
+    } else if (mod) {
+      int v = datavals(val%mod, step, steps, n_steps);
+      if (v > 8191 || v < -8192) return;
+      pbval = 8192+v;
     } else if (!index) {
       pbval = 8192+dataval(step, -8192, 8191);
     } else {
@@ -219,7 +265,8 @@ static int stroke_data_cmp(const void *a, const void *b)
 
 static stroke *find_stroke_data(stroke_data *sd,
 				int chan, int data, int index,
-				int *step, int *incr,
+				int *step, int *n_steps, int **steps,
+				int *incr, int *mod,
 				uint16_t n)
 {
   if (n < 16) {
@@ -230,7 +277,10 @@ static stroke *find_stroke_data(stroke_data *sd,
     for (i = 0; i < n; i++) {
       if (sd[i].chan == chan && sd[i].data == data) {
 	if (step) *step = sd[i].step[index];
+	if (n_steps) *n_steps = sd[i].n_steps[index];
+	if (steps) *steps = sd[i].steps[index];
 	if (incr) *incr = sd[i].is_incr;
+	if (mod) *mod = sd[i].mod;
 	return sd[i].s[index];
       } else if (sd[i].chan > chan ||
 		 (sd[i].chan == chan && sd[i].data > data))
@@ -244,7 +294,10 @@ static stroke *find_stroke_data(stroke_data *sd,
     ret = bsearch(&key, sd, n, sizeof(stroke_data), stroke_data_cmp);
     if (ret) {
       if (step) *step = ret->step[index];
+      if (n_steps) *n_steps = ret->n_steps[index];
+      if (steps) *steps = ret->steps[index];
       if (incr) *incr = ret->is_incr;
+      if (mod) *mod = ret->mod;
       return ret->s[index];
     } else
       return NULL;
@@ -252,105 +305,117 @@ static stroke *find_stroke_data(stroke_data *sd,
 }
 
 static stroke *find_note(translation *tr, int shift,
-			 int chan, int data, int index)
+			 int chan, int data, int index, int *mod,
+			 int *step, int *n_steps, int **steps)
 {
-  return find_stroke_data(tr->note[shift], chan, data, index, 0, 0,
+  return find_stroke_data(tr->note[shift], chan, data, index,
+			  step, n_steps, steps, 0, mod,
 			  tr->n_note[shift]);
 }
 
 static stroke *find_pc(translation *tr, int shift,
 		       int chan, int data, int index)
 {
-  return find_stroke_data(tr->pc[shift], chan, data, index, 0, 0,
+  return find_stroke_data(tr->pc[shift], chan, data, index, 0, 0, 0, 0, 0,
 			  tr->n_pc[shift]);
 }
 
 static stroke *find_cc(translation *tr, int shift,
-		       int chan, int data, int index)
+		       int chan, int data, int index, int *mod,
+		       int *step, int *n_steps, int **steps)
 {
-  return find_stroke_data(tr->cc[shift], chan, data, index, 0, 0,
+  return find_stroke_data(tr->cc[shift], chan, data, index,
+			  step, n_steps, steps, 0, mod,
 			  tr->n_cc[shift]);
 }
 
 static stroke *find_ccs(translation *tr, int shift,
 			int chan, int data, int index, int *step, int *incr)
 {
-  return find_stroke_data(tr->ccs[shift], chan, data, index, step, incr,
+  return find_stroke_data(tr->ccs[shift], chan, data, index, step, 0, 0,
+			  incr, 0,
 			  tr->n_ccs[shift]);
 }
 
 static stroke *find_kp(translation *tr, int shift,
-		       int chan, int data, int index)
+		       int chan, int data, int index, int *mod,
+		       int *step, int *n_steps, int **steps)
 {
-  return find_stroke_data(tr->kp[shift], chan, data, index, 0, 0,
+  return find_stroke_data(tr->kp[shift], chan, data, index,
+			  step, n_steps, steps, 0, mod,
 			  tr->n_kp[shift]);
 }
 
 static stroke *find_kps(translation *tr, int shift,
 			int chan, int data, int index, int *step)
 {
-  return find_stroke_data(tr->kps[shift], chan, data, index, step, 0,
+  return find_stroke_data(tr->kps[shift], chan, data, index, step, 0, 0, 0, 0,
 			  tr->n_kps[shift]);
 }
 
 static stroke *find_cp(translation *tr, int shift,
-		       int chan, int index)
+		       int chan, int index, int *mod,
+		       int *step, int *n_steps, int **steps)
 {
-  return find_stroke_data(tr->cp[shift], chan, 0, index, 0, 0,
+  return find_stroke_data(tr->cp[shift], chan, 0, index,
+			  step, n_steps, steps, 0, mod,
 			  tr->n_cp[shift]);
 }
 
 static stroke *find_cps(translation *tr, int shift,
 			int chan, int index, int *step)
 {
-  return find_stroke_data(tr->cps[shift], chan, 0, index, step, 0,
+  return find_stroke_data(tr->cps[shift], chan, 0, index, step, 0, 0, 0, 0,
 			  tr->n_cps[shift]);
 }
 
 static stroke *find_pb(translation *tr, int shift,
-		       int chan, int index)
+		       int chan, int index, int *mod,
+		       int *step, int *n_steps, int **steps)
 {
-  return find_stroke_data(tr->pb[shift], chan, 0, index, 0, 0,
+  return find_stroke_data(tr->pb[shift], chan, 0, index,
+			  step, n_steps, steps, 0, mod,
 			  tr->n_pb[shift]);
 }
 
 static stroke *find_pbs(translation *tr, int shift,
 			int chan, int index, int *step)
 {
-  return find_stroke_data(tr->pbs[shift], chan, 0, index, step, 0,
+  return find_stroke_data(tr->pbs[shift], chan, 0, index, step, 0, 0, 0, 0,
 			  tr->n_pbs[shift]);
 }
 
 stroke *
 fetch_stroke(translation *tr, uint8_t portno, int status, int chan, int data,
-	     int index, int dir, int *step, int *incr)
+	     int index, int dir, int *step, int *n_steps, int **steps,
+	     int *incr, int *mod)
 {
   if (tr && tr->portno == portno) {
     switch (status) {
     case 0x90:
-      return find_note(tr, shift, chan, data, index);
+      return find_note(tr, shift, chan, data, index, mod, step, n_steps, steps);
     case 0xc0:
       return find_pc(tr, shift, chan, data, index);
     case 0xb0:
       if (dir)
 	return find_ccs(tr, shift, chan, data, dir>0, step, incr);
       else
-	return find_cc(tr, shift, chan, data, index);
+	return find_cc(tr, shift, chan, data, index, mod, step, n_steps, steps);
     case 0xa0:
       if (dir)
 	return find_kps(tr, shift, chan, data, dir>0, step);
       else
-	return find_kp(tr, shift, chan, data, index);
+	return find_kp(tr, shift, chan, data, index, mod, step, n_steps, steps);
     case 0xd0:
       if (dir)
 	return find_cps(tr, shift, chan, dir>0, step);
       else
-	return find_cp(tr, shift, chan, index);
+	return find_cp(tr, shift, chan, index, mod, step, n_steps, steps);
     case 0xe0:
       if (dir)
 	return find_pbs(tr, shift, chan, dir>0, step);
       else
-	return find_pb(tr, shift, chan, index);
+	return find_pb(tr, shift, chan, index, mod, step, n_steps, steps);
     default:
       return NULL;
     }
@@ -389,35 +454,95 @@ static void debug_section(translation *tr)
   }
 }
 
+static char *note_name(int n)
+{
+  static char *note_names[] = { "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B" };
+  if (n < 0 && n%12)
+    return note_names[12+n%12];
+  else
+    return note_names[n%12];
+}
+
+static int note_octave(int n)
+{
+  if (n < 0 && n%12)
+    return n/12-1 + midi_octave;
+  else
+    return n/12 + midi_octave;
+}
+
 static char *debug_key(translation *tr, char *name,
 		       int status, int chan, int data, int dir)
 {
-  static char *note_names[] = { "C", "C#", "D", "Eb", "E", "F", "F#", "G", "G#", "A", "Bb", "B" };
   char *prefix = shift?"^":"", *suffix = "";
   strcpy(name, "??");
   switch (status) {
-  case 0x90:
-    sprintf(name, "%s%s%d-%d", prefix, note_names[data % 12],
-	    data / 12 + midi_octave, chan+1);
+  case 0x90: {
+    int mod = 0, step, n_steps, *steps;
+    (void)find_note(tr, shift, chan, data, 0, &mod, &step, &n_steps, &steps);
+    if (mod)
+      if (step != 1)
+	sprintf(name, "%s%s%d[%d][%d]-%d", prefix, note_name(data),
+		note_octave(data), mod, step, chan+1);
+      else if (n_steps) {
+	sprintf(name, "%s%s%d[%d][", prefix, note_name(data),
+	        note_octave(data), mod);
+	int l = strlen(name);
+	for (int i = 0; i < n_steps; i++, (l = strlen(name)))
+	  sprintf(name+l, "%s%d", i?",":"", steps[i]);
+	sprintf(name+l, "]-%d", chan);
+      } else
+	sprintf(name, "%s%s%d[%d]-%d", prefix, note_name(data),
+		note_octave(data), mod, chan+1);
+    else
+      sprintf(name, "%s%s%d-%d", prefix, note_name(data),
+	      note_octave(data), chan+1);
     break;
+  }
   case 0xa0: {
-    int step = 1;
-    if (tr) (void)find_kps(tr, shift, chan, data, dir>0, &step);
+    int step = 0, n_steps = 0, *steps = 0, mod = 0;
+    if (tr) {
+      if (dir) {
+	step = 1;
+	(void)find_kps(tr, shift, chan, data, dir>0, &step);
+      } else
+	(void)find_kp(tr, shift, chan, data, 0, &mod, &step, &n_steps, &steps);
+    }
     if (!dir)
       suffix = "";
     else
       suffix = (dir<0)?"-":"+";
     if (dir && step != 1)
-      sprintf(name, "%sKP:%s%d[%d]-%d%s", prefix, note_names[data % 12],
-	      data / 12 + midi_octave, step, chan+1, suffix);
+      sprintf(name, "%sKP:%s%d[%d]-%d%s", prefix, note_name(data),
+	      note_octave(data), step, chan+1, suffix);
+    else if (!dir && mod)
+      if (step != 1)
+	sprintf(name, "%sKP:%s%d[%d][%d]-%d", prefix, note_name(data),
+		note_octave(data), mod, step, chan+1);
+      else if (n_steps) {
+	sprintf(name, "%sKP:%s%d[%d][", prefix, note_name(data),
+	        note_octave(data), mod);
+	int l = strlen(name);
+	for (int i = 0; i < n_steps; i++, (l = strlen(name)))
+	  sprintf(name+l, "%s%d", i?",":"", steps[i]);
+	sprintf(name+l, "]-%d", chan);
+      } else
+	sprintf(name, "%sKP:%s%d[%d]-%d", prefix, note_name(data),
+		note_octave(data), mod, chan+1);
     else
-      sprintf(name, "%sKP:%s%d-%d%s", prefix, note_names[data % 12],
-	      data / 12 + midi_octave, chan+1, suffix);
+      sprintf(name, "%sKP:%s%d-%d%s", prefix, note_name(data),
+	      note_octave(data), chan+1, suffix);
     break;
   }
   case 0xb0: {
-    int step = 1, is_incr = 0;
-    if (tr) (void)find_ccs(tr, shift, chan, data, dir>0, &step, &is_incr);
+    int step = 0, n_steps = 0, *steps = 0, mod = 0, is_incr = 0;
+    if (tr) {
+      if (dir) {
+	step = 1;
+	(void)find_ccs(tr, shift, chan, data, dir>0, &step, &is_incr);
+      } else
+	(void)find_cc(tr, shift, chan, data, 0, &mod, &step, &n_steps, &steps);
+    }
     if (!dir)
       suffix = "";
     else if (is_incr)
@@ -426,6 +551,17 @@ static char *debug_key(translation *tr, char *name,
       suffix = (dir<0)?"-":"+";
     if (dir && step != 1)
       sprintf(name, "%sCC%d[%d]-%d%s", prefix, data, step, chan+1, suffix);
+    else if (!dir && mod)
+      if (step != 1)
+	sprintf(name, "%sCC%d[%d][%d]-%d", prefix, data, mod, step, chan+1);
+      else if (n_steps) {
+	sprintf(name, "%sCC%d[%d][", prefix, data, mod);
+	int l = strlen(name);
+	for (int i = 0; i < n_steps; i++, (l = strlen(name)))
+	  sprintf(name+l, "%s%d", i?",":"", steps[i]);
+	sprintf(name+l, "]-%d", chan);
+      } else
+	sprintf(name, "%sCC%d[%d]-%d", prefix, data, mod, chan+1);
     else
       sprintf(name, "%sCC%d-%d%s", prefix, data, chan+1, suffix);
     break;
@@ -434,14 +570,31 @@ static char *debug_key(translation *tr, char *name,
     sprintf(name, "%sPC%d-%d", prefix, data, chan+1);
     break;
   case 0xd0: {
-    int step = 1;
-    if (tr) (void)find_cps(tr, shift, chan, dir>0, &step);
+    int step = 0, n_steps = 0, *steps = 0, mod = 0;
+    if (tr) {
+      if (dir) {
+	step = 1;
+	(void)find_cps(tr, shift, chan, dir>0, &step);
+      } else
+	(void)find_cp(tr, shift, chan, 0, &mod, &step, &n_steps, &steps);
+    }
     if (!dir)
       suffix = "";
     else
       suffix = (dir<0)?"-":"+";
-    if (dir && step != 1)
+    if (dir && step != 1) 
       sprintf(name, "%sCP[%d]-%d%s", prefix, step, chan+1, suffix);
+    else if (!dir && mod)
+      if (step != 1)
+	sprintf(name, "%sCP[%d][%d]-%d", prefix, mod, step, chan+1);
+      else if (n_steps) {
+	sprintf(name, "%sCP[%d][", prefix, mod);
+	int l = strlen(name);
+	for (int i = 0; i < n_steps; i++, (l = strlen(name)))
+	  sprintf(name+l, "%s%d", i?",":"", steps[i]);
+	sprintf(name+l, "]-%d", chan);
+      } else
+	sprintf(name, "%sCP[%d]-%d", prefix, mod, chan+1);
     else
       sprintf(name, "%sCP-%d%s", prefix, chan+1, suffix);
     break;
@@ -509,26 +662,26 @@ static void end_debug()
 }
 
 void
-send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
-	     int index, int dir)
+send_strokes(translation *tr, uint8_t portno, int status, int chan,
+	     int data, int data2, int index, int dir)
 {
-  int nkeys = 0, step = 0, is_incr = 0;
+  int nkeys = 0, step = 0, n_steps = 0, *steps = 0, is_incr = 0, mod = 0;
   stroke *s = fetch_stroke(tr, portno, status, chan, data, index, dir,
-			   &step, &is_incr);
+			   &step, &n_steps, &steps, &is_incr, &mod);
   // If there's no press/release translation, check whether we have got at
   // least the corresponding release/press translation, in order to prevent
   // spurious error messages if either the press or release translation just
   // happens to be empty.
   int chk = s ||
-    (!dir && fetch_stroke(tr, portno, status, chan, data, !index, dir, 0, 0));
+    (!dir && fetch_stroke(tr, portno, status, chan, data, !index, dir, 0, 0, 0, 0, 0));
 
   if (!s && jack_num_outputs) {
     // fall back to default MIDI translation
     tr = default_midi_translation[portno];
     s = fetch_stroke(tr, portno, status, chan, data, index, dir,
-		     &step, &is_incr);
+		     &step, &n_steps, &steps, &is_incr, &mod);
     chk = chk || s ||
-      (!dir && fetch_stroke(tr, portno, status, chan, data, !index, dir, 0, 0));
+      (!dir && fetch_stroke(tr, portno, status, chan, data, !index, dir, 0, 0, 0, 0, 0));
     // Ignore all MIDI input on the second port if no translation was found in
     // the [MIDI2] section (or the section is missing altogether).
     if (portno && !s) return;
@@ -538,9 +691,9 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
     // fall back to the default translation
     tr = default_translation;
     s = fetch_stroke(tr, portno, status, chan, data, index, dir,
-		     &step, &is_incr);
+		     &step, &n_steps, &steps, &is_incr, &mod);
     chk = chk || s ||
-      (!dir && fetch_stroke(tr, portno, status, chan, data, !index, dir, 0, 0));
+      (!dir && fetch_stroke(tr, portno, status, chan, data, !index, dir, 0, 0, 0, 0, 0));
   }
 
   if (debug_regex) {
@@ -561,7 +714,8 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
   if (s && debug_keys) {
     char name[100];
     print_stroke_sequence(debug_key(tr, name, status, chan, data, dir),
-			  dir?"":index?"U":"D", s);
+			  (dir||mod)?"":index?"U":"D", s,
+			  mod, step, n_steps, steps, data2);
   }
   while (s) {
     if (s->keysym) {
@@ -571,7 +725,9 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan, int data,
       // toggle shift status
       shift = !shift;
     } else {
-      send_midi(portno, s->status, s->data, s->step, s->incr, index, dir);
+      send_midi(portno, s->status, s->data, s->step, s->n_steps, s->steps,
+		s->incr, index, dir,
+	        mod, step, n_steps, steps, data2);
     }
     s = s->next;
   }
@@ -703,6 +859,24 @@ static uint8_t inkpdown[2][16][128];
 static uint8_t incpdown[2][16];
 
 int
+get_note_mod(translation *tr, uint8_t portno, int chan, int data)
+{
+  int mod;
+  if (tr && tr->portno == portno &&
+      find_note(tr, shift, chan, data, 0, &mod, 0, 0, 0))
+    return mod;
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      find_note(tr, shift, chan, data, 0, &mod, 0, 0, 0))
+    return mod;
+  tr = default_translation;
+  if (tr && tr->portno == portno &&
+      find_note(tr, shift, chan, data, 0, &mod, 0, 0, 0))
+    return mod;
+  return 0;
+}
+
+int
 check_incr(translation *tr, uint8_t portno, int chan, int data)
 {
   int is_incr;
@@ -762,6 +936,24 @@ get_cc_step(translation *tr, uint8_t portno, int chan, int data, int dir)
 }
 
 int
+get_cc_mod(translation *tr, uint8_t portno, int chan, int data)
+{
+  int mod;
+  if (tr && tr->portno == portno &&
+      find_cc(tr, shift, chan, data, 0, &mod, 0, 0, 0))
+    return mod;
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      find_cc(tr, shift, chan, data, 0, &mod, 0, 0, 0))
+    return mod;
+  tr = default_translation;
+  if (tr && tr->portno == portno &&
+      find_cc(tr, shift, chan, data, 0, &mod, 0, 0, 0))
+    return mod;
+  return 0;
+}
+
+int
 check_kps(translation *tr, uint8_t portno, int chan, int data)
 {
   if (tr && tr->portno == portno &&
@@ -797,6 +989,24 @@ get_kp_step(translation *tr, uint8_t portno, int chan, int data, int dir)
       find_kps(tr, shift, chan, data, dir>0, &step))
     return step;
   return 1;
+}
+
+int
+get_kp_mod(translation *tr, uint8_t portno, int chan, int data)
+{
+  int mod;
+  if (tr && tr->portno == portno &&
+      find_kp(tr, shift, chan, data, 0, &mod, 0, 0, 0))
+    return mod;
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      find_kp(tr, shift, chan, data, 0, &mod, 0, 0, 0))
+    return mod;
+  tr = default_translation;
+  if (tr && tr->portno == portno &&
+      find_kp(tr, shift, chan, data, 0, &mod, 0, 0, 0))
+    return mod;
+  return 0;
 }
 
 int
@@ -838,6 +1048,24 @@ get_cp_step(translation *tr, uint8_t portno, int chan, int dir)
 }
 
 int
+get_cp_mod(translation *tr, uint8_t portno, int chan)
+{
+  int mod;
+  if (tr && tr->portno == portno &&
+      find_cp(tr, shift, chan, 0, &mod, 0, 0, 0))
+    return mod;
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      find_cp(tr, shift, chan, 0, &mod, 0, 0, 0))
+    return mod;
+  tr = default_translation;
+  if (tr && tr->portno == portno &&
+      find_cp(tr, shift, chan, 0, &mod, 0, 0, 0))
+    return mod;
+  return 0;
+}
+
+int
 check_pbs(translation *tr, uint8_t portno, int chan)
 {
   if (tr && tr->portno == portno &&
@@ -875,6 +1103,24 @@ get_pb_step(translation *tr, uint8_t portno, int chan, int dir)
   return 1;
 }
 
+int
+get_pb_mod(translation *tr, uint8_t portno, int chan)
+{
+  int mod;
+  if (tr && tr->portno == portno &&
+      find_pb(tr, shift, chan, 0, &mod, 0, 0, 0))
+    return mod;
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      find_pb(tr, shift, chan, 0, &mod, 0, 0, 0))
+    return mod;
+  tr = default_translation;
+  if (tr && tr->portno == portno &&
+      find_pb(tr, shift, chan, 0, &mod, 0, 0, 0))
+    return mod;
+  return 0;
+}
+
 void
 handle_event(uint8_t *msg, uint8_t portno)
 {
@@ -892,20 +1138,22 @@ handle_event(uint8_t *msg, uint8_t portno)
   switch (status) {
   case 0xc0:
     start_debug();
-    send_strokes(tr, portno, status, chan, msg[1], 0, 0);
-    send_strokes(tr, portno, status, chan, msg[1], 1, 0);
+    send_strokes(tr, portno, status, chan, msg[1], 0, 0, 0);
+    send_strokes(tr, portno, status, chan, msg[1], 0, 1, 0);
     end_debug();
     break;
   case 0x90:
     start_debug();
-    if (msg[2]) {
+    if (get_note_mod(tr, portno, chan, msg[1]))
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
+    else if (msg[2]) {
       if (!keydown_tracker || !notedown[portno][chan][msg[1]]) {
-	send_strokes(tr, portno, status, chan, msg[1], 0, 0);
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
 	notedown[portno][chan][msg[1]] = 1;
       }
     } else {
       if (!keydown_tracker || notedown[portno][chan][msg[1]]) {
-	send_strokes(tr, portno, status, chan, msg[1], 1, 0);
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 1, 0);
 	notedown[portno][chan][msg[1]] = 0;
       }
     }
@@ -913,14 +1161,16 @@ handle_event(uint8_t *msg, uint8_t portno)
     break;
   case 0xb0:
     start_debug();
-    if (msg[2]) {
+    if (get_cc_mod(tr, portno, chan, msg[1]))
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
+    else if (msg[2]) {
       if (!keydown_tracker || !inccdown[portno][chan][msg[1]]) {
-	send_strokes(tr, portno, status, chan, msg[1], 0, 0);
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
 	inccdown[portno][chan][msg[1]] = 1;
       }
     } else {
       if (!keydown_tracker || inccdown[portno][chan][msg[1]]) {
-	send_strokes(tr, portno, status, chan, msg[1], 1, 0);
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 1, 0);
 	inccdown[portno][chan][msg[1]] = 0;
       }
     }
@@ -942,7 +1192,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	if (step) {
 	  int d = msg[2]/step;
 	  while (d) {
-	    send_strokes(tr, portno, status, chan, msg[1], 0, 1);
+	    send_strokes(tr, portno, status, chan, msg[1], 0, 0, 1);
 	    d--;
 	  }
 	}
@@ -951,7 +1201,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	if (step) {
 	  int d = (msg[2]-64)/step;
 	  while (d) {
-	    send_strokes(tr, portno, status, chan, msg[1], 0, -1);
+	    send_strokes(tr, portno, status, chan, msg[1], 0, 0, -1);
 	    d--;
 	  }
 	}
@@ -965,7 +1215,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	  int d = abs(inccvalue[portno][chan][msg[1]] - msg[2]);
 	  if (d > step) d = step;
 	  if (d < step) break;
-	  send_strokes(tr, portno, status, chan, msg[1], 0, dir);
+	  send_strokes(tr, portno, status, chan, msg[1], 0, 0, dir);
 	  inccvalue[portno][chan][msg[1]] += dir*d;
 	}
       }
@@ -974,14 +1224,16 @@ handle_event(uint8_t *msg, uint8_t portno)
     break;
   case 0xa0:
     start_debug();
-    if (msg[2]) {
+    if (get_kp_mod(tr, portno, chan, msg[1]))
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
+    else if (msg[2]) {
       if (!keydown_tracker || !inkpdown[portno][chan][msg[1]]) {
-	send_strokes(tr, portno, status, chan, msg[1], 0, 0);
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
 	inkpdown[portno][chan][msg[1]] = 1;
       }
     } else {
       if (!keydown_tracker || inkpdown[portno][chan][msg[1]]) {
-	send_strokes(tr, portno, status, chan, msg[1], 1, 0);
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 1, 0);
 	inkpdown[portno][chan][msg[1]] = 0;
       }
     }
@@ -995,7 +1247,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	  int d = abs(inkpvalue[portno][chan][msg[1]] - msg[2]);
 	  if (d > step) d = step;
 	  if (d < step) break;
-	  send_strokes(tr, portno, status, chan, msg[1], 0, dir);
+	  send_strokes(tr, portno, status, chan, msg[1], 0, 0, dir);
 	  inkpvalue[portno][chan][msg[1]] += dir*d;
 	}
       }
@@ -1004,14 +1256,16 @@ handle_event(uint8_t *msg, uint8_t portno)
     break;
   case 0xd0:
     start_debug();
-    if (msg[1]) {
+    if (get_cp_mod(tr, portno, chan))
+	send_strokes(tr, portno, status, chan, 0, msg[1], 0, 0);
+    else if (msg[1]) {
       if (!keydown_tracker || !incpdown[portno][chan]) {
-	send_strokes(tr, portno, status, chan, 0, 0, 0);
+	send_strokes(tr, portno, status, chan, 0, 0, 0, 0);
 	incpdown[portno][chan] = 1;
       }
     } else {
       if (!keydown_tracker || incpdown[portno][chan]) {
-	send_strokes(tr, portno, status, chan, 0, 1, 0);
+	send_strokes(tr, portno, status, chan, 0, 0, 1, 0);
 	incpdown[portno][chan] = 0;
       }
     }
@@ -1025,7 +1279,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	  int d = abs(incpvalue[portno][chan] - msg[1]);
 	  if (d > step) d = step;
 	  if (d < step) break;
-	  send_strokes(tr, portno, status, chan, 0, 0, dir);
+	  send_strokes(tr, portno, status, chan, 0, 0, 0, dir);
 	  incpvalue[portno][chan] += dir*d;
 	}
       }
@@ -1036,14 +1290,16 @@ handle_event(uint8_t *msg, uint8_t portno)
     int bend = ((msg[2] << 7) | msg[1]) - 8192;
     start_debug();
     //fprintf(stderr, "pb %d\n", bend);
-    if (bend) {
+    if (get_pb_mod(tr, portno, chan))
+	send_strokes(tr, portno, status, chan, 0, bend, 0, 0);
+    else if (bend) {
       if (!keydown_tracker || !inpbdown[portno][chan]) {
-	send_strokes(tr, portno, status, chan, 0, 0, 0);
+	send_strokes(tr, portno, status, chan, 0, 0, 0, 0);
 	inpbdown[portno][chan] = 1;
       }
     } else {
       if (!keydown_tracker || inpbdown[portno][chan]) {
-	send_strokes(tr, portno, status, chan, 0, 1, 0);
+	send_strokes(tr, portno, status, chan, 0, 0, 1, 0);
 	inpbdown[portno][chan] = 0;
       }
     }
@@ -1056,7 +1312,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	  int d = abs(inpbvalue[portno][chan] - 8192 - bend);
 	  if (d > step) d = step;
 	  if (d < step) break;
-	  send_strokes(tr, portno, status, chan, 0, 0, dir);
+	  send_strokes(tr, portno, status, chan, 0, 0, 0, dir);
 	  inpbvalue[portno][chan] += dir*d;
 	}
       }
@@ -1146,11 +1402,13 @@ static char *absolute_path(char *name)
 #define CONF_FREQ 1
 #define MAX_COUNT (1000000/CONF_FREQ/POLL_INTERVAL)
 
+#include <time.h>
+
 int
 main(int argc, char **argv)
 {
   uint8_t msg[3];
-  int opt, count = 0;
+  int opt;
 
   // Start recording the command line to be passed to Jack session management.
   add_command(argv[0]);
@@ -1260,6 +1518,7 @@ main(int argc, char **argv)
   int do_flush = debug_regex || debug_strokes || debug_keys || debug_midi ||
     debug_jack;
   signal(SIGINT, quitter);
+  time_t t0 = time(0);
   while (!quit) {
     uint8_t portno;
     if (jack_quit) {
@@ -1270,16 +1529,19 @@ main(int argc, char **argv)
     }
     while (pop_midi(&seq, msg, &portno)) {
       handle_event(msg, portno);
-      count = 0;
+      time_t t = time(0);
+      if (t > t0) {
+	// Check whether to reload the config file every sec.
+	if (read_config_file()) last_focused_window = 0;
+	t0 = t;
+      }
     }
     usleep(POLL_INTERVAL);
-    if (++count >= MAX_COUNT) {
-      // Check whether to reload the config file if we haven't seen any MIDI
-      // input in a while. Note that if the file *is* reloaded, then we also
-      // need to reset last_focused_window here, so that the translations of
-      // the focused window are recomputed the next time we handle an event.
+    time_t t = time(0);
+    if (t > t0) {
+      // Check again when polling.
       if (read_config_file()) last_focused_window = 0;
-      count = 0;
+      t0 = t;
     }
     // Make sure that debugging output gets flushed every once in a while (may
     // be buffered when midizap is running inside a QjackCtl session).
