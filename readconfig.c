@@ -836,7 +836,7 @@ re_press_temp_modifiers(void)
 
 /* Parser for the MIDI message syntax. The same parser is used for both
    the left-hand side (lhs) and the right-hand side (rhs) of a translation.
-   The syntax we actually parse here is:
+   The syntax we actually parse here is, somewhat abridged:
 
    tok  ::= ( note | msg ) [ number ] [ "[" number "]" ] [ "-" number] [ incr ]
    note ::= ( "a" | ... | "g" ) [ "#" | "b" ]
@@ -852,11 +852,10 @@ re_press_temp_modifiers(void)
    used.
 
    Note that not all combinations are possible -- "pb" and "cp" have no
-   data byte; on the lhs, a step size in brackets is only permitted with
-   "cc", "pb", "cp" and "kp"; and "ch" must *not* occur on the lhs at
-   all, and is followed by just a channel number.  (In fact, "ch" is no
-   real MIDI message at all; it just sets the default MIDI channel for
-   subsequent messages in the output sequence.)
+   data byte; and "ch" must *not* occur on the lhs at all, and is
+   followed by just a channel number.  (In fact, "ch" is no real MIDI
+   message at all; it just sets the default MIDI channel for subsequent
+   messages in the output sequence.)
 
    The incr flag indicates an "incremental" controller or pitch bend
    value which responds to up ("+") and down ("-") changes; it is only
