@@ -21,11 +21,6 @@ JACK_PORTS 2
 # "mackie control" ports to midizap's midi_out and midi_in2 ports, and the
 # APCmini to midizap's midi_in and midi_out2 ports.
 
-# "BLINKENLIGHTS" ADD-ON: Decoding MCU metering feedback is beyond midizap's
-# capabilities, but there's a Pd patch in APCmini-meter.pd which you can hook
-# up to Ardour's Mackie control output to show the channel meters in the
-# unused top 5x8 button grid.
-
 # PROTOCOL DOCUMENTATION: The Mackie protocol is fairly ubiquitous, but since
 # the manufacturers can't be bothered to properly *document* their stuff these
 # days, we have to rely on volunteers who do their work using some reverse
@@ -183,14 +178,14 @@ C6  F7
 # actually have 8 different values, have to be squashed into 5 LEDs per
 # channel.
 
-?CP[16] C2[0,1] G#2[0,0,0,1] E3[0,0,0,0,0,5] C4[0,0,0,0,0,0,0,5] G#4[0,0,0,0,0,0,0,0,3]
+?CP[16] C2[0,1] G#2[0:3,1] E3[0:5,5] C4[0:7,5] G#4[0:8,3]
 
 # Here's an alternative decoding, which creates horizontal meters
 # covering the full range, with the first channel on top.  Note,
 # however, that this ranges across the entire 8x8 grid and will thus
 # clobber the rec/solo/mute controls!
 
-#?CP[16][-8] G#4[0,1] A4[0,0,1] A#4[0,0,0,1] B4[0,0,0,0,1] C5[0,0,0,0,0,5] C#5[0,0,0,0,0,0,5] D5[0,0,0,0,0,0,0,5] D#5[0,0,0,0,0,0,0,0,3]
+#?CP[16][-8] G#4[0,1] A4[0,0,1] A#4[0:3,1] B4[0:4,1] C5[0:5,5] C#5[0:6,5] D5[0:7,5] D#5[0:8,3]
 
 # no feedback for faders (faders aren't motorized)
 

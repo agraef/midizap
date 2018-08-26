@@ -898,19 +898,36 @@ static char *parse_steps(char *tok, char *p,
   int l, n;
   if (sscanf(++p, "%d%n", &l, &n) == 1) {
     p += n;
-    if (*p == ',') {
+    if (*p == ',' || *p == ':') {
       int n_st = 1;
       static int st[128];
       st[0] = l;
-      while (*p == ',') {
+      while (*p == ',' || *p == ':') {
+	char c = *p;
 	if (sscanf(++p, "%d%n", &l, &n) == 1) {
 	  p += n;
 	} else
 	  return 0;
-	if (n_st < 128)
+	if (c == ':') {
+	  // ':l' repeats the last value l-1 times
+	  if (l <= 0) {
+	    // remove the last value
+	    if (n_st > 0) n_st--;
+	  } else if (n_st > 0 && n_st < 128) {
+	    int last = st[n_st-1];
+	    for (int i = 1; i < l; i++) {
+	      st[n_st++] = last;
+	      if (n_st == 128) {
+		fprintf(stderr, "warning: too many steps: %s\n", tok);
+		break;
+	      }
+	    }
+	  }
+	} else if (n_st < 128) {
 	  st[n_st++] = l;
-	else if (n_st == 128)
-	  fprintf(stderr, "warning: too many steps: %s\n", tok);
+	  if (n_st == 128)
+	    fprintf(stderr, "warning: too many steps: %s\n", tok);
+	}
       }
       *n_steps = n_st;
       *steps = st;
