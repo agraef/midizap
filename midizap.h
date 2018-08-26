@@ -59,6 +59,9 @@ typedef struct _stroke {
   // the incremental bit indicates an incremental control change (typically
   // used with endless rotary encoders) to be represented as a sign bit value
   uint8_t incr;
+  // the recursive bit indicates a MIDI message which is to be translated
+  // recursively
+  uint8_t recursive;
   // the dirty bit indicates a MIDI event for which a release event still
   // needs to be generated in key events
   uint8_t dirty;

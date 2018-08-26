@@ -93,10 +93,14 @@ static int datavals(int val, int step, int *steps, int n_steps)
 }
 
 void
+handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive);
+
+void
 send_midi(uint8_t portno, int status, int data,
 	  int step, int n_steps, int *steps,
 	  int incr, int index, int dir,
-	  int mod, int mod_step, int mod_n_steps, int *mod_steps, int val)
+	  int mod, int mod_step, int mod_n_steps, int *mod_steps, int val,
+	  int recursive, int depth)
 {
   if (!jack_num_outputs) return; // MIDI output not enabled
   uint8_t msg[3];
@@ -271,7 +275,10 @@ send_midi(uint8_t portno, int status, int data,
   default:
     return;
   }
-  queue_midi(&seq, msg, portno);
+  if (!recursive)
+    queue_midi(&seq, msg, portno);
+  else
+    handle_event(msg, portno, depth+1, recursive);
 }
 
 static int stroke_data_cmp(const void *a, const void *b)
@@ -705,9 +712,12 @@ static void end_debug()
   debug_state = 0;
 }
 
+// maximum recursion depth
+#define MAX_DEPTH 10
+
 void
 send_strokes(translation *tr, uint8_t portno, int status, int chan,
-	     int data, int data2, int index, int dir)
+	     int data, int data2, int index, int dir, int depth)
 {
   int nkeys = 0, step = 0, n_steps = 0, *steps = 0, is_incr = 0, mod = 0;
   stroke *s = fetch_stroke(tr, portno, status, chan, data, index, dir,
@@ -769,9 +779,18 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan,
       // toggle shift status
       shift = !shift;
     } else {
-      send_midi(portno, s->status, s->data, s->step, s->n_steps, s->steps,
-		s->incr, index, dir,
-	        mod, step, n_steps, steps, data2);
+      if (s->recursive && depth >= MAX_DEPTH) {
+	char name[100];
+	if (tr && tr->name)
+	  fprintf(stderr, "Error: [%s]$%s: recursion too deep\n",
+		  tr->name, debug_key(tr, name, status, chan, data, dir));
+	else
+	  fprintf(stderr, "Error: $%s: recursion too deep\n",
+		  debug_key(tr, name, status, chan, data, dir));
+      } else
+	send_midi(portno, s->status, s->data, s->step, s->n_steps, s->steps,
+		  s->incr, index, dir,
+		  mod, step, n_steps, steps, data2, s->recursive, depth);
     }
     s = s->next;
   }
@@ -1204,8 +1223,20 @@ get_pb_mod(translation *tr, uint8_t portno, int chan)
   return 0;
 }
 
+static int
+check_recursive(int status, int chan, int data, int recursive)
+{
+  // only mod translations can be used in recursive calls
+  if (recursive) {
+    char name[100];
+    fprintf(stderr, "Warning: $%s: undefined\n",
+	    debug_key(0, name, status, chan, data, 0));
+  }
+  return recursive;
+}
+
 void
-handle_event(uint8_t *msg, uint8_t portno)
+handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
 {
   translation *tr = get_focused_window_translation();
 
@@ -1221,22 +1252,27 @@ handle_event(uint8_t *msg, uint8_t portno)
   switch (status) {
   case 0xc0:
     start_debug();
-    send_strokes(tr, portno, status, chan, msg[1], 0, 0, 0);
-    send_strokes(tr, portno, status, chan, msg[1], 0, 1, 0);
+    if (check_recursive(status, chan, msg[1], recursive)) break;
+    send_strokes(tr, portno, status, chan, msg[1], 0, 0, 0, depth);
+    send_strokes(tr, portno, status, chan, msg[1], 0, 1, 0, depth);
     end_debug();
     break;
   case 0xb0:
     start_debug();
-    if (get_cc_mod(tr, portno, chan, msg[1]))
-	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
-    else if (msg[2]) {
+    if (get_cc_mod(tr, portno, chan, msg[1])) {
+      send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0, depth);
+      end_debug();
+      break;
+    }
+    if (check_recursive(status, chan, msg[1], recursive)) break;
+    if (msg[2]) {
       if (!keydown_tracker || !inccdown[portno][chan][msg[1]]) {
-	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0, depth);
 	inccdown[portno][chan][msg[1]] = 1;
       }
     } else {
       if (!keydown_tracker || inccdown[portno][chan][msg[1]]) {
-	send_strokes(tr, portno, status, chan, msg[1], msg[2], 1, 0);
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 1, 0, depth);
 	inccdown[portno][chan][msg[1]] = 0;
       }
     }
@@ -1258,7 +1294,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	if (step) {
 	  int d = msg[2]/step;
 	  while (d) {
-	    send_strokes(tr, portno, status, chan, msg[1], 0, 0, 1);
+	    send_strokes(tr, portno, status, chan, msg[1], 0, 0, 1, depth);
 	    d--;
 	  }
 	}
@@ -1267,7 +1303,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	if (step) {
 	  int d = (msg[2]-64)/step;
 	  while (d) {
-	    send_strokes(tr, portno, status, chan, msg[1], 0, 0, -1);
+	    send_strokes(tr, portno, status, chan, msg[1], 0, 0, -1, depth);
 	    d--;
 	  }
 	}
@@ -1281,7 +1317,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	  int d = abs(inccvalue[portno][chan][msg[1]] - msg[2]);
 	  if (d > step) d = step;
 	  if (d < step) break;
-	  send_strokes(tr, portno, status, chan, msg[1], 0, 0, dir);
+	  send_strokes(tr, portno, status, chan, msg[1], 0, 0, dir, depth);
 	  inccvalue[portno][chan][msg[1]] += dir*d;
 	}
       }
@@ -1290,16 +1326,20 @@ handle_event(uint8_t *msg, uint8_t portno)
     break;
   case 0x90:
     start_debug();
-    if (get_note_mod(tr, portno, chan, msg[1]))
-	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
-    else if (msg[2]) {
+    if (get_note_mod(tr, portno, chan, msg[1])) {
+      send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0, depth);
+      end_debug();
+      break;
+    }
+    if (check_recursive(status, chan, msg[1], recursive)) break;
+    if (msg[2]) {
       if (!keydown_tracker || !innotedown[portno][chan][msg[1]]) {
-	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0, depth);
 	innotedown[portno][chan][msg[1]] = 1;
       }
     } else {
       if (!keydown_tracker || innotedown[portno][chan][msg[1]]) {
-	send_strokes(tr, portno, status, chan, msg[1], msg[2], 1, 0);
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 1, 0, depth);
 	innotedown[portno][chan][msg[1]] = 0;
       }
     }
@@ -1313,7 +1353,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	  int d = abs(innotevalue[portno][chan][msg[1]] - msg[2]);
 	  if (d > step) d = step;
 	  if (d < step) break;
-	  send_strokes(tr, portno, status, chan, msg[1], 0, 0, dir);
+	  send_strokes(tr, portno, status, chan, msg[1], 0, 0, dir, depth);
 	  innotevalue[portno][chan][msg[1]] += dir*d;
 	}
       }
@@ -1322,16 +1362,20 @@ handle_event(uint8_t *msg, uint8_t portno)
     break;
   case 0xa0:
     start_debug();
-    if (get_kp_mod(tr, portno, chan, msg[1]))
-	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
-    else if (msg[2]) {
+    if (get_kp_mod(tr, portno, chan, msg[1])) {
+      send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0, depth);
+      end_debug();
+      break;
+    }
+    if (check_recursive(status, chan, msg[1], recursive)) break;
+    if (msg[2]) {
       if (!keydown_tracker || !inkpdown[portno][chan][msg[1]]) {
-	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0, depth);
 	inkpdown[portno][chan][msg[1]] = 1;
       }
     } else {
       if (!keydown_tracker || inkpdown[portno][chan][msg[1]]) {
-	send_strokes(tr, portno, status, chan, msg[1], msg[2], 1, 0);
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 1, 0, depth);
 	inkpdown[portno][chan][msg[1]] = 0;
       }
     }
@@ -1345,7 +1389,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	  int d = abs(inkpvalue[portno][chan][msg[1]] - msg[2]);
 	  if (d > step) d = step;
 	  if (d < step) break;
-	  send_strokes(tr, portno, status, chan, msg[1], 0, 0, dir);
+	  send_strokes(tr, portno, status, chan, msg[1], 0, 0, dir, depth);
 	  inkpvalue[portno][chan][msg[1]] += dir*d;
 	}
       }
@@ -1354,16 +1398,20 @@ handle_event(uint8_t *msg, uint8_t portno)
     break;
   case 0xd0:
     start_debug();
-    if (get_cp_mod(tr, portno, chan))
-	send_strokes(tr, portno, status, chan, 0, msg[1], 0, 0);
-    else if (msg[1]) {
+    if (get_cp_mod(tr, portno, chan)) {
+      send_strokes(tr, portno, status, chan, 0, msg[1], 0, 0, depth);
+      end_debug();
+      break;
+    }
+    if (check_recursive(status, chan, msg[1], recursive)) break;
+    if (msg[1]) {
       if (!keydown_tracker || !incpdown[portno][chan]) {
-	send_strokes(tr, portno, status, chan, 0, 0, 0, 0);
+	send_strokes(tr, portno, status, chan, 0, 0, 0, 0, depth);
 	incpdown[portno][chan] = 1;
       }
     } else {
       if (!keydown_tracker || incpdown[portno][chan]) {
-	send_strokes(tr, portno, status, chan, 0, 0, 1, 0);
+	send_strokes(tr, portno, status, chan, 0, 0, 1, 0, depth);
 	incpdown[portno][chan] = 0;
       }
     }
@@ -1377,7 +1425,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	  int d = abs(incpvalue[portno][chan] - msg[1]);
 	  if (d > step) d = step;
 	  if (d < step) break;
-	  send_strokes(tr, portno, status, chan, 0, 0, 0, dir);
+	  send_strokes(tr, portno, status, chan, 0, 0, 0, dir, depth);
 	  incpvalue[portno][chan] += dir*d;
 	}
       }
@@ -1388,16 +1436,20 @@ handle_event(uint8_t *msg, uint8_t portno)
     int bend = ((msg[2] << 7) | msg[1]) - 8192;
     start_debug();
     //fprintf(stderr, "pb %d\n", bend);
-    if (get_pb_mod(tr, portno, chan))
-	send_strokes(tr, portno, status, chan, 0, bend, 0, 0);
-    else if (bend) {
+    if (get_pb_mod(tr, portno, chan)) {
+      send_strokes(tr, portno, status, chan, 0, bend, 0, 0, depth);
+      end_debug();
+      break;
+    }
+    if (check_recursive(status, chan, msg[1], recursive)) break;
+    if (bend) {
       if (!keydown_tracker || !inpbdown[portno][chan]) {
-	send_strokes(tr, portno, status, chan, 0, 0, 0, 0);
+	send_strokes(tr, portno, status, chan, 0, 0, 0, 0, depth);
 	inpbdown[portno][chan] = 1;
       }
     } else {
       if (!keydown_tracker || inpbdown[portno][chan]) {
-	send_strokes(tr, portno, status, chan, 0, 0, 1, 0);
+	send_strokes(tr, portno, status, chan, 0, 0, 1, 0, depth);
 	inpbdown[portno][chan] = 0;
       }
     }
@@ -1410,7 +1462,7 @@ handle_event(uint8_t *msg, uint8_t portno)
 	  int d = abs(inpbvalue[portno][chan] - 8192 - bend);
 	  if (d > step) d = step;
 	  if (d < step) break;
-	  send_strokes(tr, portno, status, chan, 0, 0, 0, dir);
+	  send_strokes(tr, portno, status, chan, 0, 0, 0, dir, depth);
 	  inpbvalue[portno][chan] += dir*d;
 	}
       }
@@ -1626,7 +1678,7 @@ main(int argc, char **argv)
       exit(0);
     }
     while (pop_midi(&seq, msg, &portno)) {
-      handle_event(msg, portno);
+      handle_event(msg, portno, 0, 0);
       time_t t = time(0);
       if (t > t0) {
 	// Check whether to reload the config file every sec.

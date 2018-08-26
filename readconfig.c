@@ -629,6 +629,7 @@ print_stroke(stroke *s, int mod, int step, int n_steps, int *steps, int val)
     } else {
       int status = s->status & 0xf0;
       int channel = (s->status & 0x0f) + 1;
+      if (s->recursive) printf("$");
       switch (status) {
       case 0x90:
 	if (mod) {
@@ -792,7 +793,8 @@ append_shift(void)
 }
 
 void
-append_midi(int status, int data, int step, int n_steps, int *steps, int incr)
+append_midi(int status, int data, int step, int n_steps, int *steps, int incr,
+	    int recursive)
 {
   stroke *s = (stroke *)allocate(sizeof(stroke));
 
@@ -806,6 +808,7 @@ append_midi(int status, int data, int step, int n_steps, int *steps, int incr)
   s->n_steps = n_steps;
   s->steps = stepsdup(n_steps, steps);
   s->incr = incr;
+  s->recursive = recursive;
   // if this is a keystroke event, for all messages but program change (which
   // has no "on" and "off" states), mark the event as "dirty" so that the
   // corresponding "off" event gets added later to the "release" strokes
@@ -1494,7 +1497,7 @@ add_release(int all_keys)
       stroke *s = *press_first_stroke;
       while (s) {
 	if (!s->keysym && !s->shift && s->dirty) {
-	  append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr);
+	  append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr, s->recursive);
 	  s->dirty = 0;
 	}
 	s = s->next;
@@ -1516,7 +1519,7 @@ add_release(int all_keys)
       } else if (s->shift) {
 	append_shift();
       } else {
-	append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr);
+	append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr, s->recursive);
       }
       s = s->next;
     }
@@ -1531,7 +1534,7 @@ add_release(int all_keys)
       } else if (s->shift) {
 	append_shift();
       } else {
-	append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr);
+	append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr, s->recursive);
       }
       s = s->next;
     }
@@ -1544,7 +1547,7 @@ add_release(int all_keys)
 	} else if (s->shift) {
 	  append_shift();
 	} else {
-	  append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr);
+	  append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr, s->recursive);
 	}
 	s = s->next;
       }
@@ -1584,15 +1587,18 @@ void
 add_midi(char *tok)
 {
   int status, data, step, n_steps, *steps, incr, dir = 0, mod = 0;
+  int recursive = *tok == '$';
   char buf[100];
-  if (parse_midi(tok, buf, 0, mode, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod)) {
+  if (parse_midi(tok+recursive, buf, 0, mode, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod)) {
     if (status == 0) {
       // 'ch' token; this doesn't actually generate any output, it just sets
       // the default MIDI channel
       midi_channel = data;
+      if (recursive)
+	fprintf(stderr, "recursion not permitted: %s\n", tok);
     } else {
       if ((status & 0xf0) != 0xe0 || step != 0)
-	append_midi(status, data, step, n_steps, steps, incr!=0);
+	append_midi(status, data, step, n_steps, steps, incr!=0, recursive);
       else
 	fprintf(stderr, "zero step size not permitted: %s\n", tok);
     }
