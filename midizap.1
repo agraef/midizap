@@ -351,8 +351,75 @@ above all that happens automagically.
 Besides MIDI notes and control change (\f[C]CC\f[]) messages, the
 midizap program also recognizes key and channel pressure (\f[C]KP\f[],
 \f[C]CP\f[]), program change (\f[C]PC\f[]), and pitch bend (\f[C]PB\f[])
-messages, which should cover most common use cases; see below for
-details.
+messages, which should cover most common use cases.
+These are discussed in more detail in the \f[I]Translation Syntax\f[]
+section below.
+.SH Jack\-Related Options
+.PP
+There are some additional directives (and corresponding command line
+options) to set midizap's Jack client name and the number of input and
+output ports it uses.
+(If both the command line options and directives in the midizaprc file
+are used, the former take priority, so that it's always possible to
+override the options in the midizaprc file from the command line.)
+.PP
+Firstly, there's the \f[C]\-j\f[] option and the \f[C]JACK_NAME\f[]
+directive which change the Jack client name from the default
+(\f[C]midizap\f[]) to whatever you want it to be.
+To use this option, simply invoke midizap as
+\f[C]midizap\ \-j\ client\-name\f[], or put the following directive into
+your midizaprc file:
+.IP
+.nf
+\f[C]
+JACK_NAME\ "client\-name"
+\f[]
+.fi
+.PP
+This option is useful, in particular, if you're running multiple
+instances of midizap with different configurations for different
+controllers and/or target applications, and you want to have the
+corresponding Jack clients named appropriately, so that they can be
+identified more easily when wiring them up.
+If you're using a persistent MIDI patchbay, such as the one available in
+QjackCtl, you can then have the right connections automatically set up
+for you whenever you launch midizap with that specific configuration.
+.PP
+Secondly, we've already seen the \f[C]\-o\f[] option which is used to
+equip the Jack client with an additional output port.
+This can also be achieved with the \f[C]JACK_PORTS\f[] directive in the
+midizaprc file, as follows:
+.IP
+.nf
+\f[C]
+JACK_PORTS\ 1
+\f[]
+.fi
+.PP
+You may want to place this directive directly into a configuration file
+if the configuration is primarily aimed at doing MIDI translations, so
+you'd like to have the MIDI output enabled by default.
+Typically, such configurations will include just a default
+\f[C][MIDI]\f[] section and little else.
+As explained in the \f[I]MIDI Feedback\f[] section, it's also possible
+to have \f[I]two\f[] pairs of input and output ports, in order to deal
+with controller feedback from the application.
+This is achieved by either invoking midizap with the \f[C]\-o2\f[]
+option, or by employing the \f[C]JACK_PORTS\ 2\f[] directive in the
+configuration file.
+.PP
+Last but not least, midizap also supports Jack session management, which
+makes it possible to record the options the program was invoked with,
+along with all the MIDI connections.
+This feature can be used with any Jack session management software.
+Specifically, QjackCtl has its own built\-in Jack session manager which
+is available in its Session dialog.
+To use this, launch midizap and any other Jack applications you want to
+have in the session, use QjackCtl to set up all the connections as
+needed, and then hit the \[lq]Save\[rq] (or \[lq]Save and Quit\[rq])
+button in the Session dialog to have the session recorded.
+Now, at any later time you can relaunch the same session with the
+\[lq]Load\[rq] (or \[lq]Recent\[rq]) button in the same dialog.
 .SH Translation Syntax
 .PP
 The midizap configuration file consists of sections defining translation
@@ -936,73 +1003,16 @@ amount of controls available on the device.
 For instance, you can emulate a Mackie controller with both encoders and
 faders on a device which only has a single set of faders, by assigning
 the shifted faders to the encoders, as shown above.
-.SH Jack\-Related Options
+.SH Advanced Features
 .PP
-There are some additional directives (and corresponding command line
-options) to set midizap's Jack client name and the number of input and
-output ports it uses.
-(If both the command line options and directives in the midizaprc file
-are used, the former take priority, so that it's always possible to
-override the options in the midizaprc file from the command line.)
-.PP
-Firstly, there's the \f[C]\-j\f[] option and the \f[C]JACK_NAME\f[]
-directive which change the Jack client name from the default
-(\f[C]midizap\f[]) to whatever you want it to be.
-To use this option, simply invoke midizap as
-\f[C]midizap\ \-j\ client\-name\f[], or put the following directive into
-your midizaprc file:
-.IP
-.nf
-\f[C]
-JACK_NAME\ "client\-name"
-\f[]
-.fi
-.PP
-This option is useful, in particular, if you're running multiple
-instances of midizap with different configurations for different
-controllers and/or target applications, and you want to have the
-corresponding Jack clients named appropriately, so that they can be
-identified more easily when wiring them up.
-If you're using a persistent MIDI patchbay, such as the one available in
-QjackCtl, you can then have the right connections automatically set up
-for you whenever you launch midizap with that specific configuration.
-.PP
-Secondly, we've already seen the \f[C]\-o\f[] option which is used to
-equip the Jack client with an additional output port.
-This can also be achieved with the \f[C]JACK_PORTS\f[] directive in the
-midizaprc file, as follows:
-.IP
-.nf
-\f[C]
-JACK_PORTS\ 1
-\f[]
-.fi
-.PP
-You may want to place this directive directly into a configuration file
-if the configuration is primarily aimed at doing MIDI translations, so
-you'd like to have the MIDI output enabled by default.
-Typically, such configurations will include just a default
-\f[C][MIDI]\f[] section and little else.
-As explained below, it's also possible to have \f[I]two\f[] pairs of
-input and output ports, in order to deal with controller feedback from
-the application.
-This is achieved by either invoking midizap with the \f[C]\-o2\f[]
-option, or by employing the \f[C]JACK_PORTS\ 2\f[] directive in the
-configuration file.
-.PP
-Last but not least, midizap also supports Jack session management, which
-makes it possible to record the options the program was invoked with,
-along with all the MIDI connections.
-This feature can be used with any Jack session management software.
-Specifically, QjackCtl has its own built\-in Jack session manager which
-is available in its Session dialog.
-To use this, launch midizap and any other Jack applications you want to
-have in the session, use QjackCtl to set up all the connections as
-needed, and then hit the \[lq]Save\[rq] (or \[lq]Save and Quit\[rq])
-button in the Session dialog to have the session recorded.
-Now, at any later time you can relaunch the same session with the
-\[lq]Load\[rq] (or \[lq]Recent\[rq]) button in the same dialog.
-.SH MIDI Feedback
+This section covers some more advanced functionality which isn't used
+nearly as often as the basic features discussed in previous sections,
+but will come in handy in some situations.
+Specifically, we'll discuss \f[I]MIDI feedback\f[], which is needed to
+properly implement bidirectional communication with some controllers, as
+well as a special kind of key translations which helps implementing some
+types of feedback, but also has its uses in \[lq]normal\[rq] processing.
+.SS MIDI Feedback
 .PP
 Some MIDI controllers need a more elaborate setup than what we've seen
 so far, because they have motor faders, LEDs, etc.
@@ -1030,7 +1040,7 @@ A full\-blown example for this kind of setup can be found in
 examples/APCmini.midizaprc in the sources, which shows how to emulate a
 Mackie controller with AKAI's APCmini device, so that it readily works
 with DAW software such as Ardour.
-.SS Specialized Key Translations for MIDI Feedback
+.SS Specialized Key Translations
 .PP
 Most of the time, MIDI feedback uses just the standard kinds of MIDI
 messages readily supported by midizap, such as note messages which make
@@ -1078,20 +1088,21 @@ key translations, only a single output sequence.
 Thus, like in data mode, all down keys will be released immediately
 (there aren't any in this example, but in general, all kinds of output
 events are allowed, like in other translations).
+.PP
 Secondly, there's no \[lq]on\[rq]/\[lq]off\[rq] status here to determine
 the output values either.
 Rather, the output messages are constructed directly from the input
 value by some arithmetic calculations.
-To these ends, the step size actually denotes a \f[I]modulus\f[] which
-is used to decompose the input value into two separate quantities,
-\f[I]quotient\f[] and \f[I]remainder\f[].
+To these ends, the step size is actually being used as a
+\f[I]modulus\f[] in order to decompose the input value into two separate
+quantities, \f[I]quotient\f[] and \f[I]remainder\f[].
 Only the latter becomes the value of the output message, while the
 former is used as an \f[I]offset\f[] to modify the output message.
 .PP
 More precisely, the input value \f[I]v\f[], say, is divided by the given
 step size \f[I]k\f[], yielding the offset \f[I]p\f[] = \f[I]v/k\f[]
-(rounded down to the nearest integer), and the remainder \f[I]q\f[] of
-that division.
+(rounded to the nearest integer towards zero), and the remainder
+\f[I]q\f[] of that division.
 E.g., with \f[I]k\f[] = 16 and \f[I]v\f[] = 21, you'll get \f[I]p\f[] =
 1 and \f[I]q\f[] = 5 (21 divided by 16 yields 1 with remainder 5,
 because 16×1 + 5 = 21).
@@ -1100,11 +1111,19 @@ remainder \f[I]q\f[] becomes the velocity of that note.
 So in the example the output would be the note \f[C]C#0\f[] (\f[C]C0\f[]
 offset by 1) with a velocity of 5.
 .PP
+(Note that \f[C]CP\f[] and \f[C]PB\f[] messages don't have a modifiable
+offset, so if you use these on the output side of a mod translation, the
+offset part of the input value will be ignored.
+The same goes for the \f[C]PC\f[] message, which doesn't have a
+parameter value either, so that the remainder value will be ignored,
+too.)
+.PP
 The above might seem a bit esoteric, but this is in fact exactly how you
 decode meter information in the Mackie control protocol, which consists
 of a mixer channel index 0..7 in the high nibble (bits 4..6) and the
 corresponding meter value in the low nibble (bits 0..3) of a key
-pressure message, which is why we use 16 as the modulus here.
+pressure message, which is why we used 16 as the modulus in this
+example.
 There are also some variations of the syntax which make this kind of
 translation more flexible.
 In particular, on the right\-hand side of the rule you can specify a
@@ -1116,11 +1135,11 @@ CP[16]\ C0[2]
 \f[]
 .fi
 .PP
-Or you can specify a list of discrete velocity values instead.
+Or you can specify a \f[I]list\f[] of discrete velocity values instead.
 E.g., the APCmini uses the velocities 1, 3 and 5 to denote the colors
 green, red and yellow, respectively, and a zero velocity denotes
-\[lq]off\[rq], so you can encode the meter value in different colors,
-like so:
+\[lq]off\[rq], so you can map the meter value to different colors as
+follows:
 .IP
 .nf
 \f[C]
@@ -1128,24 +1147,26 @@ CP[16]\ C0[0,1,1,1,1,5,5,5,3]
 \f[]
 .fi
 .PP
-There are a lot of repeated values there.
-For convenience, it's also possible to abbreviate these with the colon,
-which also improves readability:
+The remainder of the input value will then be used as an index into the
+list to give the translated value.
+E.g., in our example 0 will be mapped to 0 (off), 1..4 to 1 (green),
+5..7 to 5 (yellow), and 8 to 3 (red).
+Also, the last value in the list will be used for any index which runs
+past the end of the list.
+Thus in the example, if for some reason you'd receive a meter value of
+10, say, the output will still be 3, since it's the last value in the
+list.
+.PP
+Note that there are a lot of repeated values in this example.
+For convenience, it's possible to abbreviate these using the notation
+\f[I]value\f[]\f[C]:\f[]\f[I]count\f[], which also helps readability.
+The following denotes exactly the same list as above:
 .IP
 .nf
 \f[C]
 CP[16]\ C0[0,1:4,5:3,3]
 \f[]
 .fi
-.PP
-This denotes exactly the same list.
-Also note that when using discrete value lists, the remainder of the
-input value will be used as an index into the list, and the last value
-in the list will be used for any index which runs past the end of the
-list.
-Thus in the above example, if for some reason you'd receive a meter
-value of 10, say, the output will still be 3, since it's the last value
-in the list.
 .PP
 You can also scale the \f[I]offset\f[] value, by adding a second step
 size to the left\-hand side:
@@ -1174,7 +1195,8 @@ You might also output several notes at once, to show a horizontal or
 vertical strip of LEDs for each mixer channel.
 For instance, suppose that we'd like to use an LED in the bottom row of
 the APCmini for the green, and the LEDs in the two rows above it for the
-yellow and red values, respectively, you can do that as follows:
+yellow and red values, respectively.
+You can do that as follows:
 .IP
 .nf
 \f[C]
@@ -1186,45 +1208,48 @@ Note that in this case each of the output notes will be offset by the
 same amount, so that an input value of 24 will cause the second LED in
 the bottom row to light up in green, and the two LEDs above it in yellow
 and red, respectively.
-Please also have a look at the APCmini.midizaprc example which has a
-collection of similar rules to implement the meter display.
+For more examples, please have a look at the APCmini.midizaprc file in
+the sources which has a collection of similar rules to implement the
+meter display.
 .PP
 It goes without saying that this is not a universal solution, but it
-handles at least one important real\-world use case, and should work
-with almost any other kind of \[lq]scrambled\[rq] MIDI feedback which
-packs two separate values together.
-The case of Mackie meter feedback certainly seemed important enough, and
-was easy to support without complicating the syntax too much.
+covers at least one important real\-world use case, and should work with
+almost any other kind of \[lq]scrambled\[rq] MIDI feedback which packs
+two separate values together.
 Although we try to keep midizap lean and mean, we might add some more
-special\-case key translations like these in the future.
-.SS Other Uses of Mod Translations
+special\-case key translations like these in the future, as the need
+arises.
+.SS Other Uses
 .PP
-The mod key translations explained above work with all other kinds of
-output events, too, so that you can also output X11 key and mouse events
-and \f[C]PC\f[] messages along with the transformed MIDI data if needed;
-these won't be modified, however.
-Also note that if you use \f[C]CP\f[] and \f[C]PB\f[] messages on the
-output side, which don't have a modifiable offset, the offset part of
-the input value will be ignored for these messages; only the remainder
-part will be used, becoming the output value of the message.
-.PP
-Of course, mod translations can also be used for other purposes, not
-just MIDI feedback.
+Mod translations work with all kinds of output, so that you can also
+output X11 key and mouse events along with the transformed MIDI data if
+needed.
+While mod translations are most commonly employed for MIDI feedback,
+they also have their uses in ordinary (forward) translations.
 The input message may be anything which has a parameter value, i.e., any
-MIDI message but \f[C]PC\f[].
-You can also choose the modulus large enough (8192 for \f[C]PB\f[], 128
-for other messages) so that the offset is always zero, if you just want
-to employ the discrete value lists for your translations.
-These offer a great deal of flexibility, more than can be achieved with
-simple step sizes.
-In fact, they can be used to realize just about any mapping between
-input and output values.
+MIDI message but \f[C]PC\f[], and you can choose the modulus large
+enough (8192 for \f[C]PB\f[], 128 for other messages) so that the offset
+is always zero, if you just want to employ the discrete value lists for
+your translations.
+These offer a great deal of flexibility, much more than can be achieved
+with simple step sizes.
+In fact, they can be used to realize \f[I]any\f[] conceivable mapping
+between input and output values.
 For instance, suppose that we'd like to map controller values to the the
 first few Fibonacci numbers:
 .IP
 .nf
 \f[C]
 CC1[128]\ CC1[0,1,1,2,3,5,8,13,21,34,55,89]
+\f[]
+.fi
+.PP
+The output values don't have to be increasing either; they might be in
+any order you like:
+.IP
+.nf
+\f[C]
+CC1[128]\ CC1[0,2,1,4,3,6,5,8,7,10,9,...]
 \f[]
 .fi
 .PP
@@ -1240,19 +1265,51 @@ CC1[1]\ C0
 This will output the note with the same number as the controller value,
 \f[C]C0\f[] for value 0, \f[C]C#0\f[] for value 1, etc.
 Note that the remainder value, which becomes the velocity of the output
-note in this case, will always be zero here, so if you want a nonzero
-velocity, you will have to specify a value list for that:
+note, will always be zero here, so the above translation turns all notes
+off.
+If we want a nonzero velocity, we have to specify it in a value list:
 .IP
 .nf
 \f[C]
-CC1[1]\ C0[127:1]
+CC2[1]\ C0[127:1]
 \f[]
 .fi
 .PP
-Note that we added a repeat count in the list on the right\-hand side,
-so that the parser recognizes it as a value list rather than a simple
-step size (which wouldn't help much since the remainder value to be
-scaled is always zero here).
+Now we can turn notes on with \f[C]CC2\f[] and turn them off again with
+\f[C]CC1\f[].
+Note the little bit of trickery there on the right\-hand side.
+Just \f[C][127]\f[] would be interpreted as a simple step size, which
+wouldn't do us much good here since the remainder value to be scaled is
+always zero.
+Thus we need to write \f[C][127:1]\f[] instead to make sure that the
+parser properly recognizes this as a value list.
+The list we used here will map any input to 127, which is exactly what
+we want here.
+.PP
+For the sake of a more practical example, let's have another look at
+MIDI feedback in the Mackie protocol.
+The following rule decodes the lowest digit in the time display
+(\f[C]CC69\f[]) to count off time on the 4 bottommost scene launch
+buttons on the AKAI APCmini.
+Note that the digits are actually encoded in ASCII, therefore the
+copious amount of initial zeros in the value lists below to skip over
+all the non\-digit characters at the beginning of the ASCII table.
+.IP
+.nf
+\f[C]
+CC69[128]\ F7[0:49,1,0]\ E7[0:50,1,0]\ Eb7[0:51,1,0]\ D7[0:52,1,0]
+\f[]
+.fi
+.PP
+As you can see, mod key translations in combination with discrete value
+lists are really very powerful and let you implement pretty much any
+desired 1\-1 mapping with ease.
+There \f[I]are\f[] some limitations, though.
+In particular, mappings involving multiple different translations of the
+same input aren't possible right now, because translations must be
+unique.
+Also, there's no way to combine the values of several input messages
+into a single output message.
 .SH Bugs
 .PP
 There probably are some.
