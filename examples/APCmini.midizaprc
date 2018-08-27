@@ -164,7 +164,7 @@ G7  C#7
 G#7 D7
 
 # Feedback for the MCU shift keys. We've disabled this by default since
-# it doesn't add much value and clobbers the bar display below.
+# it doesn't add much value and clobbers the time display below.
 
 #A#5 D#7
 #B5  E7
@@ -197,7 +197,7 @@ G#7 D7
 # zeros in the value lists below to skip over all the non-digit
 # characters at the beginning of the ASCII table.
 
-CC69[128] F7[0:49,1,0] E7[0:50,1,0] Eb7[0:51,1,0] D7[0:52,1,0]
+?CC69[128] F7[0:49,1,0] E7[0:50,1,0] Eb7[0:51,1,0] D7[0:52,1,0]
 
 # no feedback for faders (faders aren't motorized)
 
