@@ -457,29 +457,49 @@ the default section if they are bound there.
 The translations define what output should be produced for the given
 MIDI input.
 Each translation must be on a line by itself.
-The left\-hand side (first token) of each translation denotes the MIDI
+The left\-hand side (first token) of the translation denotes the MIDI
 message to be translated.
-MIDI messages are on channel 1 by default; a suffix of the form
-\f[C]\-<1..16>\f[] can be used to specify a MIDI channel.
-E.g., \f[C]C3\-10\f[] denotes note \f[C]C3\f[] on MIDI channel 10.
+The corresponding right\-hand side (the rest of the line) is a sequence
+of one or more tokens, separated by whitespace, indicating either MIDI
+messages or X11 keyboard and mouse events to be output.
+.PP
+\f[B]NOTE:\f[] Translations must be determined \f[I]uniquely\f[] in each
+translation class.
+That is, each input message may be bound to at most one output sequence
+in each section.
+Otherwise, the parser will print an error message, and the extra
+translations will be ignored.
+This also ensures that the output sequence completely determines the
+order in which the events for each given input will be output, so that
+midizap's operation is deterministic (i.e., for the same input sequence
+on the same window the program will always generate exactly the same
+output sequence).
+.SS MIDI Message Notation
 .PP
 Note messages are specified using the customary notation (note name
 \f[C]A..G\f[], optionally followed by an accidental, \f[C]#\f[] or
 \f[C]b\f[], followed by the MIDI octave number).
-The same notation is used for key pressure (\f[C]KP\f[]) messages.
 Note that all MIDI octaves start at the note C, so \f[C]B0\f[] comes
 before \f[C]C1\f[].
 By default, \f[C]C5\f[] denotes middle C.
 Enharmonic spellings are equivalent, so, e.g., \f[C]D#\f[] and
 \f[C]Eb\f[] denote exactly the same MIDI note.
 .PP
+The other messages are denoted using short mnemonics: \f[C]KP\f[]
+(aftertouch a.k.a.
+key pressure; followed by the colon and a note designation); \f[C]CC\f[]
+(control change, followed by a controller number); \f[C]PC\f[] (program
+change, followed by a program number); \f[C]CP\f[] and \f[C]PB\f[]
+(channel pressure and pitch bend; these don't have a numeric suffix, as
+they apply to the entire MIDI channel).
+.PP
 We will go into the other syntactic bits and pieces of MIDI message
 designations later, but it's good to have the following grammar in EBNF
 notation handy for reference.
 (To keep things simple, the grammar is somewhat abridged, but it covers
 all the frequently used notation.
-There is some additional syntax for some special forms of translations
-which will be introduced later.)
+There is some additional syntax for special forms of translations which
+will be introduced later.)
 .IP
 .nf
 \f[C]
@@ -561,6 +581,10 @@ the message, which is considered as a signed quantity in the range
 In all other cases, the parameter value consists of a single data byte,
 which denotes an unsigned 7 bit quantity in the range 0..127.
 .PP
+Note that since translations are determined uniquely in each translation
+class, you can't have both a key \f[I]and\f[] a data translation for the
+same input in the same section; it's either one or the other.
+.PP
 \f[I]Key mode\f[] is the default mode and is available for all message
 types.
 In this mode, MIDI messages are considered as keys which can be
@@ -616,24 +640,11 @@ In the message syntax, these kinds of controls are indicated by using
 the suffixes \f[C]<\f[], \f[C]>\f[] and \f[C]~\f[] in lieu of
 \f[C]\-\f[], \f[C]+\f[] and \f[C]=\f[], respectively.
 These suffixes are only permitted with \f[C]CC\f[] messages.
-.PP
-Translations must be determined uniquely in each translation class.
-That is, there must be at most one translation for each MIDI token in
-each translation section.
-Note, however, that the MIDI channel is part of the message, so tokens
-with different MIDI channels count as different messages here.
-Key and (standard) data translations can also be used in concert if
-needed (in such a case the key translation is executed first).
 .SS Keyboard and Mouse Translations
 .PP
-The right\-hand side of a translation (i.e., everything following the
-first token) is a sequence of one or more tokens, separated by
-whitespace, indicating either MIDI messages or X11 keyboard and mouse
-events to be output.
-.PP
-In this section, we first have a look at keyboard and mouse output.
-It consists of X key codes with optional up/down indicators, or strings
-of printable characters enclosed in double quotes.
+Keyboard and mouse output consists of X key codes with optional up/down
+indicators, or strings of printable characters enclosed in double
+quotes.
 The syntax of these items, as well as the special \f[C]RELEASE\f[] and
 \f[C]SHIFT\f[] tokens which will be discussed later, are described by
 the following grammar:
@@ -1122,7 +1133,7 @@ CP[16]\ C0
 .PP
 In contrast to standard data translations, there's no increment suffix
 here, so the translation does \f[I]not\f[] indicate an incremental value
-change of some sort.
+change.
 Rather, the output messages are constructed directly from the input
 value by some arithmetic calculations.
 To these ends, the step size on the left\-hand side is actually used as
@@ -1378,6 +1389,13 @@ skills.
 midizap often does the job reasonably well for simple mapping tasks, but
 if things start getting fiddly then you should consider using a more
 comprehensive tool like Pd (http://puredata.info/) instead.
+.PP
+midizap doesn't run with realtime priorities right now, so the precise
+timing of output events may vary.
+These variations should be at most in the 1 msec ballpark, unless your
+cpu load is fairly high.
+Until a real\-time scheduling option gets added, we suggest using
+nice(1) to beef up the process priority if needed.
 .SH See Also
 .PP
 midizap is based on a fork (https://github.com/agraef/ShuttlePRO) of

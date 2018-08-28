@@ -171,11 +171,17 @@ The `#` character at the beginning of a line and after whitespace is special; it
 
 Each `[name] regex` line introduces the list of MIDI message translations for the named translation class. The name is only used for debugging output, and needn't be unique. When focus is on a window whose class or title matches the regular expression `regex`, the corresponding translations are in effect. An empty regex for the last class will always match, allowing default translations. Any output sequences not bound in a matched section will be loaded from the default section if they are bound there.
 
-The translations define what output should be produced for the given MIDI input. Each translation must be on a line by itself. The left-hand side (first token) of each translation denotes the MIDI message to be translated. MIDI messages are on channel 1 by default; a suffix of the form `-<1..16>` can be used to specify a MIDI channel. E.g., `C3-10` denotes note `C3` on MIDI channel 10.
+The translations define what output should be produced for the given MIDI input. Each translation must be on a line by itself. The left-hand side (first token) of the translation denotes the MIDI message to be translated. The corresponding right-hand side (the rest of the line) is a sequence of one or more tokens, separated by whitespace, indicating either MIDI messages or X11 keyboard and mouse events to be output.
 
-Note messages are specified using the customary notation (note name `A..G`, optionally followed by an accidental, `#` or `b`, followed by the MIDI octave number). The same notation is used for key pressure (`KP`) messages. Note that all MIDI octaves start at the note C, so `B0` comes before `C1`. By default, `C5` denotes middle C. Enharmonic spellings are equivalent, so, e.g., `D#` and `Eb` denote exactly the same MIDI note.
+**NOTE:** Translations must be determined *uniquely* in each translation class. That is, each input message may be bound to at most one output sequence in each section. Otherwise, the parser will print an error message, and the extra translations will be ignored. This also ensures that the output sequence completely determines the order in which the events for each given input will be output, so that midizap's operation is deterministic (i.e., for the same input sequence on the same window the program will always generate exactly the same output sequence).
 
-We will go into the other syntactic bits and pieces of MIDI message designations later, but it's good to have the following grammar in EBNF notation handy for reference. (To keep things simple, the grammar is somewhat abridged, but it covers all the frequently used notation. There is some additional syntax for some special forms of translations which will be introduced later.)
+## MIDI Message Notation
+ 
+Note messages are specified using the customary notation (note name `A..G`, optionally followed by an accidental, `#` or `b`, followed by the MIDI octave number). Note that all MIDI octaves start at the note C, so `B0` comes before `C1`. By default, `C5` denotes middle C. Enharmonic spellings are equivalent, so, e.g., `D#` and `Eb` denote exactly the same MIDI note.
+
+The other messages are denoted using short mnemonics: `KP` (aftertouch a.k.a. key pressure; followed by the colon and a note designation); `CC` (control change, followed by a controller number); `PC` (program change, followed by a program number); `CP` and `PB` (channel pressure and pitch bend; these don't have a numeric suffix, as they apply to the entire MIDI channel).
+
+We will go into the other syntactic bits and pieces of MIDI message designations later, but it's good to have the following grammar in EBNF notation handy for reference. (To keep things simple, the grammar is somewhat abridged, but it covers all the frequently used notation. There is some additional syntax for special forms of translations which will be introduced later.)
 
 ~~~
 token ::= msg [ "[" number "]" ] [ "-" number ] [ incr ]
@@ -203,6 +209,8 @@ Note that this transposes *all* existing notes in translations following the dir
 
 Translations come in two flavors, "key translations" and "data translations", which differ in the way the extra data payload of the input message, called the *parameter value* (or just *value* for short), is processed. The parameter value depends on the type of MIDI message. Program changes (`PC`) have no value at all. For notes, as well as key and channel pressure messages (`CP`, `KP`), it is a velocity value; for control changes (`CC`), a controller value; and for pitch bend messages (`PB`), a pitch bend value. The latter is actually a 14 bit value composed of the two data bytes in the message, which is considered as a signed quantity in the range -8192..8191, where 0 denotes the center value. In all other cases, the parameter value consists of a single data byte, which denotes an unsigned 7 bit quantity in the range 0..127.
 
+Note that since translations are determined uniquely in each translation class, you can't have both a key *and* a data translation for the same input in the same section; it's either one or the other.
+
 *Key mode* is the default mode and is available for all message types. In this mode, MIDI messages are considered as keys which can be "pressed" ("on") or "released" ("off"). Any nonzero data value means "pressed", zero "released". Two special cases need to be considered here:
 
 - For pitch bends, any positive *or* negative value means "pressed", while 0 (the center value) means "released".
@@ -217,13 +225,9 @@ Data mode usually tracks changes in the *absolute* value of a control. However, 
 
 Encoders emit a special *sign bit* value indicating a *relative* change, where a value < 64 usually denotes an increment (representing clockwise rotation), and a value > 64 a decrement (counter-clockwise rotation). The actual amount of change is in the lower 6 bits of the value. In the message syntax, these kinds of controls are indicated by using the suffixes `<`, `>` and `~` in lieu of `-`, `+` and `=`, respectively. These suffixes are only permitted with `CC` messages.
 
-Translations must be determined uniquely in each translation class. That is, there must be at most one translation for each MIDI token in each translation section. Note, however, that the MIDI channel is part of the message, so tokens with different MIDI channels count as different messages here. Key and (standard) data translations can also be used in concert if needed (in such a case the key translation is executed first).
-
 ## Keyboard and Mouse Translations
 
-The right-hand side of a translation (i.e., everything following the first token) is a sequence of one or more tokens, separated by whitespace, indicating either MIDI messages or X11 keyboard and mouse events to be output.
-
-In this section, we first have a look at keyboard and mouse output. It consists of X key codes with optional up/down indicators, or strings of printable characters enclosed in double quotes. The syntax of these items, as well as the special `RELEASE` and `SHIFT` tokens which will be discussed later, are described by the following grammar:
+Keyboard and mouse output consists of X key codes with optional up/down indicators, or strings of printable characters enclosed in double quotes. The syntax of these items, as well as the special `RELEASE` and `SHIFT` tokens which will be discussed later, are described by the following grammar:
 
 ~~~
 token   ::= "RELEASE" | "SHIFT" | keycode [ "/" flag ] | string
@@ -426,7 +430,7 @@ In its most basic form, the translation looks as follows:
 CP[16] C0
 ~~~
 
-In contrast to standard data translations, there's no increment suffix here, so the translation does *not* indicate an incremental value change of some sort. Rather, the output messages are constructed directly from the input value by some arithmetic calculations. To these ends, the step size on the left-hand side is actually used as a *modulus* in order to decompose the input value into two separate quantities, *quotient* and *remainder*. Only the latter becomes the value of the output message, while the former is used as an *offset* to modify the output message. (Note that `CP` and `PB` messages don't have a modifiable offset, so if you use these on the output side of a mod translation, the offset part of the input value will be simply ignored. The `PC` message, in contrast, lacks the parameter value, so in this case the remainder value will be disregarded instead.)
+In contrast to standard data translations, there's no increment suffix here, so the translation does *not* indicate an incremental value change. Rather, the output messages are constructed directly from the input value by some arithmetic calculations. To these ends, the step size on the left-hand side is actually used as a *modulus* in order to decompose the input value into two separate quantities, *quotient* and *remainder*. Only the latter becomes the value of the output message, while the former is used as an *offset* to modify the output message. (Note that `CP` and `PB` messages don't have a modifiable offset, so if you use these on the output side of a mod translation, the offset part of the input value will be simply ignored. The `PC` message, in contrast, lacks the parameter value, so in this case the remainder value will be disregarded instead.)
 
 In order to describe more precisely how this works, let's assume an input value *v* and a modulus *k*. We divide *v* by *k*, yielding the offset *q* = [*v*/*k*] (i.e., *v*/*k* rounded down to the nearest integer towards zero), and the remainder *r* =  *v* - *kq* of that division. E.g., with *k* = 16 and *v* = 21, we have that 16 + 5 = 21 and thus you'll get *q* = 1 and *r* = 5 (i.e., 21 divided by 16 yields 1 with a remainder of 5). The calculated offset *q* is then applied to the note itself, and the remainder *r* becomes the velocity of that note. So in the example the output would be the note `C#0` (`C0` offset by 1) with a velocity of 5. On the APCmini, this message will light up the second button in the bottom row of the 8x8 grid in yellow.
 
@@ -521,6 +525,8 @@ The names of some of the debugging options are rather peculiar. midizap inherite
 There's no Mac or Windows support (yet). midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now.
 
 midizap tries to keep things simple, which implies that it has its limitations. In particular, system messages are not supported right now, and midizap lacks some more interesting ways of mapping, filtering and recombining MIDI data. There are other, more powerful utilities which do these things, but they are also more complicated and usually require at least some programming skills. midizap often does the job reasonably well for simple mapping tasks, but if things start getting fiddly then you should consider using a more comprehensive tool like [Pd][] instead.
+
+midizap doesn't run with realtime priorities right now, so the precise timing of output events may vary. These variations should be at most in the 1 msec ballpark, unless your cpu load is fairly high. Until a real-time scheduling option gets added, we suggest using nice(1) to beef up the process priority if needed.
 
 # See Also
 
