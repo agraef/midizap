@@ -1390,12 +1390,14 @@ midizap often does the job reasonably well for simple mapping tasks, but
 if things start getting fiddly then you should consider using a more
 comprehensive tool like Pd (http://puredata.info/) instead.
 .PP
-midizap doesn't run with realtime priorities right now, so the precise
-timing of output events may vary.
-These variations should be at most in the 1 msec ballpark, unless your
-cpu load is fairly high.
-Until a real\-time scheduling option gets added, we suggest using
-nice(1) to beef up the process priority if needed.
+midizap lacks an option to run with real\-time priorities right now.
+Use chrt(1) instead.
+For instance: \f[C]chrt\ 90\ midizap\ \-o\f[].
+This should only be needed when MIDI output is enabled and you
+experience bad latency or jitter in MIDI output.
+With chrt, midizap should be able to get down to MIDI latencies in the 1
+msec ballpark which should be good enough for most purposes (YMMV,
+though).
 .SH See Also
 .PP
 midizap is based on a fork (https://github.com/agraef/ShuttlePRO) of

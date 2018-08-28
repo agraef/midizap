@@ -526,7 +526,7 @@ There's no Mac or Windows support (yet). midizap has only been tested on Linux s
 
 midizap tries to keep things simple, which implies that it has its limitations. In particular, system messages are not supported right now, and midizap lacks some more interesting ways of mapping, filtering and recombining MIDI data. There are other, more powerful utilities which do these things, but they are also more complicated and usually require at least some programming skills. midizap often does the job reasonably well for simple mapping tasks, but if things start getting fiddly then you should consider using a more comprehensive tool like [Pd][] instead.
 
-midizap doesn't run with realtime priorities right now, so the precise timing of output events may vary. These variations should be at most in the 1 msec ballpark, unless your cpu load is fairly high. Until a real-time scheduling option gets added, we suggest using nice(1) to beef up the process priority if needed.
+midizap lacks an option to run with real-time priorities right now. Use chrt(1) instead. For instance: `chrt 90 midizap -o`. This should only be needed when MIDI output is enabled and you experience bad latency or jitter in MIDI output. With chrt, midizap should be able to get down to MIDI latencies in the 1 msec ballpark which should be good enough for most purposes (YMMV, though).
 
 # See Also
 
