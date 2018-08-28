@@ -287,21 +287,39 @@ static stroke **find_stroke_data(stroke_data **sd,
   return &(*sd)[(*n)++].s[index];
 }
 
+static int check_stroke_data(stroke_data *sd,
+			     int chan, int data,
+			     uint16_t n)
+{
+  uint16_t i;
+  for (i = 0; i < n; i++) {
+    if (sd[i].chan == chan && sd[i].data == data)
+      return 1;
+  }
+  return 0;
+}
+
 static stroke **find_note(translation *tr, int shift,
 			  int chan, int data, int index, int mod,
 			  int step, int n_steps, int *steps)
 {
-  return find_stroke_data(&tr->note[shift], chan, data, index,
-			  step, n_steps, steps, 0, mod,
-			  &tr->n_note[shift], &tr->a_note[shift]);
+  if (check_stroke_data(tr->notes[shift], chan, data, tr->n_notes[shift]))
+    return 0;
+  else
+    return find_stroke_data(&tr->note[shift], chan, data, index,
+			    step, n_steps, steps, 0, mod,
+			    &tr->n_note[shift], &tr->a_note[shift]);
 }
 
 static stroke **find_notes(translation *tr, int shift,
 			 int chan, int data, int index, int step)
 {
-  return find_stroke_data(&tr->notes[shift], chan, data, index, step,
-			  0, 0, 0, 0,
-			  &tr->n_notes[shift], &tr->a_notes[shift]);
+  if (check_stroke_data(tr->note[shift], chan, data, tr->n_note[shift]))
+    return 0;
+  else
+    return find_stroke_data(&tr->notes[shift], chan, data, index, step,
+			    0, 0, 0, 0,
+			    &tr->n_notes[shift], &tr->a_notes[shift]);
 }
 
 static stroke **find_pc(translation *tr, int shift,
@@ -315,65 +333,92 @@ static stroke **find_cc(translation *tr, int shift,
 			int chan, int data, int index, int mod,
 			int step, int n_steps, int *steps)
 {
-  return find_stroke_data(&tr->cc[shift], chan, data, index,
-			  step, n_steps, steps, 0, mod,
-			  &tr->n_cc[shift], &tr->a_cc[shift]);
+  if (check_stroke_data(tr->ccs[shift], chan, data, tr->n_ccs[shift]))
+    return 0;
+  else
+    return find_stroke_data(&tr->cc[shift], chan, data, index,
+			    step, n_steps, steps, 0, mod,
+			    &tr->n_cc[shift], &tr->a_cc[shift]);
 }
 
 static stroke **find_ccs(translation *tr, int shift,
 			 int chan, int data, int index, int step, int incr)
 {
-  return find_stroke_data(&tr->ccs[shift], chan, data, index, step, 0, 0,
-			  incr, 0,
-			  &tr->n_ccs[shift], &tr->a_ccs[shift]);
+  if (check_stroke_data(tr->cc[shift], chan, data, tr->n_cc[shift]))
+    return 0;
+  else
+    return find_stroke_data(&tr->ccs[shift], chan, data, index, step, 0, 0,
+			    incr, 0,
+			    &tr->n_ccs[shift], &tr->a_ccs[shift]);
 }
 
 static stroke **find_kp(translation *tr, int shift,
 			int chan, int data, int index, int mod,
 			int step, int n_steps, int *steps)
 {
-  return find_stroke_data(&tr->kp[shift], chan, data, index,
-			  step, n_steps, steps, 0, mod,
-			  &tr->n_kp[shift], &tr->a_kp[shift]);
+  if (check_stroke_data(tr->kps[shift], chan, data, tr->n_kps[shift]))
+    return 0;
+  else
+    return find_stroke_data(&tr->kp[shift], chan, data, index,
+			    step, n_steps, steps, 0, mod,
+			    &tr->n_kp[shift], &tr->a_kp[shift]);
 }
 
 static stroke **find_kps(translation *tr, int shift,
 			 int chan, int data, int index, int step)
 {
-  return find_stroke_data(&tr->kps[shift], chan, data, index, step, 0, 0, 0, 0,
-			  &tr->n_kps[shift], &tr->a_kps[shift]);
+  if (check_stroke_data(tr->kp[shift], chan, data, tr->n_kp[shift]))
+    return 0;
+  else
+    return find_stroke_data(&tr->kps[shift], chan, data, index, step,
+			    0, 0, 0, 0,
+			    &tr->n_kps[shift], &tr->a_kps[shift]);
 }
 
 static stroke **find_cp(translation *tr, int shift,
 			int chan, int index, int mod,
 			int step, int n_steps, int *steps)
 {
-  return find_stroke_data(&tr->cp[shift], chan, 0, index,
-			  step, n_steps, steps, 0, mod,
-			  &tr->n_cp[shift], &tr->a_cp[shift]);
+  if (check_stroke_data(tr->cps[shift], chan, 0, tr->n_cps[shift]))
+    return 0;
+  else
+    return find_stroke_data(&tr->cp[shift], chan, 0, index,
+			    step, n_steps, steps, 0, mod,
+			    &tr->n_cp[shift], &tr->a_cp[shift]);
 }
 
 static stroke **find_cps(translation *tr, int shift,
 			 int chan, int index, int step)
 {
-  return find_stroke_data(&tr->cps[shift], chan, 0, index, step, 0, 0, 0, 0,
-			  &tr->n_cps[shift], &tr->a_cps[shift]);
+  if (check_stroke_data(tr->cp[shift], chan, 0, tr->n_cp[shift]))
+    return 0;
+  else
+    return find_stroke_data(&tr->cps[shift], chan, 0, index, step,
+			    0, 0, 0, 0,
+			    &tr->n_cps[shift], &tr->a_cps[shift]);
 }
 
 static stroke **find_pb(translation *tr, int shift,
 			int chan, int index, int mod,
 			int step, int n_steps, int *steps)
 {
-  return find_stroke_data(&tr->pb[shift], chan, 0, index,
-			  step, n_steps, steps, 0, mod,
-			  &tr->n_pb[shift], &tr->a_pb[shift]);
+  if (check_stroke_data(tr->pbs[shift], chan, 0, tr->n_pbs[shift]))
+    return 0;
+  else
+    return find_stroke_data(&tr->pb[shift], chan, 0, index,
+			    step, n_steps, steps, 0, mod,
+			    &tr->n_pb[shift], &tr->a_pb[shift]);
 }
 
 static stroke **find_pbs(translation *tr, int shift,
 			 int chan, int index, int step)
 {
-  return find_stroke_data(&tr->pbs[shift], chan, 0, index, step, 0, 0, 0, 0,
-			  &tr->n_pbs[shift], &tr->a_pbs[shift]);
+  if (check_stroke_data(tr->pb[shift], chan, 0, tr->n_pb[shift]))
+    return 0;
+  else
+    return find_stroke_data(&tr->pbs[shift], chan, 0, index, step,
+			    0, 0, 0, 0,
+			    &tr->n_pbs[shift], &tr->a_pbs[shift]);
 }
 
 void
@@ -1390,11 +1435,13 @@ start_translation(translation *tr, char *which_key)
     fprintf(stderr, "bad message name: [%s]%s\n", current_translation, which_key);
     return 1;
   }
-  if (*first_stroke != NULL ||
-      (is_bidirectional && *release_first_stroke != NULL) ||
+  if ((!first_stroke || *first_stroke) ||
+      (is_bidirectional &&
+       (!release_first_stroke || *release_first_stroke)) ||
       (is_anyshift &&
-       (*alt_press_stroke != NULL ||
-	(is_bidirectional && *alt_release_stroke != NULL)))) {
+       ((!alt_press_stroke || *alt_press_stroke) ||
+	(is_bidirectional &&
+	 (!alt_release_stroke || *alt_release_stroke))))) {
     fprintf(stderr, "can't redefine message: [%s]%s\n", current_translation, which_key);
     return 1;
   }
