@@ -713,7 +713,7 @@ static void end_debug()
 }
 
 // maximum recursion depth
-#define MAX_DEPTH 10
+#define MAX_DEPTH 32
 
 void
 send_strokes(translation *tr, uint8_t portno, int status, int chan,
