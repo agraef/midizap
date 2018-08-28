@@ -545,24 +545,21 @@ configuration, you probably have to edit the note messages in it
 accordingly.
 .SS Key and Data Input
 .PP
-Input messages can be processed in two different ways, \[lq]key
-mode\[rq] and \[lq]data mode\[rq].
-Depending on the mode, the extra data payload of the message, which we
-refer to as the \f[I]parameter value\f[] (or just \f[I]value\f[] for
-short), is interpreted in different ways.
-The parameter value corresponds to the type of MIDI message.
-Program changes have no value at all.
-For notes, as well as key and channel pressure messages, it is the
-velocity value; for control changes, the controller value; and for pitch
-bend messages, the pitch bend value.
-Note that the latter is actually a 14 bit value which is considered as a
-signed quantity in the range \-8192..8191, where 0 denotes the center
-value.
-In all other cases, the parameter value is an unsigned 7 bit quantity in
-the range 0..127.
-(MIDI aficionados will notice that what we call the parameter value
-here, is actually the second data byte, or, in case of pitch bends, the
-combined first and second data byte of the MIDI message.)
+Translations come in two flavors, \[lq]key translations\[rq] and
+\[lq]data translations\[rq], which differ in the way the extra data
+payload of the input message, called the \f[I]parameter value\f[] (or
+just \f[I]value\f[] for short), is processed.
+The parameter value depends on the type of MIDI message.
+Program changes (\f[C]PC\f[]) have no value at all.
+For notes, as well as key and channel pressure messages (\f[C]CP\f[],
+\f[C]KP\f[]), it is a velocity value; for control changes (\f[C]CC\f[]),
+a controller value; and for pitch bend messages (\f[C]PB\f[]), a pitch
+bend value.
+The latter is actually a 14 bit value composed of the two data bytes in
+the message, which is considered as a signed quantity in the range
+\-8192..8191, where 0 denotes the center value.
+In all other cases, the parameter value consists of a single data byte,
+which denotes an unsigned 7 bit quantity in the range 0..127.
 .PP
 \f[I]Key mode\f[] is the default mode and is available for all message
 types.
@@ -580,17 +577,12 @@ But they are treated in the same key\-like fashion anyway, assuming that
 they are \[lq]pressed\[rq] and then \[lq]released\[rq] immediately
 afterwards.
 .PP
-Also note that since an input message is only on or off in key mode,
-there's no step size in this mode.
-Translations with a step size are always processed in data mode.
-.PP
-\f[I]Data mode\f[] is available for all messages whose parameter value
-may continuously change over time, i.e., key and channel pressure,
-control changes, and pitch bends.
+\f[I]Data mode\f[] is available for all messages with a parameter value,
+i.e., anything but \f[C]PC\f[].
 In this mode, the actual value of the message is processed rather than
 just the on/off state.
 Data mode is indicated with a special suffix on the message token which
-indicates a step size and/or the direction of the value change which the
+denotes a step size and/or the direction of the value change which the
 rule should apply to: increment (\f[C]+\f[]), decrement (\f[C]\-\f[]),
 or both (\f[C]=\f[]).
 The two parts are both optional, but at least one of them must be
@@ -601,9 +593,9 @@ messages having an increment suffix.
 In this case, the optional step size in brackets indicates the amount of
 change required to trigger the translation, so its effect is to
 downscale the amount of change in the input value.
-The variant without an increment suffix is more complicated and mostly
+(The variant without an increment suffix is more complicated and mostly
 intended for rather specialized uses, so we'll have a look at it later
-in the \f[I]Advanced Features\f[] section.
+in the \f[I]Advanced Features\f[] section.)
 .PP
 Data mode usually tracks changes in the \f[I]absolute\f[] value of a
 control.
@@ -628,7 +620,7 @@ These suffixes are only permitted with \f[C]CC\f[] messages.
 Translations must be determined uniquely in each translation class.
 That is, there must be at most one translation for each MIDI token in
 each translation section.
-Note, however, that the MIDI channel is part of the token, so tokens
+Note, however, that the MIDI channel is part of the message, so tokens
 with different MIDI channels count as different messages here.
 Key and (standard) data translations can also be used in concert if
 needed (in such a case the key translation is executed first).
@@ -1075,8 +1067,7 @@ This reverse path is what is needed to translate the feedback from the
 application and send it back to the controller.
 .PP
 An in\-depth discussion of controller feedback is beyond the scope of
-this manual, but we present a few useful tidbits in the context of the
-specialized data translations below.
+this manual, but we present a few useful tidbits below.
 Also, the distribution includes a full\-blown example of this kind of
 setup for your perusal, please check examples/APCmini.midizaprc in the
 sources.
@@ -1134,9 +1125,9 @@ here, so the translation does \f[I]not\f[] indicate an incremental value
 change of some sort.
 Rather, the output messages are constructed directly from the input
 value by some arithmetic calculations.
-To these ends, the step size on the left\-hand side is actually being
-used as a \f[I]modulus\f[] in order to decompose the input value into
-two separate quantities, \f[I]quotient\f[] and \f[I]remainder\f[].
+To these ends, the step size on the left\-hand side is actually used as
+a \f[I]modulus\f[] in order to decompose the input value into two
+separate quantities, \f[I]quotient\f[] and \f[I]remainder\f[].
 Only the latter becomes the value of the output message, while the
 former is used as an \f[I]offset\f[] to modify the output message.
 (Note that \f[C]CP\f[] and \f[C]PB\f[] messages don't have a modifiable
@@ -1256,6 +1247,8 @@ CP[16]\ C0[0,1]\ G#0[0:5,5]\ E1[0:8,3]
 Note that each of the output notes will be offset by the same amount, so
 that the green, yellow and red buttons will always be lined up
 vertically in this example.
+The APCmini.midizaprc configuration uses a similar, albeit more
+elaborate translation to handle MCU meter data.
 .SS Other Uses of Mod Translations
 .PP
 Mod translations work with all kinds of output, so that you can also
@@ -1264,7 +1257,7 @@ needed, and the input may be any kind of message which has a parameter
 value.
 So, while mod translations are most commonly employed for MIDI feedback,
 they can also be used as a more capable replacement for
-\[lq]ordinary\[rq] data translations in various contexts.
+\[lq]ordinary\[rq] (incremental) data translations in various contexts.
 We discuss some of these use cases below and show how they're
 implemented.
 .PP
