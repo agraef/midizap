@@ -899,6 +899,8 @@ static int note_number(char c, char b, int k)
   }
 }
 
+#define MAXSTEPS 8193
+
 static char *parse_steps(char *tok, char *p,
 			 int *step, int *n_steps, int **steps)
 {
@@ -907,7 +909,7 @@ static char *parse_steps(char *tok, char *p,
     p += n;
     if (*p == ',' || *p == ':') {
       int n_st = 1;
-      static int st[128];
+      static int st[MAXSTEPS];
       st[0] = l;
       while (*p == ',' || *p == ':') {
 	char c = *p;
@@ -920,19 +922,19 @@ static char *parse_steps(char *tok, char *p,
 	  if (l <= 0) {
 	    // remove the last value
 	    if (n_st > 0) n_st--;
-	  } else if (n_st > 0 && n_st < 128) {
+	  } else if (n_st > 0 && n_st < MAXSTEPS) {
 	    int last = st[n_st-1];
 	    for (int i = 1; i < l; i++) {
 	      st[n_st++] = last;
-	      if (n_st == 128) {
+	      if (n_st == MAXSTEPS) {
 		fprintf(stderr, "warning: too many steps: %s\n", tok);
 		break;
 	      }
 	    }
 	  }
-	} else if (n_st < 128) {
+	} else if (n_st < MAXSTEPS) {
 	  st[n_st++] = l;
-	  if (n_st == 128)
+	  if (n_st == MAXSTEPS)
 	    fprintf(stderr, "warning: too many steps: %s\n", tok);
 	}
       }
