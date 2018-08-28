@@ -119,7 +119,7 @@ send_midi(uint8_t portno, int status, int data,
 	notevalue[chan][data] += dir;
 	if (notevalue[chan][data] < 0) notevalue[chan][data] = 0;
       }
-      msg[2] = kpvalue[chan][data];
+      msg[2] = notevalue[chan][data];
     } else if (mod) {
       int d = msg[1] + datavals(val/mod, mod_step, mod_steps, mod_n_steps);
       int v = datavals(val%mod, step, steps, n_steps);
