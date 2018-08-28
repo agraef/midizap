@@ -85,6 +85,7 @@ typedef struct _translation {
   uint8_t portno;
   // these are indexed by shift status
   stroke_data *note[2];
+  stroke_data *notes[2];
   stroke_data *pc[2];
   stroke_data *cc[2];
   stroke_data *ccs[2];
@@ -95,10 +96,10 @@ typedef struct _translation {
   stroke_data *cp[2];
   stroke_data *cps[2];
   // actual and allocated sizes (can be at most 16*128)
-  uint16_t n_note[2], n_pc[2], n_cc[2], n_ccs[2], n_pb[2], n_pbs[2],
-    n_kp[2], n_kps[2], n_cp[2], n_cps[2];
-  uint16_t a_note[2], a_pc[2], a_cc[2], a_ccs[2], a_pb[2], a_pbs[2],
-    a_kp[2], a_kps[2], a_cp[2], a_cps[2];
+  uint16_t n_note[2], n_notes[2], n_pc[2], n_cc[2], n_ccs[2],
+    n_pb[2], n_pbs[2], n_kp[2], n_kps[2], n_cp[2], n_cps[2];
+  uint16_t a_note[2], a_notes[2], a_pc[2], a_cc[2], a_ccs[2],
+    a_pb[2], a_pbs[2], a_kp[2], a_kps[2], a_cp[2], a_cps[2];
 } translation;
 
 extern void reload_callback(void);

@@ -296,6 +296,14 @@ static stroke **find_note(translation *tr, int shift,
 			  &tr->n_note[shift], &tr->a_note[shift]);
 }
 
+static stroke **find_notes(translation *tr, int shift,
+			 int chan, int data, int index, int step)
+{
+  return find_stroke_data(&tr->notes[shift], chan, data, index, step,
+			  0, 0, 0, 0,
+			  &tr->n_notes[shift], &tr->a_notes[shift]);
+}
+
 static stroke **find_pc(translation *tr, int shift,
 			int chan, int data, int index)
 {
@@ -1034,10 +1042,10 @@ parse_midi(char *tok, char *s, int lhs, int mode,
       return 0;
     }
   }
-  // incremental flag ("cc", "pb", "cp" and "kp" only)
+  // incremental flag (messages with data only, not "ch" or "pc")
   if (*p && strchr("+-=<>~", *p)) {
-    if (strcmp(s, "pb") && strcmp(s, "cc") &&
-	strcmp(s, "cp") && strcmp(s, "kp")) return 0;
+    if (strcmp(s, "ch") == 0) return 0;
+    if (strcmp(s, "pc") == 0) return 0;
     // these are only permitted with "cc"
     if (strchr("<>~", *p) && strcmp(s, "cc")) return 0;
     if (lhs) {
@@ -1166,7 +1174,24 @@ start_translation(translation *tr, char *which_key)
     mode = incr?0:mod?2:1;
     switch (status & 0xf0) {
     case 0x90:
-      if (mod) {
+      if (incr) {
+	// note (step up, down)
+	if (step <= 0) {
+	  fprintf(stderr, "zero or negative step size not permitted here: [%s]%s\n", current_translation, which_key);
+	  return 1;
+	}
+	first_stroke = find_notes(tr, k, chan, data, dir>0, step);
+	if (is_anyshift) {
+	  alt_press_stroke = find_notes(tr, 0, chan, data, dir>0, step);
+	}
+	if (!dir) {
+	  is_bidirectional = 1;
+	  release_first_stroke = find_notes(tr, k, chan, data, 1, step);
+	  if (is_anyshift) {
+	    alt_release_stroke = find_notes(tr, 0, chan, data, 1, step);
+	  }
+	}
+      } else if (mod) {
 	// note mod
 	first_stroke = find_note(tr, k, chan, data, 0, mod,
 				 step, n_steps, steps);

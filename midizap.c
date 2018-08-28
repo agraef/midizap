@@ -60,6 +60,7 @@ send_key(KeySym key, int press)
 }
 
 // cached controller and pitch bend values
+static int16_t notevalue[16][128];
 static int16_t ccvalue[16][128];
 static int16_t kpvalue[16][128];
 static int16_t cpvalue[16];
@@ -104,7 +105,22 @@ send_midi(uint8_t portno, int status, int data,
   msg[1] = data;
   switch (status & 0xf0) {
   case 0x90:
-    if (mod) {
+    if (dir) {
+      // increment (dir==1) or decrement (dir==-1) the current value,
+      // clamping it to the 0..127 data byte range
+      if (!step) step = 1;
+      dir *= step;
+      if (dir > 0) {
+	if (notevalue[chan][data] >= 127) return;
+	notevalue[chan][data] += dir;
+	if (notevalue[chan][data] > 127) notevalue[chan][data] = 127;
+      } else {
+	if (notevalue[chan][data] == 0) return;
+	notevalue[chan][data] += dir;
+	if (notevalue[chan][data] < 0) notevalue[chan][data] = 0;
+      }
+      msg[2] = kpvalue[chan][data];
+    } else if (mod) {
       int d = msg[1] + datavals(val/mod, mod_step, mod_steps, mod_n_steps);
       int v = datavals(val%mod, step, steps, n_steps);
       if (d > 127 || d < 0) return;
@@ -318,6 +334,13 @@ static stroke *find_note(translation *tr, int shift,
 			  tr->n_note[shift]);
 }
 
+static stroke *find_notes(translation *tr, int shift,
+			int chan, int data, int index, int *step)
+{
+  return find_stroke_data(tr->notes[shift], chan, data, index, step, 0, 0, 0, 0,
+			  tr->n_notes[shift]);
+}
+
 static stroke *find_pc(translation *tr, int shift,
 		       int chan, int data, int index)
 {
@@ -398,7 +421,10 @@ fetch_stroke(translation *tr, uint8_t portno, int status, int chan, int data,
   if (tr && tr->portno == portno) {
     switch (status) {
     case 0x90:
-      return find_note(tr, shift, chan, data, index, mod, step, n_steps, steps);
+      if (dir)
+	return find_notes(tr, shift, chan, data, dir>0, step);
+      else
+	return find_note(tr, shift, chan, data, index, mod, step, n_steps, steps);
     case 0xc0:
       return find_pc(tr, shift, chan, data, index);
     case 0xb0:
@@ -484,8 +510,21 @@ static char *debug_key(translation *tr, char *name,
   switch (status) {
   case 0x90: {
     int mod = 0, step, n_steps, *steps;
-    (void)find_note(tr, shift, chan, data, 0, &mod, &step, &n_steps, &steps);
-    if (mod)
+    if (tr) {
+      if (dir) {
+	step = 1;
+	(void)find_notes(tr, shift, chan, data, dir>0, &step);
+      } else
+	(void)find_note(tr, shift, chan, data, 0, &mod, &step, &n_steps, &steps);
+    }
+    if (!dir)
+      suffix = "";
+    else
+      suffix = (dir<0)?"-":"+";
+    if (dir && step != 1)
+      sprintf(name, "%s%s%d[%d]-%d%s", prefix, note_name(data),
+	      note_octave(data), step, chan+1, suffix);
+    else if (!dir && mod)
       if (step != 1)
 	sprintf(name, "%s%s%d[%d][%d]-%d", prefix, note_name(data),
 		note_octave(data), mod, step, chan+1);
@@ -500,8 +539,8 @@ static char *debug_key(translation *tr, char *name,
 	sprintf(name, "%s%s%d[%d]-%d", prefix, note_name(data),
 		note_octave(data), mod, chan+1);
     else
-      sprintf(name, "%s%s%d-%d", prefix, note_name(data),
-	      note_octave(data), chan+1);
+      sprintf(name, "%s%s%d-%d%s", prefix, note_name(data),
+	      note_octave(data), chan+1, suffix);
     break;
   }
   case 0xa0: {
@@ -841,6 +880,7 @@ get_focused_window_translation()
   return last_window_translation;
 }
 
+static int8_t innotevalue[2][16][128];
 static int8_t inccvalue[2][16][128];
 static int8_t inkpvalue[2][16][128];
 static int8_t incpvalue[2][16];
@@ -857,11 +897,49 @@ static int16_t inpbvalue[2][16] =
 
 static int keydown_tracker = 0;
 
-static uint8_t notedown[2][16][128];
+static uint8_t innotedown[2][16][128];
 static uint8_t inccdown[2][16][128];
 static uint8_t inpbdown[2][16];
 static uint8_t inkpdown[2][16][128];
 static uint8_t incpdown[2][16];
+
+int
+check_notes(translation *tr, uint8_t portno, int chan, int data)
+{
+  if (tr && tr->portno == portno &&
+      (find_notes(tr, shift, chan, data, 0, 0) ||
+       find_notes(tr, shift, chan, data, 1, 0)))
+    return 1;
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      (find_notes(tr, shift, chan, data, 0, 0) ||
+       find_notes(tr, shift, chan, data, 1, 0)))
+    return 1;
+  tr = default_translation;
+  if (tr && tr->portno == portno &&
+      (find_notes(tr, shift, chan, data, 0, 0) ||
+       find_notes(tr, shift, chan, data, 1, 0)))
+    return 1;
+  return 0;
+}
+
+int
+get_note_step(translation *tr, uint8_t portno, int chan, int data, int dir)
+{
+  int step;
+  if (tr && tr->portno == portno &&
+      find_notes(tr, shift, chan, data, dir>0, &step))
+    return step;
+  tr = default_midi_translation[portno];
+  if (tr && tr->portno == portno &&
+      find_notes(tr, shift, chan, data, dir>0, &step))
+    return step;
+  tr = default_translation;
+  if (tr && tr->portno == portno &&
+      find_notes(tr, shift, chan, data, dir>0, &step))
+    return step;
+  return 1;
+}
 
 int
 get_note_mod(translation *tr, uint8_t portno, int chan, int data)
@@ -1147,23 +1225,6 @@ handle_event(uint8_t *msg, uint8_t portno)
     send_strokes(tr, portno, status, chan, msg[1], 0, 1, 0);
     end_debug();
     break;
-  case 0x90:
-    start_debug();
-    if (get_note_mod(tr, portno, chan, msg[1]))
-	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
-    else if (msg[2]) {
-      if (!keydown_tracker || !notedown[portno][chan][msg[1]]) {
-	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
-	notedown[portno][chan][msg[1]] = 1;
-      }
-    } else {
-      if (!keydown_tracker || notedown[portno][chan][msg[1]]) {
-	send_strokes(tr, portno, status, chan, msg[1], msg[2], 1, 0);
-	notedown[portno][chan][msg[1]] = 0;
-      }
-    }
-    end_debug();
-    break;
   case 0xb0:
     start_debug();
     if (get_cc_mod(tr, portno, chan, msg[1]))
@@ -1222,6 +1283,38 @@ handle_event(uint8_t *msg, uint8_t portno)
 	  if (d < step) break;
 	  send_strokes(tr, portno, status, chan, msg[1], 0, 0, dir);
 	  inccvalue[portno][chan][msg[1]] += dir*d;
+	}
+      }
+    }
+    end_debug();
+    break;
+  case 0x90:
+    start_debug();
+    if (get_note_mod(tr, portno, chan, msg[1]))
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
+    else if (msg[2]) {
+      if (!keydown_tracker || !innotedown[portno][chan][msg[1]]) {
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0);
+	innotedown[portno][chan][msg[1]] = 1;
+      }
+    } else {
+      if (!keydown_tracker || innotedown[portno][chan][msg[1]]) {
+	send_strokes(tr, portno, status, chan, msg[1], msg[2], 1, 0);
+	innotedown[portno][chan][msg[1]] = 0;
+      }
+    }
+    debug_count = 0;
+    if (check_notes(tr, portno, chan, msg[1]) &&
+	innotevalue[portno][chan][msg[1]] != msg[2]) {
+      int dir = innotevalue[portno][chan][msg[1]] > msg[2] ? -1 : 1;
+      int step = get_note_step(tr, portno, chan, msg[1], dir);
+      if (step) {
+	while (innotevalue[portno][chan][msg[1]] != msg[2]) {
+	  int d = abs(innotevalue[portno][chan][msg[1]] - msg[2]);
+	  if (d > step) d = step;
+	  if (d < step) break;
+	  send_strokes(tr, portno, status, chan, msg[1], 0, 0, dir);
+	  innotevalue[portno][chan][msg[1]] += dir*d;
 	}
       }
     }
