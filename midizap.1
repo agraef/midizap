@@ -1045,13 +1045,19 @@ faders on a device which only has a single set of faders, by assigning
 the shifted faders to the encoders, as shown above.
 .SH Advanced Features
 .PP
-This section covers some functionality which is a bit more complicated
-and used less frequently than the basic features discussed in previous
-sections, but will come in handy in some situations.
-Specifically, we'll discuss \f[I]MIDI feedback\f[], which is needed to
-properly implement bidirectional communication with some controllers, as
-well as a special kind of data translations which helps implement some
-types of feedback, and also has its uses in \[lq]normal\[rq] processing.
+This section covers functionality which is used less often than the
+basic features discussed in previous sections, but helps solve some of
+the issues arising in more advanced uses cases.
+We start out with a brief account on \f[I]MIDI feedback\f[], which is
+needed to properly implement bidirectional communication with some
+controllers.
+This often involves inputs which cannot be handled with the simple kinds
+of translations we've seen so far, so we introduce a more versatile kind
+of data translation, called \f[I]mod translations\f[], to deal with
+these.
+We also discuss some further uses of mod translations, including a
+simple macro\-like facility which comes in handy if basic programming
+capabilities are needed.
 .SS MIDI Feedback
 .PP
 Some MIDI controllers need a more elaborate setup than what we've seen
@@ -1098,9 +1104,9 @@ far.
 .PP
 midizap offers a special variation of data mode to help decoding at
 least some of these special messages.
-For reasons which will become obvious in a moment, we also call these
-\f[I]mod data translations\f[], or just \f[I]mod translations\f[] for
-short.
+The basic idea is to work with integer division involving the
+\[lq]div\[rq] and \[lq]mod\[rq] operations, so for want of a better name
+we also call these bindings \f[I]mod translations\f[].
 The extended MIDI syntax being used here is described by the following
 grammar rules (please refer to the beginning of Section \f[I]Translation
 Syntax\f[] for the parts of the syntax not explicitly defined here):
@@ -1150,12 +1156,10 @@ this case the remainder value will be disregarded instead.)
 In order to describe more precisely how this works, let's assume an
 input value \f[I]v\f[] and a modulus \f[I]k\f[].
 We divide \f[I]v\f[] by \f[I]k\f[], yielding the offset \f[I]q\f[] =
-[\f[I]v\f[]/\f[I]k\f[]] (i.e., \f[I]v\f[]/\f[I]k\f[] rounded down to the
-nearest integer towards zero), and the remainder \f[I]r\f[] = \f[I]v\f[]
-\- \f[I]kq\f[] of that division.
-E.g., with \f[I]k\f[] = 16 and \f[I]v\f[] = 21, we have that 16 + 5 = 21
-and thus you'll get \f[I]q\f[] = 1 and \f[I]r\f[] = 5 (i.e., 21 divided
-by 16 yields 1 with a remainder of 5).
+\f[I]v\f[] div \f[I]k\f[] and the remainder \f[I]r\f[] = \f[I]v\f[] mod
+\f[I]k\f[].
+E.g., with \f[I]k\f[] = 16 and \f[I]v\f[] = 21, you'll get \f[I]q\f[] =
+1 and \f[I]r\f[] = 5 (21 divided by 16 yields 1 with a remainder of 5).
 The calculated offset \f[I]q\f[] is then applied to the note itself, and
 the remainder \f[I]r\f[] becomes the velocity of that note.
 So in the example the output would be the note \f[C]C#0\f[] (\f[C]C0\f[]
@@ -1163,8 +1167,9 @@ offset by 1) with a velocity of 5.
 On the APCmini, this message will light up the second button in the
 bottom row of the 8x8 grid in yellow.
 .PP
-As we mentioned already, there is in fact an important use case for all
-this, namely decoding meter information in the Mackie protocol.
+This simple kind of transformation is surprisingly versatile.
+One important use case is the decoding of meter information in the
+Mackie protocol.
 There, each meter value is sent by the host application in the form of a
 key pressure message whose value consists of a mixer channel index 0..7
 in the \[lq]high nibble\[rq] (bits 4..6) and the corresponding meter
@@ -1260,6 +1265,20 @@ that the green, yellow and red buttons will always be lined up
 vertically in this example.
 The APCmini.midizaprc configuration uses a similar, albeit more
 elaborate translation to handle MCU meter data.
+.PP
+Another example from the Mackie protocol is time feedback.
+The following rule decodes the lowest digit in the time display
+(\f[C]CC69\f[]) to count off time on the scene launch buttons of the
+APCmini.
+Note that the digits are actually encoded in ASCII, hence the copious
+amount of initial zeros in the value lists below with which we skip over
+all the non\-digit characters at the beginning of the ASCII table.
+.IP
+.nf
+\f[C]
+CC69[128]\ F7[0:49,1,0]\ E7[0:50,1,0]\ Eb7[0:51,1,0]\ D7[0:52,1,0]
+\f[]
+.fi
 .SS Other Uses of Mod Translations
 .PP
 Mod translations work with all kinds of output, so that you can also
@@ -1272,8 +1291,8 @@ they can also be used as a more capable replacement for
 We discuss some of these use cases below and show how they're
 implemented.
 .PP
-In particular, note you can always choose the modulus large enough (>
-8192 for \f[C]PB\f[], > 127 for other messages) so that the offset
+In particular, note that you can always choose the modulus large enough
+(> 8192 for \f[C]PB\f[], > 127 for other messages) so that the offset
 becomes zero and thus inconsequential.
 This is useful if you just want to employ the discrete value lists
 (which are only available in mod translations) for your mappings.
@@ -1335,30 +1354,183 @@ You could also use, e.g., \f[C][127,0]\f[].
 Any list which doesn't look like a simple scale factor and maps the 0
 value to 127 will do.
 .PP
-For the sake of a more practical example, let's have another look at
-MIDI feedback in the Mackie protocol.
-The following rule decodes the lowest digit in the time display
-(\f[C]CC69\f[]) to count off time on the scene launch buttons of the
-AKAI APCmini.
-Note that the digits are actually encoded in ASCII, hence the copious
-amount of initial zeros in the value lists below with which we skip over
-all the non\-digit characters at the beginning of the ASCII table.
+Another important idiom is the following, which extracts the low nibble
+from a controller value.
+To these ends, we just use the right modulus (16) and set the offset
+value to zero:
 .IP
 .nf
 \f[C]
-CC69[128]\ F7[0:49,1,0]\ E7[0:50,1,0]\ Eb7[0:51,1,0]\ D7[0:52,1,0]
+CC1[16][0:1]\ CC1
 \f[]
 .fi
 .PP
-As you can see, mod data translations in combination with discrete value
-lists are really very powerful and let you implement pretty much any
-desired mapping with ease.
+Extracting the \f[I]high\f[] nibble is a bit more involved:
+.IP
+.nf
+\f[C]
+CC1[128]\ CC1[0:16,1:16,2:16,3:16,4:16,5:16,6:16,7]
+\f[]
+.fi
+.PP
+We used a value list to perform the required integer division, which is
+a bit cumbersome but does the job.
+Using similar rules, you can extract pretty much any part of controller
+values, velocities etc.
+that you need.
+.PP
+As you can see, mod translations in combination with discrete value
+lists are fairly powerful and let you implement pretty much any desired
+mapping with ease.
 There \f[I]are\f[] some limitations, though.
-In particular, mappings involving multiple different translations of the
-same input aren't possible right now, because translations must be
-unique.
-Also, there's no way to combine the values of several input messages
-into a single output message.
+In particular, the reversal of the above \[lq]note\-encoding\[rq]
+operation, i.e., \f[I]extracting\f[] the note number from a note input
+is rather tedious in the current implementation (it involves writing
+down rules for each and every single note).
+Also, there's no direct way to combine different kinds of translations
+of the same input, because each input can only be bound to a single
+output sequence (but see below for a way to work around this problem).
+Moreover, there's no way to combine the values of several input messages
+into a single output message either, and even the macro\-like facility
+in the following section won't help with this.
+.SS Recursive Mod Translations
+.PP
+There are some situations in which it is hard to construct a translation
+in a single step, but it may become much easier if you can recursively
+invoke another translation to construct (some parts of) the final
+result.
+midizap allows you to do this by \[lq]calling\[rq] the mod translation
+for a MIDI message on the right\-hand side of a translation.
+This is done by prefixing the message with the \f[C]$\f[] character:
+.IP
+.nf
+\f[C]
+CC0=\ $CC1
+\f[]
+.fi
+.PP
+Note that you can \f[I]only\f[] call mod translations this way, so the
+message to be expanded (\f[C]CC1\f[] in this example) must be bound in a
+mod translation somewhere.
+Also, the message shouldn't occur as a \[lq]real\[rq] input, so that we
+are free to define it as needed.
+(There are 128 different controllers on 16 MIDI channels, however, so in
+most cases it shouldn't be too hard to find a suitable message.) To keep
+things simple, let's say for now that we just want to output a note
+message with the same velocity as the value of the input message:
+.IP
+.nf
+\f[C]
+CC0=\ $CC1
+CC1[128]\ C5
+\f[]
+.fi
+.PP
+On a conceptual level, the expansion process works exactly as if the
+translations were the rules of a grammar, with the \[lq]dollar\[rq]
+tokens playing the role of nonterminals.
+Thus, the following happens when a \f[C]CC0\f[] input message is
+received:
+.IP \[bu] 2
+The first rule is applied, constructing the output sequence with the
+\f[C]CC1\f[] message as usual.
+.IP \[bu] 2
+Instead of outputting the resulting \f[C]CC1\f[] message, the program
+now looks for a mod translation of that message which can be applied
+recursively.
+.IP \[bu] 2
+The second rule is applied, yielding the \f[C]C5\f[] message which is
+substituted for the \f[C]$CC1\f[] token in the first rule.
+.PP
+The end result is of course a \f[C]C5\f[] message with the same velocity
+as the value of the \f[C]CC1\f[] message, which in turn comes from the
+original \f[C]CC0\f[] controller value.
+.PP
+Admittedly, this example was a bit silly, because we might just as well
+have written \f[C]CC0=\ C5\f[] and be done with it.
+So let's now consider a more complicated example which really
+\f[I]needs\f[] recursive translations to work.
+Suppose that we'd like to output \f[I]two\f[] messages instead: the note
+message \f[C]C5\f[] as before, followed by a \f[C]CC1\f[] message with
+just the low nibble of the controller value.
+Now each of these translations is easy to define:
+.IP
+.nf
+\f[C]
+CC0=\ C5
+CC0[16][0:1]\ CC1
+\f[]
+.fi
+.PP
+But we can't write them this way, because we're not allowed to bind
+\f[C]CC0\f[] to two different output sequences at once.
+(If you try this, the parser will complain and just ignore the second
+rule.) However, we may write:
+.IP
+.nf
+\f[C]
+CC0=\ C5\ $CC1
+CC1[16][0:1]\ CC1
+\f[]
+.fi
+.PP
+This works and isn't much harder to write than our first attempt.
+In fact, the advantage of this notation is that the order in which the
+final output sequence is constructed is apparent from the first rule.
+In the same vein, we can combine as many different mod translations as
+we like, even if they involve different moduli and offset
+transformations.
+.PP
+C programmers will have realized by now that recursive translations work
+pretty much like macro calls in the C programming language.
+The same caveats apply here, too.
+The configuration language provides no way to break out of a recursion,
+so you do \f[I]not\f[] want to have a mod translation invoke itself
+(either directly or indirectly), because that will always lead to an
+infinite recursion.
+For instance:
+.IP
+.nf
+\f[C]
+CC0[128]\ $CC1
+CC1[128]\ $CC0\ #\ don\[aq]t\ do\ this!
+\f[]
+.fi
+.PP
+midizap \f[I]will\f[] catch infinite recursion after a few iterations,
+so, for educational purposes you can (and should) try the example above
+with midizap and see what happens.
+As you'll notice, the program prints an error message indicating the
+translation and message which caused the problem, so that you can
+correct your mistake.
+.PP
+So recursive mod translations are too limited to make for a
+Turing\-complete programming language, but there's still a lot that can
+be done with them.
+Here's another fun (if somewhat contrived) example which spits out the
+individual bits of a controller value.
+Input comes from \f[C]CC7\f[] in the example, and bit #\f[I]i\f[] of the
+controller value becomes \f[C]CC\f[]\f[I]i\f[] in the output, where
+\f[I]i\f[] runs from 0 to 6.
+.IP
+.nf
+\f[C]
+CC7=\ \ \ \ \ \ \ \ \ $CC6\ CC6[0:64,1]
+CC6[64][0:1]\ $CC5\ CC5[0:32,1]
+CC5[32][0:1]\ $CC4\ CC4[0:16,1]
+CC4[16][0:1]\ $CC3\ CC3[0:8,1]
+CC3[8][0:1]\ \ $CC2\ CC2[0:4,1]
+CC2[4][0:1]\ \ $CC1\ CC1[0:2,1]
+CC1[2][0:1]\ \ \ \ \ \ \ CC0
+\f[]
+.fi
+.PP
+A final word of caution is in order.
+While these facilities may be useful at times, they're rather limited.
+If you need a lot of complicated rules like the ones in the last
+example, then midizap is most likely not the right tool for the job any
+more, and you're better off using more adequate tools offering real
+programming capabilities.
 .SH Bugs
 .PP
 There probably are some.
@@ -1378,6 +1550,15 @@ midizap has only been tested on Linux so far, and its keyboard and mouse
 support is tailored to X11, i.e., it's pretty much tied to Unix/X11
 systems right now.
 .PP
+midizap lacks an option to run with real\-time priorities right now.
+Use chrt(1) instead.
+For instance: \f[C]chrt\ 90\ midizap\ \-o\f[].
+This should only be needed when MIDI output is enabled and you
+experience bad latency or jitter in MIDI output.
+With chrt, midizap should be able to get down to MIDI latencies in the 1
+msec ballpark which should be good enough for most purposes (YMMV,
+though).
+.PP
 midizap tries to keep things simple, which implies that it has its
 limitations.
 In particular, system messages are not supported right now, and midizap
@@ -1389,15 +1570,6 @@ skills.
 midizap often does the job reasonably well for simple mapping tasks, but
 if things start getting fiddly then you should consider using a more
 comprehensive tool like Pd (http://puredata.info/) instead.
-.PP
-midizap lacks an option to run with real\-time priorities right now.
-Use chrt(1) instead.
-For instance: \f[C]chrt\ 90\ midizap\ \-o\f[].
-This should only be needed when MIDI output is enabled and you
-experience bad latency or jitter in MIDI output.
-With chrt, midizap should be able to get down to MIDI latencies in the 1
-msec ballpark which should be good enough for most purposes (YMMV,
-though).
 .SH See Also
 .PP
 midizap is based on a fork (https://github.com/agraef/ShuttlePRO) of
@@ -1417,8 +1589,7 @@ be worth a look if you need a midizap alternative which runs on these
 systems.
 .SH Authors
 .PP
-midizap is free and open source software licensed under the GPLv3,
-please check the accompanying LICENSE file for details.
+midizap is free and open source software licensed under the GPLv3.
 .PP
 Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)
 .PD 0

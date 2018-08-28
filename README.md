@@ -400,7 +400,7 @@ To keep things simple, only one shift status is available in the present impleme
 
 # Advanced Features
 
-This section covers some functionality which is a bit more complicated and used less frequently than the basic features discussed in previous sections, but will come in handy in some situations. Specifically, we'll discuss *MIDI feedback*, which is needed to properly implement bidirectional communication with some controllers, as well as a special kind of data translations which helps implement some types of feedback, and also has its uses in "normal" processing.
+This section covers functionality which is used less often than the basic features discussed in previous sections, but helps solve some of the issues arising in more advanced uses cases. We start out with a brief account on *MIDI feedback*, which is needed to properly implement bidirectional communication with some controllers. This often involves inputs which cannot be handled with the simple kinds of translations we've seen so far, so we introduce a more versatile kind of data translation, called *mod translations*, to deal with these. We also discuss some further uses of mod translations, including a simple macro-like facility which comes in handy if basic programming capabilities are needed.
 
 ## MIDI Feedback
 
@@ -414,7 +414,7 @@ An in-depth discussion of controller feedback is beyond the scope of this manual
 
 Most of the time, MIDI feedback uses just the standard kinds of MIDI messages readily supported by midizap, such as note messages which make buttons light up in different colors, or control change messages which set the positions of motor faders. However, there are some encodings of MIDI messages employed in feedback, such as time and meter displays, which combine different bits of information in a single message, making them difficult or even impossible to translate using the simple kinds of rules we've seen so far.
 
-midizap offers a special variation of data mode to help decoding at least some of these special messages. For reasons which will become obvious in a moment, we also call these *mod data translations*, or just *mod translations* for short. The extended MIDI syntax being used here is described by the following grammar rules (please refer to the beginning of Section *Translation Syntax* for the parts of the syntax not explicitly defined here):
+midizap offers a special variation of data mode to help decoding at least some of these special messages. The basic idea is to work with integer division involving the "div" and "mod" operations, so for want of a better name we also call these bindings *mod translations*. The extended MIDI syntax being used here is described by the following grammar rules (please refer to the beginning of Section *Translation Syntax* for the parts of the syntax not explicitly defined here):
 
 ~~~
 token ::= msg [ steps ] [ "-" number]
@@ -432,9 +432,9 @@ CP[16] C0
 
 In contrast to standard data translations, there's no increment suffix here, so the translation does *not* indicate an incremental value change. Rather, the output messages are constructed directly from the input value by some arithmetic calculations. To these ends, the step size on the left-hand side is actually used as a *modulus* in order to decompose the input value into two separate quantities, *quotient* and *remainder*. Only the latter becomes the value of the output message, while the former is used as an *offset* to modify the output message. (Note that `CP` and `PB` messages don't have a modifiable offset, so if you use these on the output side of a mod translation, the offset part of the input value will be simply ignored. The `PC` message, in contrast, lacks the parameter value, so in this case the remainder value will be disregarded instead.)
 
-In order to describe more precisely how this works, let's assume an input value *v* and a modulus *k*. We divide *v* by *k*, yielding the offset *q* = [*v*/*k*] (i.e., *v*/*k* rounded down to the nearest integer towards zero), and the remainder *r* =  *v* - *kq* of that division. E.g., with *k* = 16 and *v* = 21, we have that 16 + 5 = 21 and thus you'll get *q* = 1 and *r* = 5 (i.e., 21 divided by 16 yields 1 with a remainder of 5). The calculated offset *q* is then applied to the note itself, and the remainder *r* becomes the velocity of that note. So in the example the output would be the note `C#0` (`C0` offset by 1) with a velocity of 5. On the APCmini, this message will light up the second button in the bottom row of the 8x8 grid in yellow.
+In order to describe more precisely how this works, let's assume an input value *v* and a modulus *k*. We divide *v* by *k*, yielding the offset *q* = *v* div *k* and the remainder *r* =  *v* mod *k*. E.g., with *k* = 16 and *v* = 21, you'll get *q* = 1 and *r* = 5 (21 divided by 16 yields 1 with a remainder of 5). The calculated offset *q* is then applied to the note itself, and the remainder *r* becomes the velocity of that note. So in the example the output would be the note `C#0` (`C0` offset by 1) with a velocity of 5. On the APCmini, this message will light up the second button in the bottom row of the 8x8 grid in yellow.
 
-As we mentioned already, there is in fact an important use case for all this, namely decoding meter information in the Mackie protocol. There, each meter value is sent by the host application in the form of a key pressure message whose value consists of a mixer channel index 0..7 in the "high nibble" (bits 4..6) and the corresponding meter value in the "low nibble" (bits 0..3), which is why we used 16 as the modulus in this example.
+This simple kind of transformation is surprisingly versatile. One important use case is the decoding of meter information in the Mackie protocol. There, each meter value is sent by the host application in the form of a key pressure message whose value consists of a mixer channel index 0..7 in the "high nibble" (bits 4..6) and the corresponding meter value in the "low nibble" (bits 0..3), which is why we used 16 as the modulus in this example.
 
 There are some variations of the syntax which make this kind of translation more flexible. In particular, on the right-hand side of the rule you can specify a step size if the remainder *r* needs to be scaled:
 
@@ -478,11 +478,17 @@ CP[16] C0[0,1] G#0[0:5,5] E1[0:8,3]
 
 Note that each of the output notes will be offset by the same amount, so that the green, yellow and red buttons will always be lined up vertically in this example. The APCmini.midizaprc configuration uses a similar, albeit more elaborate translation to handle MCU meter data.
 
+Another example from the Mackie protocol is time feedback. The following rule decodes the lowest digit in the time display (`CC69`) to count off time on the scene launch buttons of the APCmini. Note that the digits are actually encoded in ASCII, hence the copious amount of initial zeros in the value lists below with which we skip over all the non-digit characters at the beginning of the ASCII table.
+
+~~~
+CC69[128] F7[0:49,1,0] E7[0:50,1,0] Eb7[0:51,1,0] D7[0:52,1,0]
+~~~
+
 ## Other Uses of Mod Translations
 
 Mod translations work with all kinds of output, so that you can also output X11 key and mouse events along with the transformed MIDI data if needed, and the input may be any kind of message which has a parameter value. So, while mod translations are most commonly employed for MIDI feedback, they can also be used as a more capable replacement for "ordinary" (incremental) data translations in various contexts. We discuss some of these use cases below and show how they're implemented.
 
-In particular, note you can always choose the modulus large enough (> 8192 for `PB`, > 127 for other messages) so that the offset becomes zero and thus inconsequential. This is useful if you just want to employ the discrete value lists (which are only available in mod translations) for your mappings. These offer a great deal of flexibility, much more than can be achieved with simple step sizes. In fact, they can be used to realize *any* discrete mapping between input and output values. For instance, here's how to map controller values to the first few Fibonacci numbers:
+In particular, note that you can always choose the modulus large enough (> 8192 for `PB`, > 127 for other messages) so that the offset becomes zero and thus inconsequential. This is useful if you just want to employ the discrete value lists (which are only available in mod translations) for your mappings. These offer a great deal of flexibility, much more than can be achieved with simple step sizes. In fact, they can be used to realize *any* discrete mapping between input and output values. For instance, here's how to map controller values to the first few Fibonacci numbers:
 
 ~~~
 CC1[128] CC1[0,1,1,2,3,5,8,13,21,34,55,89]
@@ -508,13 +514,85 @@ CC2[1] C0[127:1]
 
 Now we can turn notes on with `CC2` and turn them off again with `CC1`. Note the little bit of trickery there on the right-hand side. Just `[127]` would be interpreted as a simple step size, which wouldn't do us much good here since the remainder value to be scaled is always zero. Thus we write `[127:1]` instead to make sure that the parser recognizes this as a value list. You could also use, e.g., `[127,0]`. Any list which doesn't look like a simple scale factor and maps the 0 value to 127 will do.
 
-For the sake of a more practical example, let's have another look at MIDI feedback in the Mackie protocol. The following rule decodes the lowest digit in the time display (`CC69`) to count off time on the scene launch buttons of the AKAI APCmini. Note that the digits are actually encoded in ASCII, hence the copious amount of initial zeros in the value lists below with which we skip over all the non-digit characters at the beginning of the ASCII table.
+Another important idiom is the following, which extracts the low nibble from a controller value. To these ends, we just use the right modulus (16) and set the offset value to zero:
 
 ~~~
-CC69[128] F7[0:49,1,0] E7[0:50,1,0] Eb7[0:51,1,0] D7[0:52,1,0]
+CC1[16][0:1] CC1
 ~~~
 
-As you can see, mod data translations in combination with discrete value lists are really very powerful and let you implement pretty much any desired mapping with ease. There *are* some limitations, though. In particular, mappings involving multiple different translations of the same input aren't possible right now, because translations must be unique. Also, there's no way to combine the values of several input messages into a single output message.
+Extracting the *high* nibble is a bit more involved:
+
+~~~
+CC1[128] CC1[0:16,1:16,2:16,3:16,4:16,5:16,6:16,7]
+~~~
+
+We used a value list to perform the required integer division, which is a bit cumbersome but does the job. Using similar rules, you can extract pretty much any part of controller values, velocities etc. that you need.
+
+As you can see, mod translations in combination with discrete value lists are fairly powerful and let you implement pretty much any desired mapping with ease. There *are* some limitations, though. In particular, the reversal of the above "note-encoding" operation, i.e., *extracting* the note number from a note input is rather tedious in the current implementation (it involves writing down rules for each and every single note). Also, there's no direct way to combine different kinds of translations of the same input, because each input can only be bound to a single output sequence (but see below for a way to work around this problem). Moreover, there's no way to combine the values of several input messages into a single output message either, and even the macro-like facility in the following section won't help with this.
+
+## Recursive Mod Translations
+
+There are some situations in which it is hard to construct a translation in a single step, but it may become much easier if you can recursively invoke another translation to construct (some parts of) the final result. midizap allows you to do this by "calling" the mod translation for a MIDI message on the right-hand side of a translation. This is done by prefixing the message with the `$` character:
+
+~~~
+CC0= $CC1
+~~~
+
+Note that you can *only* call mod translations this way, so the message to be expanded (`CC1` in this example) must be bound in a mod translation somewhere. Also, the message shouldn't occur as a "real" input, so that we are free to define it as needed. (There are 128 different controllers on 16 MIDI channels, however, so in most cases it shouldn't be too hard to find a suitable message.) To keep things simple, let's say for now that we just want to output a note message with the same velocity as the value of the input message:
+
+~~~
+CC0= $CC1
+CC1[128] C5
+~~~
+
+On a conceptual level, the expansion process works exactly as if the translations were the rules of a grammar, with the "dollar" tokens playing the role of nonterminals. Thus, the following happens when a `CC0` input message is received:
+
+- The first rule is applied, constructing the output sequence with the `CC1` message as usual.
+
+- Instead of outputting the resulting `CC1` message, the program now looks for a mod translation of that message which can be applied recursively.
+
+- The second rule is applied, yielding the `C5` message which is substituted for the `$CC1` token in the first rule.
+
+The end result is of course a `C5` message with the same velocity as the value of the `CC1` message, which in turn comes from the original `CC0` controller value.
+
+Admittedly, this example was a bit silly, because we might just as well have written `CC0= C5` and be done with it. So let's now consider a more complicated example which really *needs* recursive translations to work. Suppose that we'd like to output *two* messages instead: the note message `C5` as before, followed by a `CC1` message with just the low nibble of the controller value. Now each of these translations is easy to define:
+
+~~~
+CC0= C5
+CC0[16][0:1] CC1
+~~~
+
+But we can't write them this way, because we're not allowed to bind `CC0` to two different output sequences at once. (If you try this, the parser will complain and just ignore the second rule.) However, we may write:
+
+~~~
+CC0= C5 $CC1
+CC1[16][0:1] CC1
+~~~
+
+This works and isn't much harder to write than our first attempt. In fact, the advantage of this notation is that the order in which the final output sequence is constructed is apparent from the first rule. In the same vein, we can combine as many different mod translations as we like, even if they involve different moduli and offset transformations.
+
+C programmers will have realized by now that recursive translations work pretty much like macro calls in the C programming language. The same caveats apply here, too. The configuration language provides no way to break out of a recursion, so you do *not* want to have a mod translation invoke itself (either directly or indirectly), because that will always lead to an infinite recursion. For instance:
+
+~~~
+CC0[128] $CC1
+CC1[128] $CC0 # don't do this!
+~~~
+
+midizap *will* catch infinite recursion after a few iterations, so, for educational purposes you can (and should) try the example above with midizap and see what happens. As you'll notice, the program prints an error message indicating the translation and message which caused the problem, so that you can correct your mistake.
+
+So recursive mod translations are too limited to make for a Turing-complete programming language, but there's still a lot that can be done with them. Here's another fun (if somewhat contrived) example which spits out the individual bits of a controller value. Input comes from `CC7` in the example, and bit #*i* of the controller value becomes `CC`*i* in the output, where *i* runs from 0 to 6.
+
+~~~
+CC7=         $CC6 CC6[0:64,1]
+CC6[64][0:1] $CC5 CC5[0:32,1]
+CC5[32][0:1] $CC4 CC4[0:16,1]
+CC4[16][0:1] $CC3 CC3[0:8,1]
+CC3[8][0:1]  $CC2 CC2[0:4,1]
+CC2[4][0:1]  $CC1 CC1[0:2,1]
+CC1[2][0:1]       CC0
+~~~
+
+A final word of caution is in order. While these facilities may be useful at times, they're rather limited. If you need a lot of complicated rules like the ones in the last example, then midizap is most likely not the right tool for the job any more, and you're better off using more adequate tools offering real programming capabilities.
 
 # Bugs
 
@@ -524,9 +602,9 @@ The names of some of the debugging options are rather peculiar. midizap inherite
 
 There's no Mac or Windows support (yet). midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now.
 
-midizap tries to keep things simple, which implies that it has its limitations. In particular, system messages are not supported right now, and midizap lacks some more interesting ways of mapping, filtering and recombining MIDI data. There are other, more powerful utilities which do these things, but they are also more complicated and usually require at least some programming skills. midizap often does the job reasonably well for simple mapping tasks, but if things start getting fiddly then you should consider using a more comprehensive tool like [Pd][] instead.
-
 midizap lacks an option to run with real-time priorities right now. Use chrt(1) instead. For instance: `chrt 90 midizap -o`. This should only be needed when MIDI output is enabled and you experience bad latency or jitter in MIDI output. With chrt, midizap should be able to get down to MIDI latencies in the 1 msec ballpark which should be good enough for most purposes (YMMV, though).
+
+midizap tries to keep things simple, which implies that it has its limitations. In particular, system messages are not supported right now, and midizap lacks some more interesting ways of mapping, filtering and recombining MIDI data. There are other, more powerful utilities which do these things, but they are also more complicated and usually require at least some programming skills. midizap often does the job reasonably well for simple mapping tasks, but if things start getting fiddly then you should consider using a more comprehensive tool like [Pd][] instead.
 
 # See Also
 
@@ -538,7 +616,7 @@ The [Bome MIDI Translator][] seems to be a popular MIDI and keystroke mapping to
 
 # Authors
 
-midizap is free and open source software licensed under the GPLv3, please check the accompanying LICENSE file for details.
+midizap is free and open source software licensed under the GPLv3.
 
 Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)  
 Copyright 2018 Albert Graef (<aggraef@gmail.com>)
