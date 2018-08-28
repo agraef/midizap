@@ -245,6 +245,11 @@ send_midi(uint8_t portno, int status, int data,
     break;
   }
   case 0xc0:
+    if (mod) {
+      int d = msg[1] + datavals(val/mod, mod_step, mod_steps, mod_n_steps);
+      if (d > 127 || d < 0) return;
+      msg[1] = d;
+    }
     // just send the message
     break;
   default:
