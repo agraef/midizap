@@ -1105,15 +1105,15 @@ far.
 midizap offers a special variation of data mode to help decoding at
 least some of these special messages.
 The basic idea is to work with integer division involving the
-\[lq]div\[rq] and \[lq]mod\[rq] operations, so for want of a better name
-we also call these bindings \f[I]mod translations\f[].
+\[lq]mod\[rq] operation, so for want of a better name we also call these
+bindings \f[I]mod translations\f[].
 The extended MIDI syntax being used here is described by the following
 grammar rules (please refer to the beginning of Section \f[I]Translation
 Syntax\f[] for the parts of the syntax not explicitly defined here):
 .IP
 .nf
 \f[C]
-token\ ::=\ msg\ [\ steps\ ]\ [\ "\-"\ number]
+token\ ::=\ msg\ [\ steps\ ]\ [\ "\-"\ number]\ [\ "\[aq]"\ ]
 steps\ ::=\ "["\ list\ "]"\ |\ "["\ number\ "]"\ "["\ list\ "]"
 list\ \ ::=\ number\ {\ ","\ number\ |\ ":"\ number\ }
 \f[]
@@ -1178,8 +1178,26 @@ as the modulus in this example.
 .PP
 There are some variations of the syntax which make this kind of
 translation more flexible.
-In particular, on the right\-hand side of the rule you can specify a
-step size if the remainder \f[I]r\f[] needs to be scaled:
+It's sometimes useful to swap the roles of \f[I]q\f[] and \f[I]r\f[], so
+that the remainder becomes the offset and the quotient the value of the
+output message.
+We also refer to this operation as \f[I]transposition\f[], and denote it
+by putting an apostrophe \f[C]\[aq]\f[] at the end of the output
+message:
+.IP
+.nf
+\f[C]
+CP[16]\ C0\[aq]
+\f[]
+.fi
+.PP
+Now, with the same input value of 21 you'd get the note \f[C]F0\f[]
+(\f[C]C0\f[] offset by 5) with a velocity of 1 instead.
+We won't use this here, but you'll find a more useful example in the
+following section.
+.PP
+On the right\-hand side of the rule you can also specify a step size if
+the remainder \f[I]r\f[] needs to be scaled:
 .IP
 .nf
 \f[C]
@@ -1365,16 +1383,15 @@ CC1[16][0:1]\ CC1
 \f[]
 .fi
 .PP
-Extracting the \f[I]high\f[] nibble is a bit more involved:
+Extracting the \f[I]high\f[] nibble is just as easy (this is one use
+case where the transposition suffix \f[C]\[aq]\f[] comes in handy):
 .IP
 .nf
 \f[C]
-CC1[128]\ CC1[0:16,1:16,2:16,3:16,4:16,5:16,6:16,7]
+CC1[16][0:1]\ CC1\[aq]
 \f[]
 .fi
 .PP
-We used a value list to perform the required integer division, which is
-a bit cumbersome but does the job.
 Using similar rules, you can extract pretty much any part of controller
 values, velocities etc.
 that you need.
@@ -1540,10 +1557,10 @@ Contributions are also welcome.
 In particular, we're looking for interesting configurations to be
 included in the distribution.
 .PP
-The names of some of the debugging options are rather peculiar.
+The monikers of some of the debugging options are rather peculiar.
 midizap inherited them from Eric Messick's ShuttlePRO program on which
 midizap is based, so they'll probably last until someone comes up with
-something better.
+some better names.
 .PP
 There's no Mac or Windows support (yet).
 midizap has only been tested on Linux so far, and its keyboard and mouse

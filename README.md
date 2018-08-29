@@ -414,10 +414,10 @@ An in-depth discussion of controller feedback is beyond the scope of this manual
 
 Most of the time, MIDI feedback uses just the standard kinds of MIDI messages readily supported by midizap, such as note messages which make buttons light up in different colors, or control change messages which set the positions of motor faders. However, there are some encodings of MIDI messages employed in feedback, such as time and meter displays, which combine different bits of information in a single message, making them difficult or even impossible to translate using the simple kinds of rules we've seen so far.
 
-midizap offers a special variation of data mode to help decoding at least some of these special messages. The basic idea is to work with integer division involving the "div" and "mod" operations, so for want of a better name we also call these bindings *mod translations*. The extended MIDI syntax being used here is described by the following grammar rules (please refer to the beginning of Section *Translation Syntax* for the parts of the syntax not explicitly defined here):
+midizap offers a special variation of data mode to help decoding at least some of these special messages. The basic idea is to work with integer division involving the "mod" operation, so for want of a better name we also call these bindings *mod translations*. The extended MIDI syntax being used here is described by the following grammar rules (please refer to the beginning of Section *Translation Syntax* for the parts of the syntax not explicitly defined here):
 
 ~~~
-token ::= msg [ steps ] [ "-" number]
+token ::= msg [ steps ] [ "-" number] [ "'" ]
 steps ::= "[" list "]" | "[" number "]" "[" list "]"
 list  ::= number { "," number | ":" number }
 ~~~
@@ -436,7 +436,15 @@ In order to describe more precisely how this works, let's assume an input value 
 
 This simple kind of transformation is surprisingly versatile. One important use case is the decoding of meter information in the Mackie protocol. There, each meter value is sent by the host application in the form of a key pressure message whose value consists of a mixer channel index 0..7 in the "high nibble" (bits 4..6) and the corresponding meter value in the "low nibble" (bits 0..3), which is why we used 16 as the modulus in this example.
 
-There are some variations of the syntax which make this kind of translation more flexible. In particular, on the right-hand side of the rule you can specify a step size if the remainder *r* needs to be scaled:
+There are some variations of the syntax which make this kind of translation more flexible. It's sometimes useful to swap the roles of *q* and *r*, so that the remainder becomes the offset and the quotient the value of the output message. We also refer to this operation as *transposition*, and denote it by putting an apostrophe `'` at the end of the output message:
+
+~~~
+CP[16] C0'
+~~~
+
+Now, with the same input value of 21 you'd get the note `F0` (`C0` offset by 5) with a velocity of 1 instead. We won't use this here, but you'll find a more useful example in the following section.
+
+On the right-hand side of the rule you can also specify a step size if the remainder *r* needs to be scaled:
 
 ~~~
 CP[16] C0[2]
@@ -520,13 +528,13 @@ Another important idiom is the following, which extracts the low nibble from a c
 CC1[16][0:1] CC1
 ~~~
 
-Extracting the *high* nibble is a bit more involved:
+Extracting the *high* nibble is just as easy (this is one use case where the transposition suffix `'` comes in handy):
 
 ~~~
-CC1[128] CC1[0:16,1:16,2:16,3:16,4:16,5:16,6:16,7]
+CC1[16][0:1] CC1'
 ~~~
 
-We used a value list to perform the required integer division, which is a bit cumbersome but does the job. Using similar rules, you can extract pretty much any part of controller values, velocities etc. that you need.
+Using similar rules, you can extract pretty much any part of controller values, velocities etc. that you need.
 
 As you can see, mod translations in combination with discrete value lists are fairly powerful and let you implement pretty much any desired mapping with ease. There *are* some limitations, though. In particular, the reversal of the above "note-encoding" operation, i.e., *extracting* the note number from a note input is rather tedious in the current implementation (it involves writing down rules for each and every single note). Also, there's no direct way to combine different kinds of translations of the same input, because each input can only be bound to a single output sequence (but see below for a way to work around this problem). Moreover, there's no way to combine the values of several input messages into a single output message either, and even the macro-like facility in the following section won't help with this.
 
@@ -598,7 +606,7 @@ A final word of caution is in order. While these facilities may be useful at tim
 
 There probably are some. Please submit bug reports and pull requests at the midizap [git repository][agraef/midizap]. Contributions are also welcome. In particular, we're looking for interesting configurations to be included in the distribution.
 
-The names of some of the debugging options are rather peculiar. midizap inherited them from Eric Messick's ShuttlePRO program on which midizap is based, so they'll probably last until someone comes up with something better.
+The monikers of some of the debugging options are rather peculiar. midizap inherited them from Eric Messick's ShuttlePRO program on which midizap is based, so they'll probably last until someone comes up with some better names.
 
 There's no Mac or Windows support (yet). midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now.
 
