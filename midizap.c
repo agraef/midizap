@@ -99,7 +99,8 @@ void
 send_midi(uint8_t portno, int status, int data,
 	  int step, int n_steps, int *steps,
 	  int incr, int index, int dir,
-	  int mod, int mod_step, int mod_n_steps, int *mod_steps, int val,
+	  int mod, int mod_step, int mod_n_steps, int *mod_steps,
+	  int val, int swap,
 	  int recursive, int depth)
 {
   if (!jack_num_outputs) return; // MIDI output not enabled
@@ -125,8 +126,9 @@ send_midi(uint8_t portno, int status, int data,
       }
       msg[2] = notevalue[chan][data];
     } else if (mod) {
-      int d = msg[1] + datavals(val/mod, mod_step, mod_steps, mod_n_steps);
-      int v = datavals(val%mod, step, steps, n_steps);
+      int q = swap?val%mod:val/mod, r = swap?val/mod:val%mod;
+      int d = msg[1] + datavals(q, mod_step, mod_steps, mod_n_steps);
+      int v = datavals(r, step, steps, n_steps);
       if (d > 127 || d < 0) return;
       if (v > 127 || v < 0) return;
       msg[1] = d;
@@ -163,8 +165,9 @@ send_midi(uint8_t portno, int status, int data,
 	msg[2] = ccvalue[chan][data];
       }
     } else if (mod) {
-      int d = msg[1] + datavals(val/mod, mod_step, mod_steps, mod_n_steps);
-      int v = datavals(val%mod, step, steps, n_steps);
+      int q = swap?val%mod:val/mod, r = swap?val/mod:val%mod;
+      int d = msg[1] + datavals(q, mod_step, mod_steps, mod_n_steps);
+      int v = datavals(r, step, steps, n_steps);
       if (d > 127 || d < 0) return;
       if (v > 127 || v < 0) return;
       msg[1] = d;
@@ -192,8 +195,9 @@ send_midi(uint8_t portno, int status, int data,
       }
       msg[2] = kpvalue[chan][data];
     } else if (mod) {
-      int d = msg[1] + datavals(val/mod, mod_step, mod_steps, mod_n_steps);
-      int v = datavals(val%mod, step, steps, n_steps);
+      int q = swap?val%mod:val/mod, r = swap?val/mod:val%mod;
+      int d = msg[1] + datavals(q, mod_step, mod_steps, mod_n_steps);
+      int v = datavals(r, step, steps, n_steps);
       if (d > 127 || d < 0) return;
       if (v > 127 || v < 0) return;
       msg[1] = d;
@@ -221,7 +225,7 @@ send_midi(uint8_t portno, int status, int data,
       }
       msg[1] = cpvalue[chan];
     } else if (mod) {
-      int v = datavals(val%mod, step, steps, n_steps);
+      int v = datavals(swap?val%mod:val/mod, step, steps, n_steps);
       if (v > 127 || v < 0) return;
       msg[1] = v;
     } else if (!index) {
@@ -248,7 +252,7 @@ send_midi(uint8_t portno, int status, int data,
       }
       pbval = pbvalue[chan];
     } else if (mod) {
-      int v = datavals(val%mod, step, steps, n_steps);
+      int v = datavals(swap?val%mod:val/mod, step, steps, n_steps);
       if (v > 8191 || v < -8192) return;
       pbval = 8192+v;
     } else if (!index) {
@@ -266,7 +270,7 @@ send_midi(uint8_t portno, int status, int data,
   }
   case 0xc0:
     if (mod) {
-      int d = msg[1] + datavals(val/mod, mod_step, mod_steps, mod_n_steps);
+      int d = msg[1] + datavals(swap?val/mod:val%mod, mod_step, mod_steps, mod_n_steps);
       if (d > 127 || d < 0) return;
       msg[1] = d;
     }
@@ -344,7 +348,8 @@ static stroke *find_note(translation *tr, int shift,
 static stroke *find_notes(translation *tr, int shift,
 			int chan, int data, int index, int *step)
 {
-  return find_stroke_data(tr->notes[shift], chan, data, index, step, 0, 0, 0, 0,
+  return find_stroke_data(tr->notes[shift], chan, data, index, step,
+			  0, 0, 0, 0,
 			  tr->n_notes[shift]);
 }
 
@@ -384,7 +389,8 @@ static stroke *find_kp(translation *tr, int shift,
 static stroke *find_kps(translation *tr, int shift,
 			int chan, int data, int index, int *step)
 {
-  return find_stroke_data(tr->kps[shift], chan, data, index, step, 0, 0, 0, 0,
+  return find_stroke_data(tr->kps[shift], chan, data, index, step,
+			  0, 0, 0, 0,
 			  tr->n_kps[shift]);
 }
 
@@ -400,7 +406,8 @@ static stroke *find_cp(translation *tr, int shift,
 static stroke *find_cps(translation *tr, int shift,
 			int chan, int index, int *step)
 {
-  return find_stroke_data(tr->cps[shift], chan, 0, index, step, 0, 0, 0, 0,
+  return find_stroke_data(tr->cps[shift], chan, 0, index, step,
+			  0, 0, 0, 0,
 			  tr->n_cps[shift]);
 }
 
@@ -524,27 +531,27 @@ static char *debug_key(translation *tr, char *name,
       } else
 	(void)find_note(tr, shift, chan, data, 0, &mod, &step, &n_steps, &steps);
     }
-    if (!dir)
-      suffix = "";
-    else
+    if (dir)
       suffix = (dir<0)?"-":"+";
+    else
+      suffix = "";
     if (dir && step != 1)
       sprintf(name, "%s%s%d[%d]-%d%s", prefix, note_name(data),
 	      note_octave(data), step, chan+1, suffix);
     else if (!dir && mod)
       if (step != 1)
-	sprintf(name, "%s%s%d[%d][%d]-%d", prefix, note_name(data),
-		note_octave(data), mod, step, chan+1);
+	sprintf(name, "%s%s%d[%d][%d]-%d%s", prefix, note_name(data),
+		note_octave(data), mod, step, chan+1, suffix);
       else if (n_steps) {
 	sprintf(name, "%s%s%d[%d][", prefix, note_name(data),
 	        note_octave(data), mod);
 	int l = strlen(name);
 	for (int i = 0; i < n_steps; i++, (l = strlen(name)))
 	  sprintf(name+l, "%s%d", i?",":"", steps[i]);
-	sprintf(name+l, "]-%d", chan);
+	sprintf(name+l, "]-%d%s", chan+1, suffix);
       } else
-	sprintf(name, "%s%s%d[%d]-%d", prefix, note_name(data),
-		note_octave(data), mod, chan+1);
+	sprintf(name, "%s%s%d[%d]-%d%s", prefix, note_name(data),
+		note_octave(data), mod, chan+1, suffix);
     else
       sprintf(name, "%s%s%d-%d%s", prefix, note_name(data),
 	      note_octave(data), chan+1, suffix);
@@ -559,27 +566,27 @@ static char *debug_key(translation *tr, char *name,
       } else
 	(void)find_kp(tr, shift, chan, data, 0, &mod, &step, &n_steps, &steps);
     }
-    if (!dir)
-      suffix = "";
-    else
+    if (dir)
       suffix = (dir<0)?"-":"+";
+    else
+      suffix = "";
     if (dir && step != 1)
       sprintf(name, "%sKP:%s%d[%d]-%d%s", prefix, note_name(data),
 	      note_octave(data), step, chan+1, suffix);
     else if (!dir && mod)
       if (step != 1)
-	sprintf(name, "%sKP:%s%d[%d][%d]-%d", prefix, note_name(data),
-		note_octave(data), mod, step, chan+1);
+	sprintf(name, "%sKP:%s%d[%d][%d]-%d%s", prefix, note_name(data),
+		note_octave(data), mod, step, chan+1, suffix);
       else if (n_steps) {
 	sprintf(name, "%sKP:%s%d[%d][", prefix, note_name(data),
 	        note_octave(data), mod);
 	int l = strlen(name);
 	for (int i = 0; i < n_steps; i++, (l = strlen(name)))
 	  sprintf(name+l, "%s%d", i?",":"", steps[i]);
-	sprintf(name+l, "]-%d", chan);
+	sprintf(name+l, "]-%d%s", chan+1, suffix);
       } else
-	sprintf(name, "%sKP:%s%d[%d]-%d", prefix, note_name(data),
-		note_octave(data), mod, chan+1);
+	sprintf(name, "%sKP:%s%d[%d]-%d%s", prefix, note_name(data),
+		note_octave(data), mod, chan+1, suffix);
     else
       sprintf(name, "%sKP:%s%d-%d%s", prefix, note_name(data),
 	      note_octave(data), chan+1, suffix);
@@ -594,25 +601,25 @@ static char *debug_key(translation *tr, char *name,
       } else
 	(void)find_cc(tr, shift, chan, data, 0, &mod, &step, &n_steps, &steps);
     }
-    if (!dir)
-      suffix = "";
-    else if (is_incr)
+    if (is_incr)
       suffix = (dir<0)?"<":">";
-    else
+    else if (dir)
       suffix = (dir<0)?"-":"+";
+    else
+      suffix = "";
     if (dir && step != 1)
       sprintf(name, "%sCC%d[%d]-%d%s", prefix, data, step, chan+1, suffix);
     else if (!dir && mod)
       if (step != 1)
-	sprintf(name, "%sCC%d[%d][%d]-%d", prefix, data, mod, step, chan+1);
+	sprintf(name, "%sCC%d[%d][%d]-%d%s", prefix, data, mod, step, chan+1, suffix);
       else if (n_steps) {
 	sprintf(name, "%sCC%d[%d][", prefix, data, mod);
 	int l = strlen(name);
 	for (int i = 0; i < n_steps; i++, (l = strlen(name)))
 	  sprintf(name+l, "%s%d", i?",":"", steps[i]);
-	sprintf(name+l, "]-%d", chan);
+	sprintf(name+l, "]-%d%s", chan+1, suffix);
       } else
-	sprintf(name, "%sCC%d[%d]-%d", prefix, data, mod, chan+1);
+	sprintf(name, "%sCC%d[%d]-%d%s", prefix, data, mod, chan+1, suffix);
     else
       sprintf(name, "%sCC%d-%d%s", prefix, data, chan+1, suffix);
     break;
@@ -787,10 +794,11 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan,
 	else
 	  fprintf(stderr, "Error: $%s: recursion too deep\n",
 		  debug_key(tr, name, status, chan, data, dir));
-      } else
+      } else {
 	send_midi(portno, s->status, s->data, s->step, s->n_steps, s->steps,
-		  s->incr, index, dir,
-		  mod, step, n_steps, steps, data2, s->recursive, depth);
+		  s->incr, index, dir, mod,
+		  step, n_steps, steps, data2, s->swap, s->recursive, depth);
+      }
     }
     s = s->next;
   }

@@ -629,91 +629,99 @@ print_stroke(stroke *s, int mod, int step, int n_steps, int *steps, int val)
     } else {
       int status = s->status & 0xf0;
       int channel = (s->status & 0x0f) + 1;
+      char *suffix = s->swap?"'":s->incr?"~":"";
       if (s->recursive) printf("$");
       switch (status) {
       case 0x90:
 	if (mod) {
-	  int d = s->data + datavals(val/mod, step, steps, n_steps);
-	  int v = datavals(val%mod, s->step, s->steps, s->n_steps);
-	  printf("%s%d[%d]-%d ", note_name(d),
-		 note_octave(d), v, channel);
+	  int q = s->swap?val%mod:val/mod, r = s->swap?val/mod:val%mod;
+	  int d = s->data + datavals(q, step, steps, n_steps);
+	  int v = datavals(r, s->step, s->steps, s->n_steps);
+	  printf("%s%d[%d]-%d%s ", note_name(d),
+		 note_octave(d), v, channel, suffix);
 	} else if (s->steps) {
 	  printf("%s%d[", note_name(s->data),
 		 note_octave(s->data));
 	  for (int i = 0; i < s->n_steps; i++)
 	    printf("%s%d", i?",":"", s->steps[i]);
-	  printf("]-%d ", channel);
+	  printf("]-%d%s ", channel, suffix);
 	} else if (s->step)
-	  printf("%s%d[%d]-%d ", note_name(s->data),
-		 note_octave(s->data), s->step, channel);
+	  printf("%s%d[%d]-%d%s ", note_name(s->data),
+		 note_octave(s->data), s->step, channel, suffix);
 	else
-	  printf("%s%d-%d ", note_name(s->data),
-		 note_octave(s->data), channel);
+	  printf("%s%d-%d%s ", note_name(s->data),
+		 note_octave(s->data), channel, suffix);
 	break;
       case 0xa0:
 	if (mod) {
-	  int d = s->data + datavals(val/mod, step, steps, n_steps);
-	  int v = datavals(val%mod, s->step, s->steps, s->n_steps);
-	  printf("KP:%s%d[%d]-%d ", note_name(d),
-		 note_octave(d), v, channel);
+	  int q = s->swap?val%mod:val/mod, r = s->swap?val/mod:val%mod;
+	  int d = s->data + datavals(q, step, steps, n_steps);
+	  int v = datavals(r, s->step, s->steps, s->n_steps);
+	  printf("KP:%s%d[%d]-%d%s ", note_name(d),
+		 note_octave(d), v, channel, suffix);
 	} else if (s->steps) {
 	  printf("KP:%s%d[", note_name(s->data),
 		 note_octave(s->data));
 	  for (int i = 0; i < s->n_steps; i++)
 	    printf("%s%d", i?",":"", s->steps[i]);
-	  printf("]-%d ", channel);
+	  printf("]-%d%s ", channel, suffix);
 	} else if (s->step)
-	  printf("KP:%s%d[%d]-%d ", note_name(s->data),
-		 note_octave(s->data), s->step, channel);
+	  printf("KP:%s%d[%d]-%d%s ", note_name(s->data),
+		 note_octave(s->data), s->step, channel, suffix);
 	else
-	  printf("KP:%s%d-%d ", note_name(s->data),
-		 note_octave(s->data), channel);
+	  printf("KP:%s%d-%d%s ", note_name(s->data),
+		 note_octave(s->data), channel, suffix);
 	break;
       case 0xb0:
 	if (mod) {
-	  int d = s->data + datavals(val/mod, step, steps, n_steps);
-	  int v = datavals(val%mod, s->step, s->steps, s->n_steps);
-	  printf("CC%d[%d]-%d ", d, v, channel);
+	  int q = s->swap?val%mod:val/mod, r = s->swap?val/mod:val%mod;
+	  int d = s->data + datavals(q, step, steps, n_steps);
+	  int v = datavals(r, s->step, s->steps, s->n_steps);
+	  printf("CC%d[%d]-%d%s ", d, v, channel, suffix);
 	} else if (s->steps) {
 	  printf("CC%d[", s->data);
 	  for (int i = 0; i < s->n_steps; i++)
 	    printf("%s%d", i?",":"", s->steps[i]);
-	  printf("]-%d ", channel);
+	  printf("]-%d%s ", channel, suffix);
 	} else if (s->step)
-	  printf("CC%d[%d]-%d%s ", s->data, s->step, channel, s->incr?"~":"");
+	  printf("CC%d[%d]-%d%s ", s->data, s->step, channel, suffix);
 	else
-	  printf("CC%d-%d%s ", s->data, channel, s->incr?"~":"");
+	  printf("CC%d-%d%s ", s->data, channel, suffix);
 	break;
       case 0xc0:
-	printf("PC%d-%d ", s->data, channel);
+	if (mod) {
+	  int v = datavals(s->swap?val%mod:val/mod, s->step, s->steps, s->n_steps);
+	  printf("PC%d-%d%s ", v, channel, suffix);
+	} else
+	  printf("PC%d-%d%s ", s->data, channel, suffix);
 	break;
       case 0xd0:
 	if (mod) {
-	  int v = datavals(val%mod, s->step, s->steps, s->n_steps);
-	  printf("CP[%d]-%d ", v, channel);
+	  int v = datavals(s->swap?val/mod:val%mod, s->step, s->steps, s->n_steps);
+	  printf("CP[%d]-%d%s ", v, channel, suffix);
 	} else if (s->steps) {
 	  printf("CP[");
 	  for (int i = 0; i < s->n_steps; i++)
 	    printf("%s%d", i?",":"", s->steps[i]);
-	  printf("]-%d ", channel);
+	  printf("]-%d%s ", channel, suffix);
 	} else if (s->step)
-	  printf("CP[%d]-%d ", s->step, channel);
+	  printf("CP[%d]-%d%s ", s->step, channel, suffix);
 	else
-	  printf("CP-%d ", channel);
+	  printf("CP-%d%s ", channel, suffix);
 	break;
       case 0xe0:
 	if (mod) {
-	  int v = datavals(val%mod, s->step, s->steps, s->n_steps);
-	  printf("PB[%d]-%d ", v, channel);
+	  int v = datavals(s->swap?val/mod:val%mod, s->step, s->steps, s->n_steps);
+	  printf("PB[%d]-%d%s ", v, channel, suffix);
 	} else if (s->steps) {
 	  printf("PB[");
 	  for (int i = 0; i < s->n_steps; i++)
 	    printf("%s%d", i?",":"", s->steps[i]);
-	  printf("]-%d ", channel);
+	  printf("]-%d%s ", channel, suffix);
 	} else if (s->step)
-	  printf("PB[%d]-%d ", s->step, channel);
+	  printf("PB[%d]-%d%s ", s->step, channel, suffix);
 	else
-	  printf("PB-%d ", channel);
+	  printf("PB-%d%s ", channel, suffix);
 	break;
       default: // this can't happen
 	break;
@@ -724,7 +732,8 @@ print_stroke(stroke *s, int mod, int step, int n_steps, int *steps, int val)
 
 void
 print_stroke_sequence(char *name, char *up_or_down, stroke *s,
-		      int mod, int step, int n_steps, int *steps, int val)
+		      int mod, int step, int n_steps, int *steps,
+		      int val)
 {
   if (up_or_down && *up_or_down)
     printf("%s[%s]: ", name, up_or_down);
@@ -761,11 +770,9 @@ append_stroke(KeySym sym, int press)
 {
   stroke *s = (stroke *)allocate(sizeof(stroke));
 
-  s->next = NULL;
+  memset(s, 0, sizeof(stroke));
   s->keysym = sym;
   s->press = press;
-  s->shift = 0;
-  s->status = s->data = s->step = s->incr = s->dirty = 0;
   if (*first_stroke) {
     last_stroke->next = s;
   } else {
@@ -779,11 +786,8 @@ append_shift(void)
 {
   stroke *s = (stroke *)allocate(sizeof(stroke));
 
-  s->next = NULL;
+  memset(s, 0, sizeof(stroke));
   s->shift = 1;
-  s->keysym = 0;
-  s->press = 0;
-  s->status = s->data = s->step = s->incr = s->dirty = 0;
   if (*first_stroke) {
     last_stroke->next = s;
   } else {
@@ -793,17 +797,15 @@ append_shift(void)
 }
 
 void
-append_midi(int status, int data, int step, int n_steps, int *steps, int incr,
-	    int recursive)
+append_midi(int status, int data, int step, int n_steps, int *steps,
+	    int swap, int incr, int recursive)
 {
   stroke *s = (stroke *)allocate(sizeof(stroke));
 
-  s->next = NULL;
-  s->keysym = 0;
-  s->press = 0;
-  s->shift = 0;
+  memset(s, 0, sizeof(stroke));
   s->status = status;
   s->data = data;
+  s->swap = swap;
   s->step = step;
   s->n_steps = n_steps;
   s->steps = stepsdup(n_steps, steps);
@@ -1003,12 +1005,12 @@ static char *parse_steps(char *tok, char *p,
 int
 parse_midi(char *tok, char *s, int lhs, int mode,
 	   int *status, int *data, int *step, int *n_steps, int **steps,
-	   int *incr, int *dir, int *mod)
+	   int *incr, int *dir, int *mod, int *swap)
 {
   char *p = tok, *t;
   int n, m = -1, k = midi_channel;
   s[0] = 0;
-  while (*p && !isdigit(*p) && !strchr("+-=<>~[:", *p)) p++;
+  while (*p && !isdigit(*p) && !strchr("+-=<>~'[:", *p)) p++;
   if (p == tok || p-tok > 10) return 0; // no valid token
   // the token by itself
   strncpy(s, tok, p-tok); s[p-tok] = 0;
@@ -1092,8 +1094,14 @@ parse_midi(char *tok, char *s, int lhs, int mode,
       return 0;
     }
   }
-  // incremental flag (messages with data only, not "ch" or "pc")
-  if (*p && strchr("+-=<>~", *p)) {
+  *incr = *dir = *swap = 0;
+  if (*p == '\'') {
+    // swap flag (only on rhs in mod translations)
+    if (lhs || mode < 2) return 0;
+    *swap = 1;
+    p++;
+  } else if (*p && strchr("+-=<>~", *p)) {
+    // incremental flag (messages with data only, not "ch" or "pc")
     if (strcmp(s, "ch") == 0) return 0;
     if (strcmp(s, "pc") == 0) return 0;
     // these are only permitted with "cc"
@@ -1111,12 +1119,11 @@ parse_midi(char *tok, char *s, int lhs, int mode,
       if (*p != '~')
 	return 0;
       else if (mode)
-	fprintf(stderr, "warning: incremental flag ignored in key mode: %s\n", tok);
-      *incr = 2; *dir = 0;
+	fprintf(stderr, "warning: incremental flag ignored: %s\n", tok);
+      else
+	*incr = 2;
     }
     p++;
-  } else {
-    *incr = *dir = 0;
   }
   // check for trailing garbage
   if (*p) return 0;
@@ -1125,7 +1132,7 @@ parse_midi(char *tok, char *s, int lhs, int mode,
     if (lhs) return 0; // not permitted on lhs
     if (*step) return 0; // step size not permitted
     if (*n_steps) return 0; // steps not permitted
-    if (steps2 || n_steps2) return 0; // not permitted
+    if (*swap || steps2 || n_steps2) return 0; // not permitted
     // we return a bogus status of 0 here, along with the MIDI channel
     // in the data byte; also check that the MIDI channel is in the
     // proper range
@@ -1202,7 +1209,7 @@ parse_midi(char *tok, char *s, int lhs, int mode,
 int
 start_translation(translation *tr, char *which_key)
 {
-  int k, status, data, step, n_steps, *steps, incr, dir, mod;
+  int k, status, data, step, n_steps, *steps, incr, dir, mod, swap;
   char buf[100];
 
   //printf("start_translation(%s)\n", which_key);
@@ -1219,7 +1226,7 @@ start_translation(translation *tr, char *which_key)
   modifier_count = 0;
   midi_channel = 0;
   k = *which_key == '^' || (is_anyshift = *which_key == '?');
-  if (parse_midi(which_key+k, buf, 1, 0, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod)) {
+  if (parse_midi(which_key+k, buf, 1, 0, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod, &swap)) {
     int chan = status & 0x0f;
     mode = incr?0:mod?2:1;
     switch (status & 0xf0) {
@@ -1497,7 +1504,9 @@ add_release(int all_keys)
       stroke *s = *press_first_stroke;
       while (s) {
 	if (!s->keysym && !s->shift && s->dirty) {
-	  append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr, s->recursive);
+	  append_midi(s->status, s->data,
+		      s->step, s->n_steps, s->steps,
+		      s->swap, s->incr, s->recursive);
 	  s->dirty = 0;
 	}
 	s = s->next;
@@ -1519,7 +1528,9 @@ add_release(int all_keys)
       } else if (s->shift) {
 	append_shift();
       } else {
-	append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr, s->recursive);
+	append_midi(s->status, s->data,
+		    s->step, s->n_steps, s->steps,
+		    s->swap, s->incr, s->recursive);
       }
       s = s->next;
     }
@@ -1534,7 +1545,9 @@ add_release(int all_keys)
       } else if (s->shift) {
 	append_shift();
       } else {
-	append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr, s->recursive);
+	append_midi(s->status, s->data,
+		    s->step, s->n_steps, s->steps,
+		    s->swap, s->incr, s->recursive);
       }
       s = s->next;
     }
@@ -1547,7 +1560,9 @@ add_release(int all_keys)
 	} else if (s->shift) {
 	  append_shift();
 	} else {
-	  append_midi(s->status, s->data, s->step, s->n_steps, s->steps, s->incr, s->recursive);
+	  append_midi(s->status, s->data,
+		      s->step, s->n_steps, s->steps,
+		      s->swap, s->incr, s->recursive);
 	}
 	s = s->next;
       }
@@ -1586,10 +1601,10 @@ add_string(char *str)
 void
 add_midi(char *tok)
 {
-  int status, data, step, n_steps, *steps, incr, dir = 0, mod = 0;
+  int status, data, step, n_steps, *steps, incr, dir = 0, mod = 0, swap = 0;
   int recursive = *tok == '$';
   char buf[100];
-  if (parse_midi(tok+recursive, buf, 0, mode, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod)) {
+  if (parse_midi(tok+recursive, buf, 0, mode, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod, &swap)) {
     if (status == 0) {
       // 'ch' token; this doesn't actually generate any output, it just sets
       // the default MIDI channel
@@ -1598,7 +1613,8 @@ add_midi(char *tok)
 	fprintf(stderr, "recursion not permitted: %s\n", tok);
     } else {
       if ((status & 0xf0) != 0xe0 || step != 0)
-	append_midi(status, data, step, n_steps, steps, incr!=0, recursive);
+	append_midi(status, data, step, n_steps, steps,
+		    swap, incr!=0, recursive);
       else
 	fprintf(stderr, "zero step size not permitted: %s\n", tok);
     }
