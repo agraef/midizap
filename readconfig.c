@@ -901,7 +901,7 @@ re_press_temp_modifiers(void)
    note  ::= ( "a" | ... | "g" ) [ "#" | "b" ]
    other ::= "ch" | "pb" | "pc" | "cc" | "cp" | "kp:" note
    steps ::= "[" number "]" | "{" list "}" | "[" number "]" "{" list "}"
-   list  ::= number { "," number | ":" number }
+   list  ::= number { "," number | ":" number | "-" number }
    flag  ::= "-" | "+" | "=" | "<" | ">" | "~" | "'"
 
    Case is insignificant. Numbers are always in decimal. The meaning of
@@ -969,7 +969,7 @@ static char *parse_steps(char *tok, char *p,
       int n_st = 1;
       static int st[MAXSTEPS];
       st[0] = l;
-      while (*p == ',' || *p == ':') {
+      while (*p == ',' || *p == ':' || *p == '-') {
 	char c = *p++;
 	if (sscanf(p, "%d%n", &l, &n) == 1) {
 	  p += n;
@@ -990,6 +990,28 @@ static char *parse_steps(char *tok, char *p,
 	      }
 	    }
 	  }
+	} else if (c == '-') {
+	  // '-l' denotes an enumeration starting at the last value
+	  if (n_st <= 0) return 0;
+	  int last = st[n_st-1];
+	  if (l >= last) {
+	    for (int i = last+1; i <= l; i++) {
+	      st[n_st++] = i;
+	      if (n_st == MAXSTEPS) {
+		fprintf(stderr, "warning: too many steps: %s\n", tok);
+		break;
+	      }
+	    }
+	  } else {
+	    for (int i = last-1; i >= l; i--) {
+	      st[n_st++] = i;
+	      if (n_st == MAXSTEPS) {
+		fprintf(stderr, "warning: too many steps: %s\n", tok);
+		break;
+	      }
+	    }
+	  }
+	  if (st[n_st-1] != l) break;
 	} else if (n_st < MAXSTEPS) {
 	  st[n_st++] = l;
 	  if (n_st == MAXSTEPS)
