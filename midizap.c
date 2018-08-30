@@ -1557,9 +1557,6 @@ static char *absolute_path(char *name)
 
 // poll interval in microsec (this shouldn't be too large to avoid jitter)
 #define POLL_INTERVAL 1000
-// how often we check the config file per sec (> 0, < 1000000/POLL_INTERVAL)
-#define CONF_FREQ 1
-#define MAX_COUNT (1000000/CONF_FREQ/POLL_INTERVAL)
 
 #include <time.h>
 #include <pthread.h>
