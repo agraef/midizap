@@ -67,7 +67,7 @@ allocate(size_t len)
 {
   char *ret = (char *)calloc(1, len);
   if (ret == NULL) {
-    fprintf(stderr, "Out of memory!\n");
+    fprintf(stderr, "out of memory!\n");
     exit(1);
   }
   return ret;
@@ -1244,7 +1244,7 @@ start_translation(translation *tr, char *which_key)
   //printf("start_translation(%s)\n", which_key);
 
   if (tr == NULL) {
-    fprintf(stderr, "need to start translation section before defining key: %s\n", which_key);
+    fprintf(stderr, "missing translation section: %s\n", which_key);
     return 1;
   }
   current_translation = tr->name;
@@ -1467,11 +1467,11 @@ start_translation(translation *tr, char *which_key)
       break;
     default:
       // this can't happen
-      fprintf(stderr, "bad message name: [%s]%s\n", current_translation, which_key);
+      fprintf(stderr, "unexpected error: [%s]%s\n", current_translation, which_key);
       return 1;
     }
   } else {
-    fprintf(stderr, "bad message name: [%s]%s\n", current_translation, which_key);
+    fprintf(stderr, "syntax error: [%s]%s\n", current_translation, which_key);
     return 1;
   }
   if ((!first_stroke || *first_stroke) ||
@@ -1481,7 +1481,7 @@ start_translation(translation *tr, char *which_key)
        ((!alt_press_stroke || *alt_press_stroke) ||
 	(is_bidirectional &&
 	 (!alt_release_stroke || *alt_release_stroke))))) {
-    fprintf(stderr, "can't redefine message: [%s]%s\n", current_translation, which_key);
+    fprintf(stderr, "already defined: [%s]%s\n", current_translation, which_key);
     return 1;
   }
   press_first_stroke = first_stroke;
@@ -1639,19 +1639,16 @@ add_midi(char *tok)
       // the default MIDI channel
       midi_channel = data;
       if (recursive)
-	fprintf(stderr, "recursion not permitted: %s\n", tok);
+	fprintf(stderr, "invalid macro call: %s\n", tok);
     } else {
-      if ((status & 0xf0) != 0xe0 || step != 0)
-	append_midi(status, data, step, n_steps, steps,
-		    swap, incr!=0, recursive);
-      else
-	fprintf(stderr, "zero step size not permitted: %s\n", tok);
+      append_midi(status, data, step, n_steps, steps,
+		  swap, incr!=0, recursive);
     }
   } else {
     // inspect the token that was actually recognized (if any) to give some
     // useful error message here
     if (strcmp(buf, "ch"))
-      fprintf(stderr, "unrecognized keysym: %s\n", tok);
+      fprintf(stderr, "syntax error: %s\n", tok);
     else
       fprintf(stderr, "invalid MIDI channel: %s\n", tok);
   }

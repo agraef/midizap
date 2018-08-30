@@ -1237,7 +1237,7 @@ check_recursive(int status, int chan, int data, int recursive)
   // only mod translations can be used in recursive calls
   if (recursive) {
     char name[100];
-    fprintf(stderr, "Warning: $%s: undefined\n",
+    fprintf(stderr, "Warning: $%s: undefined macro\n",
 	    debug_key(0, name, status, chan, data, 0));
   }
   return recursive;
