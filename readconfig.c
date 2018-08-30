@@ -894,47 +894,54 @@ re_press_temp_modifiers(void)
 
 /* Parser for the MIDI message syntax. The same parser is used for both
    the left-hand side (lhs) and the right-hand side (rhs) of a translation.
-   The syntax we actually parse here is, somewhat abridged:
+   The syntax we actually parse here is the following:
 
-   tok  ::= ( note | msg ) [ number ] [ "[" number "]" ] [ "-" number] [ incr ]
-   note ::= ( "a" | ... | "g" ) [ "#" | "b" ]
-   msg  ::= "ch" | "pb" | "pc" | "cc" | "cp" | "kp:" note
-   incr ::= "-" | "+" | "=" | "<" | ">" | "~"
+   tok   ::= msg [ number ] [ steps ] [ "-" number] [ flag ]
+   msg   ::= note | other
+   note  ::= ( "a" | ... | "g" ) [ "#" | "b" ]
+   other ::= "ch" | "pb" | "pc" | "cc" | "cp" | "kp:" note
+   steps ::= "[" number "]" | "{" list "}" | "[" number "]" "{" list "}"
+   list  ::= number { "," number | ":" number }
+   flag  ::= "-" | "+" | "=" | "<" | ">" | "~" | "'"
 
    Case is insignificant. Numbers are always in decimal. The meaning of
    the first number depends on the context (octave number for notes and
    key pressure, the actual data byte for other messages). This can
-   optionally be followed by a number in brackets, denoting a step
-   size. Also optionally, the suffix with the third number (after the
-   dash) denotes the MIDI channel; otherwise the default MIDI channel is
-   used.
+   optionally be followed by a number in brackets, denoting a step size,
+   or (in some translations) a list of values in curly braces. Also
+   optionally, the suffix with the third number (after the dash) denotes
+   the MIDI channel; otherwise the default MIDI channel is used.
 
    Note that not all combinations are possible -- "pb" and "cp" have no
-   data byte; and "ch" must *not* occur on the lhs at all, and is
-   followed by just a channel number.  (In fact, "ch" is no real MIDI
-   message at all; it just sets the default MIDI channel for subsequent
-   messages in the output sequence.)
+   data byte, "pc" no step size and flag; and "ch" must *not* occur on
+   the lhs at all, and is followed by just a channel number.  (In fact,
+   "ch" is no real MIDI message at all; it just sets the default MIDI
+   channel for subsequent messages in the output sequence.)
 
-   The incr flag indicates an "incremental" controller or pitch bend
-   value which responds to up ("+") and down ("-") changes; it is only
-   permitted in conjunction with "cc", "pb", "cp" and "kp", and (with
-   one exception, see below) only on the lhs of a translation. In
-   addition, "<" and ">" can be used in lieu of "-" and "-" to indicate
-   a relative controller in "sign bit" representation, where controller
-   values > 64 denote down, and values < 64 up changes. This notation is
-   only permitted with "cc". It is used for endless rotary encoders, jog
-   wheels and the like, as can be found, e.g., on Mackie-like units.
+   The optional flag at the end of the token indicates an "incremental"
+   controller or pitch bend value which responds to up ("+") and down
+   ("-") changes; it is only permitted (with one exception, see below)
+   on the lhs of a translation. In addition, "<" and ">" can be used in
+   lieu of "-" and "-" to indicate a relative controller in "sign bit"
+   representation, where controller values > 64 denote down, and values
+   < 64 up changes. This notation is only permitted with "cc". It is
+   used for endless rotary encoders, jog wheels and the like, as can be
+   found, e.g., on Mackie-like units.
 
-   Finally, the flags "=" and "~" are used in lieu of "+"/"-" or
-   "<"/">", respectively, to denote a "bidirectional" translation which
-   applies to both positive and negative changes of the controller or
-   pitch bend value. Since bidirectional translations cannot have
-   distinct keystroke sequences for up and down changes associated with
-   them, this makes most sense with pure MIDI translations.
+   The flags "=" and "~" are used in lieu of "+"/"-" or "<"/">",
+   respectively, to denote a "bidirectional" translation which applies
+   to both positive and negative changes of the parameter value. Since
+   bidirectional translations cannot have distinct keystroke sequences
+   for up and down changes associated with them, this makes most sense
+   with pure MIDI translations.
 
-   The only incr flag which is also permitted on the rhs of a
-   translation, and only with "cc", is the "~" flag, which is used to
-   denote a relative (sign bit) controller change on output. */
+   Among these, only the "~" flag is also permitted on the rhs of a
+   translation, and only with "cc", where it is used to denote a
+   relative (sign bit) controller change on output.
+
+   Finally, the special "transposition" flag "'" is used in so-called
+   "mod" translations where it swaps offset and data value; please check
+   the documentation for details. */
 
 static int note_number(char c, char b, int k)
 {
