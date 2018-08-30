@@ -95,14 +95,14 @@
 # of MIDI messages we consider them as being "pressed" and then
 # "released" immediately afterwards.
 
-# In addition, control change, channel and key pressure, and pitch bend
-# messages can also have their value changes translated, in which case
-# they have associated key bindings which are executed each time the
-# value increases or decreases, respectively.  Such bindings are
-# indicated with the suffixes "+" and "-".  Thus, e.g., a key sequence
-# bound to CC7+ will be executed each time the value of controller 7
-# increases, and CC7- will be executed each time it decreases.  The same
-# applies to channel and key pressure as well as pitch bend messages.
+# In addition, all messages except PC (which doesn't have a data value)
+# can also have their value changes translated, in which case they have
+# associated key bindings which are executed each time the value
+# increases or decreases, respectively.  Such bindings are indicated
+# with the suffixes "+" and "-".  Thus, e.g., a key sequence bound to
+# CC7+ will be executed each time the value of controller 7 increases,
+# and CC7- will be executed each time it decreases.  The same applies to
+# channel and key pressure as well as pitch bend and even note messages.
 # You can also use the "=" suffix to indicate that the same translation
 # should be applied to both increases and decreases of the controller or
 # pitch bend value.  Thus, e.g., CC7= indicates that the same
@@ -274,8 +274,9 @@
 # LEDs and the like, in which case the translations are often the
 # inverse of what's in the [MIDI] section.
 
-# This is the inverse of the translation in the [MIDI] section above,
-# mapping CC7 back to PB-9 (the MCU master fader), appropriately scaled.
+# Here we only map CC7 back to PB-9 (the MCU master fader).  Please
+# check examples/APCmini.midizaprc for a more comprehensive example.
+
  CC7= PB[128]-9
 
 
