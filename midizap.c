@@ -543,12 +543,12 @@ static char *debug_key(translation *tr, char *name,
 	sprintf(name, "%s%s%d[%d][%d]-%d%s", prefix, note_name(data),
 		note_octave(data), mod, step, chan+1, suffix);
       else if (n_steps) {
-	sprintf(name, "%s%s%d[%d][", prefix, note_name(data),
+	sprintf(name, "%s%s%d[%d]{", prefix, note_name(data),
 	        note_octave(data), mod);
 	int l = strlen(name);
 	for (int i = 0; i < n_steps; i++, (l = strlen(name)))
 	  sprintf(name+l, "%s%d", i?",":"", steps[i]);
-	sprintf(name+l, "]-%d%s", chan+1, suffix);
+	sprintf(name+l, "}-%d%s", chan+1, suffix);
       } else
 	sprintf(name, "%s%s%d[%d]-%d%s", prefix, note_name(data),
 		note_octave(data), mod, chan+1, suffix);
@@ -578,12 +578,12 @@ static char *debug_key(translation *tr, char *name,
 	sprintf(name, "%sKP:%s%d[%d][%d]-%d%s", prefix, note_name(data),
 		note_octave(data), mod, step, chan+1, suffix);
       else if (n_steps) {
-	sprintf(name, "%sKP:%s%d[%d][", prefix, note_name(data),
+	sprintf(name, "%sKP:%s%d[%d]{", prefix, note_name(data),
 	        note_octave(data), mod);
 	int l = strlen(name);
 	for (int i = 0; i < n_steps; i++, (l = strlen(name)))
 	  sprintf(name+l, "%s%d", i?",":"", steps[i]);
-	sprintf(name+l, "]-%d%s", chan+1, suffix);
+	sprintf(name+l, "}-%d%s", chan+1, suffix);
       } else
 	sprintf(name, "%sKP:%s%d[%d]-%d%s", prefix, note_name(data),
 		note_octave(data), mod, chan+1, suffix);
@@ -613,11 +613,11 @@ static char *debug_key(translation *tr, char *name,
       if (step != 1)
 	sprintf(name, "%sCC%d[%d][%d]-%d%s", prefix, data, mod, step, chan+1, suffix);
       else if (n_steps) {
-	sprintf(name, "%sCC%d[%d][", prefix, data, mod);
+	sprintf(name, "%sCC%d[%d]{", prefix, data, mod);
 	int l = strlen(name);
 	for (int i = 0; i < n_steps; i++, (l = strlen(name)))
 	  sprintf(name+l, "%s%d", i?",":"", steps[i]);
-	sprintf(name+l, "]-%d%s", chan+1, suffix);
+	sprintf(name+l, "}-%d%s", chan+1, suffix);
       } else
 	sprintf(name, "%sCC%d[%d]-%d%s", prefix, data, mod, chan+1, suffix);
     else
@@ -646,11 +646,11 @@ static char *debug_key(translation *tr, char *name,
       if (step != 1)
 	sprintf(name, "%sCP[%d][%d]-%d", prefix, mod, step, chan+1);
       else if (n_steps) {
-	sprintf(name, "%sCP[%d][", prefix, mod);
+	sprintf(name, "%sCP[%d]{", prefix, mod);
 	int l = strlen(name);
 	for (int i = 0; i < n_steps; i++, (l = strlen(name)))
 	  sprintf(name+l, "%s%d", i?",":"", steps[i]);
-	sprintf(name+l, "]-%d", chan);
+	sprintf(name+l, "}-%d", chan);
       } else
 	sprintf(name, "%sCP[%d]-%d", prefix, mod, chan+1);
     else

@@ -640,11 +640,11 @@ print_stroke(stroke *s, int mod, int step, int n_steps, int *steps, int val)
 	  printf("%s%d[%d]-%d%s ", note_name(d),
 		 note_octave(d), v, channel, suffix);
 	} else if (s->steps) {
-	  printf("%s%d[", note_name(s->data),
+	  printf("%s%d{", note_name(s->data),
 		 note_octave(s->data));
 	  for (int i = 0; i < s->n_steps; i++)
 	    printf("%s%d", i?",":"", s->steps[i]);
-	  printf("]-%d%s ", channel, suffix);
+	  printf("}-%d%s ", channel, suffix);
 	} else if (s->step)
 	  printf("%s%d[%d]-%d%s ", note_name(s->data),
 		 note_octave(s->data), s->step, channel, suffix);
@@ -660,11 +660,11 @@ print_stroke(stroke *s, int mod, int step, int n_steps, int *steps, int val)
 	  printf("KP:%s%d[%d]-%d%s ", note_name(d),
 		 note_octave(d), v, channel, suffix);
 	} else if (s->steps) {
-	  printf("KP:%s%d[", note_name(s->data),
+	  printf("KP:%s%d{", note_name(s->data),
 		 note_octave(s->data));
 	  for (int i = 0; i < s->n_steps; i++)
 	    printf("%s%d", i?",":"", s->steps[i]);
-	  printf("]-%d%s ", channel, suffix);
+	  printf("}-%d%s ", channel, suffix);
 	} else if (s->step)
 	  printf("KP:%s%d[%d]-%d%s ", note_name(s->data),
 		 note_octave(s->data), s->step, channel, suffix);
@@ -679,10 +679,10 @@ print_stroke(stroke *s, int mod, int step, int n_steps, int *steps, int val)
 	  int v = datavals(r, s->step, s->steps, s->n_steps);
 	  printf("CC%d[%d]-%d%s ", d, v, channel, suffix);
 	} else if (s->steps) {
-	  printf("CC%d[", s->data);
+	  printf("CC%d{", s->data);
 	  for (int i = 0; i < s->n_steps; i++)
 	    printf("%s%d", i?",":"", s->steps[i]);
-	  printf("]-%d%s ", channel, suffix);
+	  printf("}-%d%s ", channel, suffix);
 	} else if (s->step)
 	  printf("CC%d[%d]-%d%s ", s->data, s->step, channel, suffix);
 	else
@@ -700,10 +700,10 @@ print_stroke(stroke *s, int mod, int step, int n_steps, int *steps, int val)
 	  int v = datavals(s->swap?val/mod:val%mod, s->step, s->steps, s->n_steps);
 	  printf("CP[%d]-%d%s ", v, channel, suffix);
 	} else if (s->steps) {
-	  printf("CP[");
+	  printf("CP{");
 	  for (int i = 0; i < s->n_steps; i++)
 	    printf("%s%d", i?",":"", s->steps[i]);
-	  printf("]-%d%s ", channel, suffix);
+	  printf("}-%d%s ", channel, suffix);
 	} else if (s->step)
 	  printf("CP[%d]-%d%s ", s->step, channel, suffix);
 	else
@@ -714,10 +714,10 @@ print_stroke(stroke *s, int mod, int step, int n_steps, int *steps, int val)
 	  int v = datavals(s->swap?val/mod:val%mod, s->step, s->steps, s->n_steps);
 	  printf("PB[%d]-%d%s ", v, channel, suffix);
 	} else if (s->steps) {
-	  printf("PB[");
+	  printf("PB{");
 	  for (int i = 0; i < s->n_steps; i++)
 	    printf("%s%d", i?",":"", s->steps[i]);
-	  printf("]-%d%s ", channel, suffix);
+	  printf("}-%d%s ", channel, suffix);
 	} else if (s->step)
 	  printf("PB[%d]-%d%s ", s->step, channel, suffix);
 	else
@@ -955,15 +955,16 @@ static char *parse_steps(char *tok, char *p,
 			 int *step, int *n_steps, int **steps)
 {
   int l, n;
-  if (sscanf(++p, "%d%n", &l, &n) == 1) {
+  char c = *p++, d = c=='[' ? ']' : '}';
+  if (sscanf(p, "%d%n", &l, &n) == 1) {
     p += n;
-    if (*p == ',' || *p == ':') {
+    if (c == '{') {
       int n_st = 1;
       static int st[MAXSTEPS];
       st[0] = l;
       while (*p == ',' || *p == ':') {
-	char c = *p;
-	if (sscanf(++p, "%d%n", &l, &n) == 1) {
+	char c = *p++;
+	if (sscanf(p, "%d%n", &l, &n) == 1) {
 	  p += n;
 	} else
 	  return 0;
@@ -996,7 +997,10 @@ static char *parse_steps(char *tok, char *p,
       *steps = 0;
       *step = l;
     }
-    return p;
+    if (*p == d)
+      return ++p;
+    else
+      return 0;
   } else {
     return 0;
   }
@@ -1051,7 +1055,7 @@ parse_midi(char *tok, char *s, int lhs, int mode,
   // step size / modulus
   *mod = 0;
   int step2 = 0, n_steps2 = 0, *steps2 = 0;
-  if (*p == '[') {
+  if (*p == '[' || *p == '{') {
     if ((p = parse_steps(tok, p, step, n_steps, steps))) {
       if (*n_steps) {
 	// only permitted on the rhs in mod translations
@@ -1059,9 +1063,7 @@ parse_midi(char *tok, char *s, int lhs, int mode,
       } else if (!*step || (lhs && *step<0))
 	// must be nonzero / positive on lhs
 	return 0;
-      if (*p != ']') return 0;
-      p++;
-      if (*p == '[') {
+      if (*p == '[' || *p == '{') {
 	// possible step size on lhs for mod translations (we just record it
 	// here, will be resolved later)
 	if ((p = parse_steps(tok, p, &step2, &n_steps2, &steps2))) {
@@ -1069,8 +1071,6 @@ parse_midi(char *tok, char *s, int lhs, int mode,
 	} else {
 	  return 0;
 	}
-	if (*p != ']') return 0;
-	p++;
       }
     } else {
       return 0;

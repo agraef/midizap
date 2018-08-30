@@ -182,14 +182,14 @@ G#7 D7
 # meters, which actually have 8 different values, have to be squashed
 # into 5 LEDs per channel.
 
-?CP[16] C2[0,1] G#2[0:3,1] E3[0:5,5] C4[0:7,5] G#4[0:8,3]
+?CP[16] C2{0,1} G#2{0:3,1} E3{0:5,5} C4{0:7,5} G#4{0:8,3}
 
 # Here's an alternative decoding, which creates horizontal meters
-# covering the full range, with the first channel on top.  Note,
-# however, that this ranges across the entire 8x8 grid and will thus
-# clobber the rec/solo/mute controls!
+# covering the full range, with the first channel on top.  This is just
+# for illustration purposes -- as it ranges across the entire 8x8 grid,
+# it will clobber the rec/solo/mute controls.
 
-#?CP[16][-8] G#4[0,1] A4[0,0,1] A#4[0:3,1] B4[0:4,1] C5[0:5,5] C#5[0:6,5] D5[0:7,5] D#5[0:8,3]
+#?CP[16][-8] G#4{0,1} A4{0,0,1} A#4{0:3,1} B4{0:4,1} C5{0:5,5} C#5{0:6,5} D5{0:7,5} D#5{0:8,3}
 
 # This decodes the least significant digit in the time display (CC69) to
 # count off time on the 4 bottommost scene launch buttons.  Note that
@@ -197,7 +197,7 @@ G#7 D7
 # zeros in the value lists below to skip over all the non-digit
 # characters at the beginning of the ASCII table.
 
-?CC69[128] F7[0:49,1,0] E7[0:50,1,0] Eb7[0:51,1,0] D7[0:52,1,0]
+?CC69[128] F7{0:49,1,0} E7{0:50,1,0} Eb7{0:51,1,0} D7{0:52,1,0}
 
 # no feedback for faders (faders aren't motorized)
 
