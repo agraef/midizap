@@ -1486,11 +1486,12 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
 
 void help(char *progname)
 {
-  fprintf(stderr, "Usage: %s [-h] [-k] [-o[2]] [-j name] [-r rcfile] [-d[rskmj]]\n", progname);
+  fprintf(stderr, "Usage: %s [-h] [-k] [-o[2]] [-j name] [-P[prio]] [-r rcfile] [-d[rskmj]]\n", progname);
   fprintf(stderr, "-h print this message\n");
   fprintf(stderr, "-k keep track of key status (ignore double notes)\n");
   fprintf(stderr, "-o enable MIDI output (add 2 for a second pair of ports)\n");
   fprintf(stderr, "-j jack client name (default: midizap)\n");
+  fprintf(stderr, "-P set real-time priority (default: 90)\n");
   fprintf(stderr, "-r config file name (default: MIDIZAP_CONFIG_FILE variable or ~/.midizaprc)\n");
   fprintf(stderr, "-d debug (r = regex, s = strokes, k = keys, m = midi, j = jack; default: all)\n");
 }
@@ -1508,7 +1509,7 @@ void quitter()
 static char *command_line;
 static size_t len;
 
-static void add_command(char *arg)
+static void add_command(char *arg, int sep)
 {
   char *a = arg;
   // Do some simplistic quoting if the argument contains blanks. This won't do
@@ -1522,10 +1523,10 @@ static void add_command(char *arg)
     command_line = malloc(len+1);
     strcpy(command_line, a);
   } else {
-    size_t l = strlen(a)+1;
+    size_t l = strlen(a)+sep;
     command_line = realloc(command_line, len+l+1);
-    command_line[len] = ' ';
-    strcpy(command_line+len+1, a);
+    if (sep) command_line[len] = ' ';
+    strcpy(command_line+len+sep, a);
     len += l;
   }
   if (a != arg) free(a);
@@ -1561,17 +1562,18 @@ static char *absolute_path(char *name)
 #define MAX_COUNT (1000000/CONF_FREQ/POLL_INTERVAL)
 
 #include <time.h>
+#include <pthread.h>
 
 int
 main(int argc, char **argv)
 {
   uint8_t msg[3];
-  int opt;
+  int opt, prio = 0;
 
   // Start recording the command line to be passed to Jack session management.
-  add_command(argv[0]);
+  add_command(argv[0], 0);
 
-  while ((opt = getopt(argc, argv, "hko::d::j:r:")) != -1) {
+  while ((opt = getopt(argc, argv, "hko::d::j:r:P::")) != -1) {
     switch (opt) {
     case 'h':
       help(argv[0]);
@@ -1579,7 +1581,7 @@ main(int argc, char **argv)
     case 'k':
       // see comment on -k and keydown_tracker above
       keydown_tracker = 1;
-      add_command("-k");
+      add_command("-k", 1);
       break;
     case 'o':
       jack_num_outputs = 1;
@@ -1587,21 +1589,21 @@ main(int argc, char **argv)
 	const char *a = optarg;
 	if (!strcmp(a, "2")) {
 	  jack_num_outputs = 2;
-	  add_command("-o2");
+	  add_command("-o2", 1);
 	} else if (strcmp(a, "1")) {
 	  fprintf(stderr, "%s: wrong port number (-o), must be 1 or 2\n", argv[0]);
 	  fprintf(stderr, "Try -h for help.\n");
 	  exit(1);
 	} else
-	  add_command("-o1");
+	  add_command("-o1", 1);
       } else
-	add_command("-o");
+	add_command("-o", 1);
       break;
     case 'd':
       if (optarg && *optarg) {
-	const char *a = optarg; char buf[100];
-	snprintf(buf, 100, "-d%s", optarg);
-	add_command(buf);
+	const char *a = optarg;
+	add_command("-d", 1);
+	add_command(optarg, 0);
 	while (*a) {
 	  switch (*a) {
 	  case 'r':
@@ -1630,20 +1632,31 @@ main(int argc, char **argv)
 	default_debug_regex = default_debug_strokes = default_debug_keys =
 	  default_debug_midi = 1;
 	debug_jack = 1;
-	add_command("-d");
+	add_command("-d", 1);
       }
       break;
     case 'j':
       jack_client_name = optarg;
-      add_command("-j");
-      add_command(optarg);
+      add_command("-j", 1);
+      add_command(optarg, 1);
       break;
     case 'r':
       config_file_name = optarg;
-      add_command("-r");
+      add_command("-r", 1);
       // We need to convert this to an absolute pathname for Jack session
       // management.
-      add_command(absolute_path(optarg));
+      add_command(absolute_path(optarg), 1);
+      break;
+    case 'P':
+      prio = (optarg&&*optarg)?atoi(optarg):90;
+      if (prio > 0) {
+	add_command("-P", 1);
+	if (optarg&&*optarg) add_command(optarg, 0);
+      } else {
+	fprintf(stderr, "%s: invalid real-time priority (-P), must be a positive integer\n", argv[0]);
+	fprintf(stderr, "Try -h for help.\n");
+	exit(1);
+      }
       break;
     default:
       fprintf(stderr, "Try -h for help.\n");
@@ -1671,6 +1684,16 @@ main(int argc, char **argv)
   seq.n_out = jack_num_outputs;
   if (!init_jack(&seq, debug_jack)) {
     exit(1);
+  }
+
+  // set real-time scheduling priority if requested
+  if (prio) {
+    int pol = SCHED_RR; // other options: SCHED_FIFO, SCHED_OTHER
+    struct sched_param param;
+    memset(&param, 0, sizeof(param));
+    param.sched_priority = prio;
+    if (pthread_setschedparam(pthread_self(), pol, &param))
+      perror("pthread_setschedparam");
   }
 
   int do_flush = debug_regex || debug_strokes || debug_keys || debug_midi ||
