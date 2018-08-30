@@ -1851,6 +1851,7 @@ read_config_file(void)
 	case ' ':
 	case '\t':
 	case '\n':
+	case '\0': // no newline at eof
 	  if (!strcmp(tok, "RELEASE"))
 	    add_keystroke(tok, PRESS_RELEASE);
 	  else if (!strcmp(tok, "SHIFT"))
