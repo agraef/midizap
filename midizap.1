@@ -7,8 +7,8 @@
 midizap \[en] control your multimedia applications with MIDI
 .SH Synopsis
 .PP
-midizap [\-h] [\-k] [\-o[2]] [\-j \f[I]name\f[]] [\-r \f[I]rcfile\f[]]
-[\-d[rskmj]]
+midizap [\-h] [\-k] [\-o[2]] [\-j \f[I]name\f[]] [\-P[\f[I]prio\f[]]]
+[\-r \f[I]rcfile\f[]] [\-d[rskmj]]
 .SH Options
 .TP
 .B \-h
@@ -39,6 +39,12 @@ See Section \f[I]Jack\-Related Options\f[].
 .RS
 .RE
 .TP
+.B \-P[\f[I]prio\f[]]
+Run with the given real\-time priority (90 if not specified).
+See Section \f[I]Jack\-Related Options\f[].
+.RS
+.RE
+.TP
 .B \-r \f[I]rcfile\f[]
 Set the configuration file name.
 Default: taken from the MIDIZAP_CONFIG_FILE environment variable if it
@@ -59,7 +65,7 @@ See Section \f[I]Basic Usage\f[].
 .RE
 .SH Description
 .PP
-midizap lets you control your favorite multimedia applications using
+midizap lets you control your multimedia applications using
 MIDI (https://www.midi.org/).
 To these ends, it translates Jack MIDI input into X keystrokes, mouse
 button presses, scroll wheel events, and, as an option, MIDI output.
@@ -74,14 +80,16 @@ a default section at the end of the file, if available.
 .PP
 The midizaprc file is just an ordinary text file which you can edit to
 configure the program.
-The format of the configuration file is pretty straightforward,
-basically just a list of MIDI messages and their translations divided in
-sections for different applications; the language is also described in
-detail with lots of examples later in this manual.
-Moreover, an example.midizaprc file containing sample configurations for
-some applications is included in the sources, and you can find some more
-examples of configuration files for various purposes in the examples
-directory.
+The configuration language is described in detail with lots of examples
+later in this manual.
+But the syntax is actually pretty straightforward, basically just a list
+of MIDI messages (denoted with familiar human\-readable mnemonics, no
+hex numbers!) and their translations, which is divided into sections for
+different applications.
+An example.midizaprc file containing sample configurations for some
+applications is included in the sources to get you started, and you can
+find some more examples of configuration files for various purposes in
+the examples directory.
 .PP
 midizap provides you with a way to hook up just about any MIDI
 controller to your applications.
@@ -178,7 +186,7 @@ the MIDI driver.
 This exposes the ALSA sequencer ports of your MIDI hardware and other
 non\-Jack ALSA MIDI applications as Jack MIDI ports, so that they can
 easily be connected to midizap.
-(Here and in the following, we're assuming that you're using Jack1.
+(We're assuming that you're using Jack1 here.
 Jack2 works in a very similar way, but may require some more fiddling;
 in particular, you may have to use
 a2jmidid (http://repo.or.cz/a2jmidid.git) as a separate ALSA\-Jack MIDI
@@ -312,9 +320,9 @@ Qsynth (https://qsynth.sourceforge.io/).
 Use QjackCtl to connect FluidSynth's MIDI input to midizap's output
 port.
 In the sample configuration, the notes \f[C]C4\f[] thru \f[C]F4\f[] in
-the small octave have been set up so that you can operate a little
-drumkit, and a binding for the volume controller (\f[C]CC7\f[]) has been
-added as well.
+the small octave have been set up so that you can use them to operate a
+little drumkit, and a binding for the volume controller (\f[C]CC7\f[])
+has been added as well.
 The relevant portion from the configuration entry looks as follows:
 .IP
 .nf
@@ -340,8 +348,8 @@ C in the third MIDI octave, which on channel 10 will produce the sound
 of a bass drum, at least on GM compatible synthesizers like Fluidsynth.
 The binding for the volume controller (\f[C]CC7\f[]) at the end of the
 entry sends volume changes to the same drum channel (\f[C]CC7\-10\f[]),
-so that you can use the volume control on your keyboard to dial in the
-volume on the drum channel that you want.
+so that you can use the volume control on your keyboard to change the
+volume on the drum channel.
 The program keeps track of the values of both input and output
 controllers on all MIDI channels internally, so with the translations
 above all that happens automagically.
@@ -406,18 +414,31 @@ This is achieved by either invoking midizap with the \f[C]\-o2\f[]
 option, or by employing the \f[C]JACK_PORTS\ 2\f[] directive in the
 configuration file.
 .PP
-Last but not least, midizap also supports Jack session management, which
-makes it possible to record the options the program was invoked with,
-along with all the MIDI connections.
+\f[B]NOTE:\f[] If you notice bad latency or jitter in MIDI output, you
+should try running midizap with real\-time priorities.
+Jack itself usually does that anyway, but midizap's main thread won't
+unless you run it with the \f[C]\-P\f[] option (\f[C]midizap\ \-P\f[],
+or \f[C]midizap\ \-P80\f[] if you also want to specify the priority; the
+default is 90).
+Using this option, midizap should be able to get down to MIDI latencies
+in the 1 msec ballpark which should be good enough for most purposes
+(YMMV, though).
+.PP
+Last but not least, midizap also supports \f[I]Jack session
+management\f[], which makes it possible to record the options the
+program was invoked with, along with all the MIDI connections.
 This feature can be used with any Jack session management software.
-Specifically, QjackCtl has its own built\-in Jack session manager which
-is available in its Session dialog.
+QjackCtl has its own built\-in Jack session manager which is available
+in its Session dialog.
 To use this, launch midizap and any other Jack applications you want to
 have in the session, use QjackCtl to set up all the connections as
-needed, and then hit the \[lq]Save\[rq] (or \[lq]Save and Quit\[rq])
-button in the Session dialog to have the session recorded.
-Now, at any later time you can relaunch the same session with the
-\[lq]Load\[rq] (or \[lq]Recent\[rq]) button in the same dialog.
+needed, and then hit the \[lq]Save\[rq] button in the Session dialog to
+have the session recorded.
+(The \[lq]Save and Quit\[rq] option does the same, but also asks midizap
+to quit afterwards.) Now, at any later time you can rerun the recorded
+session with the \[lq]Load\[rq] button in the same dialog.
+Also, your most frequently used sessions are available in the
+\[lq]Recent\[rq] menu from where they can be launched quickly.
 .SH Translation Syntax
 .PP
 The midizap configuration file consists of sections defining translation
@@ -446,7 +467,8 @@ ignored.
 .PP
 Each \f[C][name]\ regex\f[] line introduces the list of MIDI message
 translations for the named translation class.
-The name is only used for debugging output, and needn't be unique.
+The name is only used for debugging output and diagnostics, and needn't
+be unique.
 When focus is on a window whose class or title matches the regular
 expression \f[C]regex\f[], the corresponding translations are in effect.
 An empty regex for the last class will always match, allowing default
@@ -463,35 +485,36 @@ The corresponding right\-hand side (the rest of the line) is a sequence
 of one or more tokens, separated by whitespace, indicating either MIDI
 messages or X11 keyboard and mouse events to be output.
 .PP
-\f[B]NOTE:\f[] Translations must be determined \f[I]uniquely\f[] in each
-translation class.
-That is, each input message may be bound to at most one output sequence
-in each section.
+\f[B]NOTE:\f[] Translations \f[I]must be determined uniquely\f[] in each
+translation class, i.e., each input message may be bound to at most one
+output sequence in each section.
 Otherwise, the parser will print an error message, and the extra
 translations will be ignored.
-This also ensures that the output sequence completely determines the
-order in which the events for each given input will be output, so that
-midizap's operation is deterministic (i.e., for the same input sequence
-on the same window the program will always generate exactly the same
-output sequence).
+While the uniqueness requirement may sometimes be a bit inconvenient, it
+is actually an important feature, because it ensures that midizap's
+operation is completely \f[I]deterministic\f[].
+That is, for the same input sequence on the same window the program will
+always generate exactly the same output sequence.
 .SS MIDI Message Notation
 .PP
-Note messages are specified using the customary notation (note name
-\f[C]A..G\f[], optionally followed by an accidental, \f[C]#\f[] or
-\f[C]b\f[], followed by the MIDI octave number).
+Note messages are specified using a human\-readable format which should
+look familiar (to musicians at least): a note name \f[C]A..G\f[] is
+followed by an (optional) accidental (\f[C]#\f[] or \f[C]b\f[]), and a
+(mandatory) MIDI octave number.
 Note that all MIDI octaves start at the note C, so \f[C]B0\f[] comes
 before \f[C]C1\f[].
-By default, \f[C]C5\f[] denotes middle C.
+By default, \f[C]C5\f[] denotes middle C (you can change this if you
+want, see \f[I]Octave Numbering\f[] below).
 Enharmonic spellings are equivalent, so, e.g., \f[C]D#\f[] and
 \f[C]Eb\f[] denote exactly the same MIDI note.
 .PP
 The other messages are denoted using short mnemonics: \f[C]KP\f[]
 (aftertouch a.k.a.
-key pressure; followed by the colon and a note designation); \f[C]CC\f[]
-(control change, followed by a controller number); \f[C]PC\f[] (program
-change, followed by a program number); \f[C]CP\f[] and \f[C]PB\f[]
-(channel pressure and pitch bend; these don't have a numeric suffix, as
-they apply to the entire MIDI channel).
+key pressure; followed by \f[C]:\f[] and a note designation);
+\f[C]CC\f[] (control change, followed by a controller number);
+\f[C]PC\f[] (program change, followed by a program number); \f[C]CP\f[]
+and \f[C]PB\f[] (channel pressure and pitch bend; these don't have a
+numeric suffix, as they apply to the entire MIDI channel).
 .PP
 We will go into the other syntactic bits and pieces of MIDI message
 designations later, but it's good to have the following grammar in EBNF
@@ -515,15 +538,16 @@ Case is ignored here, so \f[C]CC\f[], \f[C]cc\f[] or even \f[C]Cc\f[]
 are considered to be exactly the same token by the parser, although by
 convention we usually write them in uppercase.
 Numbers are always integers in decimal.
-The meaning of the first number depends on the context (octave number
-for notes and key pressure, controller or program number in the range
-0..127 for other messages).
+The meaning of the \f[C]msg\f[] number depends on the context (octave
+number for notes and key pressure, controller or program number in the
+range 0..127 for other messages, MIDI channel number in the range 1..16
+for the special \f[C]CH\f[] token).
 This can optionally be followed by a number in brackets, denoting a
 nonzero step size.
-Also optionally, the suffix with the third number (after the dash)
-denotes the MIDI channel in the range 1..16; otherwise the default MIDI
-channel is used (which is always 1 on the left\-hand side, but can be
-set on the right\-hand side with \f[C]CH\f[]).
+Also optionally, a suffix with a third number (after the dash) denotes
+the MIDI channel in the range 1..16; otherwise the default MIDI channel
+is used (which is always 1 on the left\-hand side, but can be set on the
+right\-hand side with the \f[C]CH\f[] token).
 The optional \[lq]increment\[rq] flag at the end of a token indicates a
 \[lq]data\[rq] translation which responds to incremental (up/down) value
 changes rather than key presses, cf.
@@ -639,7 +663,7 @@ The actual amount of change is in the lower 6 bits of the value.
 In the message syntax, these kinds of controls are indicated by using
 the suffixes \f[C]<\f[], \f[C]>\f[] and \f[C]~\f[] in lieu of
 \f[C]\-\f[], \f[C]+\f[] and \f[C]=\f[], respectively.
-These suffixes are only permitted with \f[C]CC\f[] messages.
+These flags are only permitted with \f[C]CC\f[] messages.
 .SS Keyboard and Mouse Translations
 .PP
 Keyboard and mouse output consists of X key codes with optional up/down
@@ -651,11 +675,11 @@ the following grammar:
 .IP
 .nf
 \f[C]
-token\ \ \ ::=\ "RELEASE"\ |\ "SHIFT"\ |\ keycode\ [\ "/"\ flag\ ]\ |\ string
+token\ \ \ ::=\ "RELEASE"\ |\ "SHIFT"\ |\ keycode\ [\ "/"\ keyflag\ ]\ |\ string
 keycode\ ::=\ "XK_Button_1"\ |\ "XK_Button_2"\ |\ "XK_Button_3"\ |
 \ \ \ \ \ \ \ \ \ \ \ \ "XK_Scroll_Up"\ |\ "XK_Scroll_Down"\ |
 \ \ \ \ \ \ \ \ \ \ \ \ "XK_..."\ (X\ keysyms,\ see\ /usr/include/X11/keysymdef.h)
-flag\ \ \ \ ::=\ "U"\ |\ "D"\ |\ "H"
+keyflag\ ::=\ "U"\ |\ "D"\ |\ "H"
 string\ \ ::=\ \[aq]"\[aq]\ {\ character\ }\ \[aq]"\[aq]
 \f[]
 .fi
@@ -666,9 +690,8 @@ tokens must be in all caps, and the \f[C]XK\f[] symbols need to be
 written in mixed case exactly as they appear in the
 /usr/include/X11/keysymdef.h file.
 Besides the key codes from the keysymdef.h file, there are also some
-special additional key codes to denote mouse button
-(\f[C]XK_Button_1\f[], \f[C]XK_Button_2\f[], \f[C]XK_Button_3\f[]) and
-scroll wheel (\f[C]XK_Scroll_Up\f[], \f[C]XK_Scroll_Down\f[]) events.
+special additional key codes to denote mouse button and scroll wheel
+events (\f[C]XK_Button_1\f[], \f[C]XK_Scroll_Up\f[], etc.).
 .PP
 Any keycode can be followed by an optional \f[C]/D\f[], \f[C]/U\f[], or
 \f[C]/H\f[] flag, indicating that the key is just going down (without
@@ -692,17 +715,6 @@ F5\ "V"\ XK_Left\ XK_Page_Up\ "v"
 G5\ XK_Alt_L/D\ "v"\ XK_Alt_L/U\ "x"\ RELEASE\ "q"
 \f[]
 .fi
-.PP
-One pitfall is that character strings in double quotes are just a
-shorthand for the corresponding X key codes, ignoring case.
-Thus, e.g., \f[C]"abc"\f[] actually denotes the keysym sequence
-\f[C]XK_a\ XK_b\ XK_c\f[], as does \f[C]"ABC"\f[].
-So in either case the \f[I]lowercase\f[] string \f[C]abc\f[] will be
-output.
-To output uppercase letters, it is always necessary to add one of the
-shift modifiers to the output sequence.
-E.g., \f[C]XK_Shift_L/D\ "abc"\f[] will output \f[C]ABC\f[] in
-uppercase.
 .PP
 Translations are handled differently depending on the input mode (cf.
 \f[I]Key and Data Input\f[] above).
@@ -728,16 +740,28 @@ G5\ XK_Alt_L/D\ "v"\ XK_Alt_L/U\ "x"\ RELEASE\ "q"
 \f[]
 .fi
 .PP
-When the \f[C]G5\f[] key is pressed on the MIDI keyboard, the key
-sequence \f[C]Alt+v\ x\f[] is initiated, keeping the \f[C]x\f[] key
-pressed (so it may start auto\-repeating after a while).
+This translation has the following meaning: When the \f[C]G5\f[] key is
+pressed on the MIDI keyboard, the key sequence \f[C]Alt+v\ x\f[] is
+initiated, keeping the \f[C]x\f[] key pressed (so it may start
+auto\-repeating after a while).
 The program then sits there waiting (possibly executing other
 translations) until you release the \f[C]G5\f[] key again, at which
 point the \f[C]x\f[] key is released and the \f[C]q\f[] key is pressed
 (and released).
 .PP
-In contrast, in \f[I]data mode\f[] only a single sequence is output
-whenever the message value increases or decreases.
+One pitfall here is that character strings in double quotes are just a
+shorthand for the corresponding X key codes, ignoring case.
+Thus, e.g., \f[C]"abc"\f[] actually denotes the keysym sequence
+\f[C]XK_a\ XK_b\ XK_c\f[], as does \f[C]"ABC"\f[].
+So in either case the \f[I]lowercase\f[] string \f[C]abc\f[] will be
+output.
+To output uppercase letters, it is always necessary to add one of the
+shift modifiers to the output sequence.
+E.g., \f[C]XK_Shift_L/D\ "abc"\f[] will output \f[C]ABC\f[] in
+uppercase.
+.PP
+In \f[I]data mode\f[] only a single sequence is output whenever the
+message value increases or decreases.
 At the end of the sequence, all down keys will be released.
 For instance, the following translations move the cursor left or right
 whenever the volume controller (\f[C]CC7\f[]) decreases and increases,
@@ -758,10 +782,10 @@ CC7+\ XK_Right
 Incremental \f[C]CC\f[] messages are treated in an analogous fashion,
 but in this case the increment or decrement is determined directly by
 the input message.
-One example for this type of controller is the jog wheel on the Mackie
-MCU, which can be processed as follows (using \f[C]<\f[] and \f[C]>\f[]
-in lieu of \f[C]\-\f[] and \f[C]+\f[] as the suffix of the \f[C]CC\f[]
-message):
+One example for this type of controller is the big jog wheel
+(\f[C]CC60\f[]) on some Mackie\-like devices, which can be processed as
+follows (using \f[C]<\f[] and \f[C]>\f[] in lieu of \f[C]\-\f[] and
+\f[C]+\f[] as the increment flag of the \f[C]CC\f[] message):
 .IP
 .nf
 \f[C]
@@ -770,19 +794,19 @@ CC60>\ XK_Right
 \f[]
 .fi
 .PP
-(The corresponding \[lq]bidirectional\[rq] translations, which are
-indicated with the \f[C]=\f[] and \f[C]~\f[] suffixes, are rarely used
-with keyboard and mouse translations.
+The corresponding \[lq]bidirectional\[rq] translations, which are
+indicated with the \f[C]=\f[] and \f[C]~\f[] flags, are rarely used with
+keyboard and mouse translations.
 Same goes for the special \f[C]SHIFT\f[] token.
 Thus we'll discuss these in later sections, see \f[I]MIDI
-Translations\f[] and \f[I]Shift State\f[] below.)
+Translations\f[] and \f[I]Shift State\f[] below.
 .PP
 In data mode, input messages can also have a \f[I]step size\f[]
 associated with them, which has the effect of downscaling changes in the
 parameter value.
 The default step size is 1 (no scaling).
 To change it, the desired step size is written in brackets immediately
-after the message token and before the increment suffix.
+after the message token and before the increment flag.
 A step size \f[I]k\f[] indicates that the translation is executed
 whenever the input value has changed by \f[I]k\f[] units.
 For instance, to slow down the cursor movement in the example above by a
@@ -811,11 +835,11 @@ itself.
 .PP
 Most of the notation for MIDI messages on the left\-hand side of a
 translation rule also carry over to the output side.
-The only real difference is that the increment suffixes \f[C]+\-=<>\f[]
+The only real difference is that the increment flags \f[C]+\-=<>\f[]
 aren't permitted here, as they are only used to determine the input mode
 (key or data) of the entire translation.
-The \f[C]~\f[] suffix \f[I]is\f[] allowed, however, to indicate output
-in incremental bit\-sign format in data translations, see below.
+The \f[C]~\f[] flag \f[I]is\f[] allowed, however, to indicate output in
+bit\-sign encoder format in data translations, see below.
 Step sizes are permitted as well on the output side, in \f[I]both\f[]
 key and data translations.
 Their meaning depends on the kind of translation, however.
@@ -828,8 +852,8 @@ The output sequence can involve as many MIDI messages as you want, and
 these can be combined freely with keyboard and mouse events in any
 order.
 However, as already discussed in Section \f[I]MIDI Output\f[] above, you
-need to invoke the midizap program with the \f[C]\-o\f[] option to make
-MIDI output work.
+also need to invoke the midizap program with the \f[C]\-o\f[] option to
+make MIDI output work.
 Otherwise, MIDI messages in the output translations will just be
 silently ignored.
 .PP
@@ -848,14 +872,13 @@ For key mode inputs, the corresponding \[lq]on\[rq] or \[lq]off\[rq]
 event is generated for all MIDI messages in the output sequence, where
 the \[lq]on\[rq] value defaults to the maximum value (127 for controller
 values, 8191 for pitch bends).
-Thus, e.g., the following rule outputs a \f[C]CC80\f[] message with
-controller value 127 each time middle C (\f[C]C5\f[]) is pressed (and
-another \f[C]CC80\f[] message with value 0 when the note is released
-again):
+Thus, e.g., the following rule outputs a \f[C]CC64\f[] message with
+controller value 127 each time \f[C]C3\f[] is pressed (and another
+\f[C]CC64\f[] message with value 0 when the note is released again):
 .IP
 .nf
 \f[C]
-C5\ CC80
+C3\ CC64\ #\ hold\ pedal\ on/off
 \f[]
 .fi
 .PP
@@ -864,7 +887,7 @@ a step size:
 .IP
 .nf
 \f[C]
-C5\ CC80[64]
+C3\ CC64[64]\ #\ hold\ pedal\ on/off
 \f[]
 .fi
 .PP
@@ -879,13 +902,18 @@ D2\ PB[8191]\ \ #\ bend\ up
 \f[]
 .fi
 .PP
+Rules similar to the ones above may be useful if your MIDI keyboard
+doesn't have a hold pedal or pitch bend wheel, as they let you set aside
+some keys to emulate those functions.
+.PP
 Let's now have a look at data mode.
-There are two additional suffixes \f[C]=\f[] and \f[C]~\f[] for data
-translations which are most useful with pure MIDI translations, which is
-why we deferred their discussion until now.
-If the increment and decrement sequences for a given translation are the
-same, the \f[C]=\f[] suffix can be used to indicate that this sequence
-should be output for \f[I]both\f[] increments and decrements.
+There are two additional flags \f[C]=\f[] and \f[C]~\f[] for data
+translations which are most useful with MIDI translations, which is why
+we deferred their discussion until now.
+In pure MIDI translations not involving any key or mouse output, the
+increment and decrement sequences are usually identical, in which case
+the \f[C]=\f[] suffix can be used to indicate that the output is to be
+used for \f[I]both\f[] increments and decrements.
 For instance, to map the modulation wheel (\f[C]CC1\f[]) to the volume
 controller (\f[C]CC7\f[]):
 .IP
@@ -895,7 +923,8 @@ CC1=\ CC7
 \f[]
 .fi
 .PP
-Which is exactly the same as the two translations:
+Which is more convenient to write, but is really just a shorthand for
+the two separate translations:
 .IP
 .nf
 \f[C]
@@ -922,8 +951,8 @@ CC60>\ CC7
 \f[]
 .fi
 .PP
-The \f[C]~\f[] suffix can be used to denote incremental controllers in
-output messages, too.
+The \f[C]~\f[] flag can be used to denote encoders in output messages,
+too.
 E.g., to translate a standard (absolute) MIDI controller to an
 incremental encoder value, you might use a rule like:
 .IP
@@ -933,7 +962,7 @@ CC48=\ CC16~
 \f[]
 .fi
 .PP
-Step sizes also work on the right\-hand side of data translations.
+Step sizes work on the right\-hand side of data translations as well.
 You might use these to scale up value changes, e.g., when translating
 from control changes to pitch bends:
 .IP
@@ -956,7 +985,7 @@ CC1=\ CC1[\-1]
 .PP
 Another possibility is to place step sizes on \f[I]both\f[] the
 left\-hand and right\-hand side of a rule, in order to approximate a
-rational scale factor:
+rational scaling factor:
 .IP
 .nf
 \f[C]
@@ -968,9 +997,9 @@ The above translation will only be triggered when the input value
 changes by 3 units, and the change in the output value will then be
 doubled again, so that the net effect is to scale the amount of change
 by 2/3.
-Note that this will only work well if the input and output step sizes
-are reasonably small, so for most real\-valued scale factors this method
-can only provide a very rough approximation.
+Note that this will only work smoothly enough if the input and output
+step sizes are reasonably small, otherwise you'll get a fairly rough
+approximation.
 .SS Shift State
 .PP
 The special \f[C]SHIFT\f[] token toggles an internal shift state, which
@@ -986,15 +1015,14 @@ Unprefixed translations are active only in unshifted state.
 The \f[C]^\f[] prefix denotes a translation which is active only in
 shifted state, while the \f[C]?\f[] prefix indicates a translation which
 is active in \f[I]both\f[] shifted and unshifted state.
-.PP
 Many DAW controllers have some designated shift keys which can be used
 for this purpose, but the following will actually work with any
 key\-style MIDI message.
-E.g., to bind the shift key (\f[C]A#5\f[]) on a Mackie controller:
+E.g., to bind the shift key on an AKAI APCmini controller (\f[C]D8\f[]):
 .IP
 .nf
 \f[C]
-?A#5\ SHIFT
+?D8\ SHIFT
 \f[]
 .fi
 .PP
@@ -1007,7 +1035,7 @@ do that as follows:
 .IP
 .nf
 \f[C]
-?A#5\ SHIFT\ RELEASE\ SHIFT
+?D8\ SHIFT\ RELEASE\ SHIFT
 \f[]
 .fi
 .PP
@@ -1096,15 +1124,15 @@ Most of the time, MIDI feedback uses just the standard kinds of MIDI
 messages readily supported by midizap, such as note messages which make
 buttons light up in different colors, or control change messages which
 set the positions of motor faders.
-However, there are some encodings of MIDI messages employed in feedback
-which combine different bits of information in a single message, making
-them difficult or even impossible to translate using the simple kinds of
-rules we've seen so far.
-One important use case, which we'll use as a running example below, is
-the decoding of meter (volume) data in the Mackie protocol.
+However, there are some encodings of feedback messages which combine
+different bits of information in a single message, making them difficult
+or even impossible to translate using the simple kinds of rules we've
+seen so far.
+One important application, which we'll use as a running example below,
+is the decoding of meter (RMS level) data in the Mackie protocol.
 There, each meter value is sent by the host application in the form of a
 key pressure message whose value consists of a mixer channel index 0..7
-in the \[lq]high nibble\[rq] (bits 4..6 = \f[I]v\f[] mod 16, where
+in the \[lq]high nibble\[rq] (bits 4..6 = \f[I]v\f[] div 16, where
 \f[I]v\f[] is the key pressure value) and the corresponding meter value
 in the \[lq]low nibble\[rq] (bits 0..3 = \f[I]v\f[] mod 16).
 .PP
@@ -1115,7 +1143,7 @@ modify output messages in certain ways, so for want of a better name we
 also call these bindings \f[I]mod translations\f[].
 The extended MIDI syntax being used here is described by the following
 grammar rules (please also refer to the beginning of Section
-\f[I]Translation Syntax\f[] which has the rest of the MIDI grammar):
+\f[I]Translation Syntax\f[] for the rest of the MIDI syntax):
 .IP
 .nf
 \f[C]
@@ -1154,14 +1182,12 @@ CP[16]\ C0
 \f[]
 .fi
 .PP
-In contrast to standard data translations, there's no increment suffix
-here, so the translation does \f[I]not\f[] indicate an incremental value
-change.
-Instead, the output messages are constructed directly from the input
-value by some arithmetic calculations.
-To these ends, the step size on the left\-hand side is actually treated
-as a \f[I]modulus\f[] here, in order to decompose the input value into
-two separate quantities, \f[I]quotient\f[] and \f[I]remainder\f[].
+In contrast to standard data translations, there's no increment flag
+here, so the translation does \f[I]not\f[] indicate an incremental
+change of the input value.
+Instead, the step size on the left\-hand side is actually treated as a
+\f[I]modulus\f[], in order to decompose the input value into two
+separate quantities, \f[I]quotient\f[] and \f[I]remainder\f[].
 Only the latter becomes the value of the output message, while the
 former is used as an \f[I]offset\f[] to modify the output message.
 (Note that \f[C]CP\f[] and \f[C]PB\f[] messages don't have a modifiable
@@ -1191,16 +1217,9 @@ One such variation is \f[I]transposition\f[], denoted with the
 It reverses the roles of \f[I]q\f[] and \f[I]r\f[], so that the
 remainder becomes the offset and the quotient the value of the output
 message.
-For instance:
-.IP
-.nf
-\f[C]
-CP[16]\ C0\[aq]
-\f[]
-.fi
-.PP
-Now, with the same input value of 21 you'd get the note \f[C]F0\f[]
-(\f[C]C0\f[] offset by 5) with a velocity of 1 instead.
+For instance, with \f[C]CP[16]\ C0\f[] and the same input value of 21,
+you'd get the note \f[C]F0\f[] (\f[C]C0\f[] offset by 5) with a velocity
+of 1 instead.
 We won't need this here, but it's very convenient in some situations,
 and we'll see more examples of its use in the following section.
 .PP
@@ -1301,11 +1320,12 @@ CC69[128]\ F7{0:49,1,0}\ E7{0:50,1,0}\ Eb7{0:51,1,0}\ D7{0:52,1,0}
 \f[]
 .fi
 .PP
-Note the use of the modulus 128, which exceeds the controller value
+Also note the use of the modulus 128, which exceeds the controller value
 range so that we always have a zero offset here, and thus the output
 notes aren't modified.
-We only use a mod translation here so that we can apply some value lists
-(which are only available in mod translations) to the input value.
+(In fact, we only use a mod translation here so that we can apply some
+value lists to the input value, because these are only available in mod
+translations.)
 .SS More Uses of Mod Translations
 .PP
 While mod translations are often employed for MIDI feedback, they can
@@ -1342,8 +1362,9 @@ conjunction with key and mouse output, but for pure MIDI bindings like
 the one above, a mod translation is often preferable.
 .PP
 You also need to use a trivial mod translation if your binding involves
-discrete value lists (which are only available in mod translations).
-These lists, which actually represent discrete \f[I]mappings\f[] from
+discrete value lists, because these are only available in mod
+translations.
+Value lists, which actually represent discrete \f[I]mappings\f[] from
 input to output values, offer much more flexibility than simple step
 sizes.
 In fact, they can be used to realize \f[I]any\f[] discrete mapping of
@@ -1377,13 +1398,13 @@ CC1[128]\ CC1{0:2\-5,7:5\-0}
 .fi
 .PP
 The list on the \f[C]CC1\f[] message there consists of two zeros,
-followed by the values 1 thru 5, followed by five 7s, before finally
-going back down to 0.
+followed by the values 1\-5, followed by five 7s, before finally going
+back down to 0.
 .PP
 The mod translations above are all trivial translations with a zero
 offset.
 Conversely, if you're only interested in the offset, you can also use a
-modulus of 1 to nullify the \f[I]remainder\f[].
+modulus of 1 to nullify the remainder instead.
 This can be used, e.g., if you want to map controller values to note
 \f[I]numbers\f[] (rather than velocities):
 .IP
@@ -1397,7 +1418,11 @@ This outputs the note with the same number as the controller value,
 \f[C]C0\f[] for value 0, \f[C]C#0\f[] for value 1, etc.
 Note that the remainder, which becomes the velocity of the output note,
 will always be zero here, so the above translation turns all notes off.
-To get a nonzero velocity, you have to specify it in a value list:
+To get a nonzero velocity, you have to specify it in a value list, as
+shown below.
+Note that a simple scale factor won't do us much good here since the
+value to be scaled is always zero.
+A value list is the only way to turn that zero into a nonzero value.
 .IP
 .nf
 \f[C]
@@ -1405,11 +1430,8 @@ CC2[1]\ C0{127}
 \f[]
 .fi
 .PP
-Now we can turn notes on with \f[C]CC2\f[] and turn them off again with
-\f[C]CC1\f[].
-(Note that a simple scale factor won't do us much good here since the
-value to be scaled is always zero.
-A value list is the only way to turn a zero into a nonzero value.)
+With both of these rules at hand, we can now turn notes on with
+\f[C]CC2\f[] and turn them off again with \f[C]CC1\f[].
 .PP
 We also mention in passing here that a modulus 1 translation is actually
 the \[lq]dual\[rq] of a trivial mod translation, employing the
@@ -1459,12 +1481,12 @@ single note).
 Also, there's no direct way to combine different kinds of translations
 of the same input (but see below for a way to work around this problem).
 Conversely, there's no way to consolidate the values of multiple input
-messages into a single output message either (even the little macro
-facility in the following section won't help with this).
+messages into a single output message either (even the following section
+won't help with this).
 .SS Macro Translations
 .PP
 There are some situations in which it is hard to construct a translation
-in a single step, but it may become much easier if you can recursively
+in a single step, but it may become much easier if we can recursively
 invoke other translations to construct some parts of the final result.
 midizap allows you to do this by \[lq]calling\[rq] the mod translation
 for a MIDI message on the right\-hand side of a translation.
@@ -1481,22 +1503,21 @@ Note that you can \f[I]only\f[] call mod translations this way, so the
 message to be expanded (\f[C]CC1\f[] in this example) must be bound in a
 mod translation somewhere; otherwise you'll get a warning about the
 message being undefined and no output will be generated.
+Also, we want to make sure that the message isn't also used as a
+\[lq]real\[rq] input, so that we are free to define it as needed.
+MIDI has 2048 distinct controllers, though (128 for each of the 16 MIDI
+channels), so in most cases it shouldn't be too hard to find a
+controller that's free to use for such internal translations.
 .PP
-Let's introduce some familiar terminology to make it easier to talk
-about these things.
+Let's introduce a few terms which will make it easier to talk about
+these things.
 We refer to a mod translation being called in this manner as a
 \f[I]macro translation\f[], and we also call the left\-hand side of the
 translation a \f[I]macro\f[], and the invocation of a macro using the
 dollar symbol a \f[I]macro call\f[].
 .PP
-Note that in most cases, we do \f[I]not\f[] want macros to also occur as
-\[lq]real\[rq] inputs, so that we are free to define them as needed.
-MIDI has 2048 distinct controllers, though (128 for each of the 16 MIDI
-channels), so in most cases it shouldn't be too hard to find a
-controller that's free to use for such internal translations.
-.PP
-For illustration purposes, let's define \f[C]CC1\f[] so that it outputs
-just a single note message:
+For illustration purposes, let's define the \f[C]CC1\f[] macro so that
+it outputs just a single note message:
 .IP
 .nf
 \f[C]
@@ -1506,7 +1527,7 @@ CC1[128]\ C5\ \ #2
 .fi
 .PP
 On a conceptual level, the macro expansion process works pretty much
-like the productions of a grammar, with the \[lq]dollar\[rq] tokens
+like the production rules of a grammar, with the \[lq]dollar\[rq] tokens
 playing the role of the non\-terminals.
 Thus, with the definitions above a \f[C]CC0\f[] message will be
 processed as follows:
@@ -1525,9 +1546,9 @@ The end result is of course a \f[C]C5\f[] message with the same velocity
 as the value of the \f[C]CC1\f[] message, which in turn comes from the
 original \f[C]CC0\f[] controller value.
 .PP
-This example is admittedly a bit silly, because we might have written
-\f[C]CC0=\ C5\f[] and be done with it.
-So let's consider something more complicated which really \f[I]needs\f[]
+This example is admittedly a bit silly, because we could just have
+written \f[C]CC0=\ C5\f[] instead and be done with it.
+So let's try something more complicated which really \f[I]needs\f[]
 recursive translations to work.
 For instance, suppose that we'd like to output \f[I]two\f[] messages
 instead: the note message \f[C]C5\f[] as before, followed by a
@@ -1542,9 +1563,9 @@ CC0[16]{0}\ CC1
 .fi
 .PP
 But we can't write them this way, because we're not allowed to bind
-\f[C]CC0\f[] to two different output sequences at once.
-(If you try this, the parser will complain and just ignore the second
-rule.) However, we may write:
+\f[C]CC0\f[] to two different output sequences at once (if you try this,
+the parser will complain and just ignore the second rule).
+However, we can massage those rules a bit to obtain:
 .IP
 .nf
 \f[C]
@@ -1553,11 +1574,8 @@ CC1[16]{0}\ CC1
 \f[]
 .fi
 .PP
-This works and isn't much more difficult to understand than our first
-attempt.
-In fact, this way of formulating the translation has the advantage that
-the order in which the final output sequence is constructed is apparent
-from the first rule.
+This works and the transformation we did here is actually quite
+straightforward.
 In the same vein, we can combine as many different mod translations as
 we like, even if they involve different moduli and offset
 transformations.
@@ -1565,7 +1583,7 @@ transformations.
 C programmers will have realized by now that macro translations work
 pretty much like parameter\-less macros in the C programming language.
 The same caveats apply here, too.
-Just like C, midizap's configuration language provides no way to break
+Specifically, midizap's configuration language provides no way to break
 out of a recursive macro, so you do \f[I]not\f[] want to have a macro
 invoke itself (either directly or indirectly), because that will always
 lead to an infinite recursion.
@@ -1594,6 +1612,8 @@ context of nibble extraction.
 Input comes from \f[C]CC7\f[] in the example, and bit #\f[I]i\f[] of the
 controller value becomes \f[C]CC\f[]\f[I]i\f[] in the output, where
 \f[I]i\f[] runs from 0 to 6.
+(You should try these translations with the debugging options to see
+what exactly is going on there.)
 .IP
 .nf
 \f[C]
@@ -1626,19 +1646,13 @@ The names of some of the debugging options are rather idiosyncratic.
 midizap inherited them from Eric Messick's ShuttlePRO program, and we
 decided to keep them for compatibility reasons.
 .PP
-There's no Mac or Windows support (yet).
 midizap has only been tested on Linux so far, and its keyboard and mouse
 support is tailored to X11, i.e., it's pretty much tied to Unix/X11
 systems right now.
-.PP
-midizap lacks an option to run under real\-time priorities right now.
-Use chrt(1) instead.
-For instance: \f[C]chrt\ 90\ midizap\ \-o\f[].
-This should only be needed when MIDI output is enabled and you notice
-bad latency or jitter in MIDI output.
-Using chrt, midizap should be able to get down to MIDI latencies in the
-1 msec ballpark which should be good enough for most purposes (YMMV,
-though).
+So there's no native Mac or Windows support, and there won't be until
+someone in the know about Mac and Windows equivalents for the X11 XTest
+extension comes along and ports it over.
+(Your pull requests are appreciated!)
 .PP
 midizap tries to keep things simple, which implies that it has its
 limitations.
