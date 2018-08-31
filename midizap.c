@@ -1548,7 +1548,7 @@ static char *absolute_path(char *name)
       char *path = malloc(strlen(pwd)+strlen(name)+2);
       static char abspath[PATH_MAX];
       sprintf(path, "%s/%s", pwd, name);
-      realpath(path, abspath);
+      if (!realpath(path, abspath)) strcpy(abspath, path);
       free(path); free(pwd);
       return abspath;
     }
