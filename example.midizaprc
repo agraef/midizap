@@ -155,13 +155,13 @@
 # without any option letter turns on all debugging options.
 
 
-# Sample bindings for video editing and mouse emulation.
-
-# These mostly assume a Mackie MCU-like DAW controller device.  We use
-# this as an example throughout, since devices of this kind are standard
-# gear in many studios, and they offer an abundance of useful controls.
-# If you don't have one of these lying around, there are inexpensive MCU
-# emulations in software (such as the TouchDAW app on Android).
+# Sample bindings for video editing.  These assume a Mackie MCU-like
+# device, which are available from various manufacturers.  They are more
+# or less standardized, and offer an abundance of useful controls,
+# making it easier to provide bindings which just work.  If you don't
+# have one of these lying around, there are inexpensive emulations in
+# software (such as the TouchDAW app on Android), or you can just edit the
+# rules below to make them work with your controller.
 
 # On most MCU-style devices there are some playback controls and cursor
 # keys which generate various note events, and a jog wheel which
@@ -234,11 +234,11 @@
 [MIDI]
 
 # The special "MIDI" default section is only active when MIDI output is
-# enabled (midizap -o).  This allows you to translate midizap's MIDI
-# input for use with other MIDI devices and applications.  Here's a
-# simple example for illustration purposes, which shows how to map both
-# the MCU master fader and the jog wheel to CC7, so that they can be
-# used as volume controls.
+# enabled (midizap -o).  This allows you to use midizap as a MIDI mapper
+# translating MIDI input to MIDI output.  Here's a simple example for
+# illustration purposes, which shows how to map both the MCU master
+# fader and the jog wheel to CC7, so that they can be used as volume
+# controls.
 
 # Note that the MCU master fader is PB (on MIDI channel 9), which has
 # 128 times the range of a MIDI controller, so we scale it down
@@ -283,6 +283,8 @@
 # Default section (cursor and mouse emulation)
 
 [Default]
+
+# First, some MCU-compatible bindings.
 
 # cursor movement
  D8    XK_Left
