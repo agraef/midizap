@@ -1508,9 +1508,10 @@ In particular, the reversal of the \f[C]CC1[1]\ C0\f[] translation,
 i.e., \f[I]extracting\f[] the note number from a note input, is rather
 tedious (it involves writing down rules for each and every single note).
 Also, there's no direct way to combine different kinds of translations
-of the same input (but see below for a way to work around this problem),
-or to consolidate the values of multiple input messages into a single
-output message.
+of the same input, or to consolidate the values of multiple input
+messages into a single output message.
+(The macro facility in the following section lets you address the
+former, but not the latter problem.)
 .SS Macro Translations
 .PP
 There are some situations in which it is hard to construct a translation
@@ -1646,8 +1647,6 @@ controller value becomes \f[C]CC\f[]\f[I]i\f[] in the output, where
 Note that each of these rules uses successively smaller powers of 2 as
 its modulus and passes on the remainder to the next rule, while the
 topmost bit is extracted with transposition.
-(You may want to try these translations with the debugging options to
-see what exactly is going on here.)
 .IP
 .nf
 \f[C]

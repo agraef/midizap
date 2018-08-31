@@ -563,7 +563,7 @@ CC1[16]{0} CC1 CC2'
 
 Using similar rules, you can extract any part of an input value, down to every single bit if needed (see the example at the end of the next section).
 
-As you can see, mod translations in combination with discrete value lists are fairly powerful and let you implement pretty much any desired mapping with ease. There are some limitations, though. In particular, the reversal of the `CC1[1] C0` translation, i.e., *extracting* the note number from a note input, is rather tedious (it involves writing down rules for each and every single note). Also, there's no direct way to combine different kinds of translations of the same input (but see below for a way to work around this problem), or to consolidate the values of multiple input messages into a single output message.
+As you can see, mod translations in combination with discrete value lists are fairly powerful and let you implement pretty much any desired mapping with ease. There are some limitations, though. In particular, the reversal of the `CC1[1] C0` translation, i.e., *extracting* the note number from a note input, is rather tedious (it involves writing down rules for each and every single note). Also, there's no direct way to combine different kinds of translations of the same input, or to consolidate the values of multiple input messages into a single output message. (The macro facility in the following section lets you address the former, but not the latter problem.)
 
 ## Macro Translations
 
@@ -619,7 +619,7 @@ CC1[128] $CC0 # don't do this!
 
 midizap *will* catch infinite recursion after a few iterations, so for educational purposes you can (and should) try the example above and see what happens. As you'll notice, the program prints an error message indicating the translation and message which caused the problem, so that you can correct your mistake.
 
-So macro translations are too limited to make for a Turing-complete programming language, but there's still a lot that can be done with them. Here's another instructive example which spits out the individual bits of a controller value, using the approach that we discussed earlier in the context of nibble extraction. Input comes from `CC7` in the example, and bit #*i* of the controller value becomes `CC`*i* in the output, where *i* runs from 0 to 6. Note that each of these rules uses successively smaller powers of 2 as its modulus and passes on the remainder to the next rule, while the topmost bit is extracted with transposition. (You may want to try these translations with the debugging options to see what exactly is going on here.)
+So macro translations are too limited to make for a Turing-complete programming language, but there's still a lot that can be done with them. Here's another instructive example which spits out the individual bits of a controller value, using the approach that we discussed earlier in the context of nibble extraction. Input comes from `CC7` in the example, and bit #*i* of the controller value becomes `CC`*i* in the output, where *i* runs from 0 to 6. Note that each of these rules uses successively smaller powers of 2 as its modulus and passes on the remainder to the next rule, while the topmost bit is extracted with transposition.
 
 ~~~
 CC7[64]{0} $CC6 CC6'
