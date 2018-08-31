@@ -174,7 +174,15 @@ PB output                 # pitch bend
 
 The `#` character at the beginning of a line and after whitespace is special; it indicates that the rest of the line is a comment, which is skipped by the parser. Empty lines and lines containing nothing but whitespace are also ignored.
 
-Each `[name] regex` line introduces the list of MIDI message translations for the named translation class. The name is only used for debugging output and diagnostics, and needn't be unique. When focus is on a window whose class or title matches the regular expression `regex`, the corresponding translations are in effect. An empty regex for the last class will always match, allowing default translations. Any output sequences not bound in a matched section will be loaded from the default section if they are bound there.
+Each `[name] regex` line introduces the list of MIDI message translations for the named translation class. E.g., the following header might be used to begin a new section for the Kdenlive video editor: 
+
+~~~
+[Kdenlive] ^kdenlive$
+~~~
+
+Please refer to regex(7) for an explanation of the regular expression syntax. The regex above will match `kdenlive` and nothing else, because we tied the match to beginning and end with the `^` and `$` anchors.
+
+When focus is on a window whose class or title matches the (basic) regular expression `regex`, the corresponding translations are in effect. An empty regex for the last class will always match, allowing default translations. Any output sequences not bound in a matched section will be loaded from the default section if they are bound there. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the name is only used for debugging output and diagnostics, and needn't be unique.
 
 The translations define what output should be produced for the given MIDI input. Each translation must be on a line by itself. The left-hand side (first token) of the translation denotes the MIDI message to be translated. The corresponding right-hand side (the rest of the line) is a sequence of one or more tokens, separated by whitespace, indicating either MIDI messages or X11 keyboard and mouse events to be output.
 
@@ -184,9 +192,7 @@ The translations define what output should be produced for the given MIDI input.
  
 Note messages are specified using a human-readable format which should look familiar (to musicians at least): a note name `A..G` is followed by an (optional) accidental (`#` or `b`), and a (mandatory) MIDI octave number. Note that all MIDI octaves start at the note C, so `B0` comes before `C1`. By default, `C5` denotes middle C (you can change this if you want, see *Octave Numbering* below). Enharmonic spellings are equivalent, so, e.g., `D#` and `Eb` denote exactly the same MIDI note.
 
-The other messages are denoted using short mnemonics: `KP` (aftertouch a.k.a. key pressure; followed by `:` and a note designation); `CC` (control change, followed by a controller number); `PC` (program change, followed by a program number); `CP` and `PB` (channel pressure and pitch bend; these don't have a numeric suffix, as they apply to the entire MIDI channel).
-
-We will go into the other syntactic bits and pieces of MIDI message designations later, but it's good to have the following grammar in EBNF notation handy for reference. (To keep things simple, the grammar is somewhat abridged, but it covers all the frequently used notation. There is some additional syntax for special forms of translations which will be introduced later.)
+The other messages are denoted using short mnemonics: `KP` (aftertouch a.k.a. key pressure; followed by `:` and a note designation); `CC` (control change, followed by a controller number); `PC` (program change, followed by a program number); `CP` and `PB` (channel pressure and pitch bend; these don't have a numeric suffix, as they apply to the entire MIDI channel). We will go into the other syntactic bits and pieces of MIDI message designations later, but it's good to have the following grammar in EBNF notation handy for reference. (To keep things simple, the grammar is somewhat abridged, but it covers all the frequently used notation. There is some additional syntax for special forms of translations which will be introduced later.)
 
 ~~~
 token ::= msg [ "[" number "]" ] [ "-" number ] [ flag ]
@@ -226,9 +232,7 @@ Note that since translations are determined uniquely in each translation class, 
 
 In the following, we concentrate on "standard" data mode messages having an increment suffix. In this case, the optional step size in brackets indicates the amount of change required to trigger the translation, so its effect is to downscale the amount of change in the input value. (The variant without an increment suffix is more complicated and mostly intended for rather specialized uses, so we'll have a look at it later in the *Advanced Features* section.)
 
-Data mode usually tracks changes in the *absolute* value of a control. However, for `CC` messages there's also an alternative mode for so-called *incremental* controllers, or *encoders* for short, which can found on some DAW controllers. These usually take the form of jog wheels or rotary encoders which can be turned endlessly in either direction. In contrast, absolute-valued controllers are usually faders or knobs which are confined to a range between minimum and maximum values.
-
-Encoders emit a special *sign bit* value indicating a *relative* change, where a value < 64 usually denotes an increment (representing clockwise rotation), and a value > 64 a decrement (counter-clockwise rotation). The actual amount of change is in the lower 6 bits of the value. In the message syntax, these kinds of controls are indicated by using the suffixes `<`, `>` and `~` in lieu of `-`, `+` and `=`, respectively. These flags are only permitted with `CC` messages.
+Data mode usually tracks changes in the *absolute* value of a control. However, for `CC` messages there's also an alternative mode for so-called *incremental* controllers, or *encoders* for short, which can found on some DAW controllers. These usually take the form of jog wheels or rotary encoders which can be turned endlessly in either direction. In contrast, absolute-valued controllers are usually faders or knobs which are confined to a range between minimum and maximum values. Encoders emit a special *sign bit* value indicating a *relative* change, where a value < 64 usually denotes an increment (representing clockwise rotation), and a value > 64 a decrement (counter-clockwise rotation). The actual amount of change is in the lower 6 bits of the value. In the message syntax, these kinds of controls are indicated by using the suffixes `<`, `>` and `~` in lieu of `-`, `+` and `=`, respectively. These flags are only permitted with `CC` messages.
 
 ## Keyboard and Mouse Translations
 
@@ -417,7 +421,7 @@ An in-depth discussion of controller feedback is beyond the scope of this manual
 
 ## Mod Translations
 
-Most of the time, MIDI feedback uses just the standard kinds of MIDI messages readily supported by midizap, such as note messages which make buttons light up in different colors, or control change messages which set the positions of motor faders. However, there are some encodings of feedback messages which combine different bits of information in a single message, making them difficult or even impossible to translate using the simple kinds of rules we've seen so far. One important application, which we'll use as a running example below, is the decoding of meter (RMS level) data in the Mackie protocol. There, each meter value is sent by the host application in the form of a key pressure message whose value consists of a mixer channel index 0..7 in the "high nibble" (bits 4..6 = *v* div 16, where *v* is the key pressure value) and the corresponding meter value in the "low nibble" (bits 0..3 = *v* mod 16).
+Most of the time, MIDI feedback uses just the standard kinds of MIDI messages readily supported by midizap, such as note messages which make buttons light up in different colors, or control change messages which set the positions of motor faders. However, there are some encodings of feedback messages which combine different bits of information in a single message, making them difficult or even impossible to translate using the simple kinds of rules we've seen so far. One important application, which we'll use as a running example below, is the decoding of meter (RMS level) data in the Mackie protocol. There, each meter value is sent by the host application in the form of a key pressure message whose value consists of a mixer channel index 0..7 in the "high nibble" (bits 4..6) and the corresponding meter value in the "low nibble" (bits 0..3).
 
 midizap offers a special variation of data mode to help decoding such messages. This involves calculations with integer moduli which enable you to modify output messages in certain ways, so for want of a better name we also call these bindings *mod translations*. The extended MIDI syntax being used here is described by the following grammar rules (please also refer to the beginning of Section *Translation Syntax* for the rest of the MIDI syntax):
 
@@ -428,7 +432,7 @@ list  ::= number { "," number | ":" number | "-" number }
 flag  ::= "'"
 ~~~
 
-There are two new elements in the syntax, the "transposition" flag `'`, and lists of numbers enclosed in curly braces. For convenience, the latter also support the following abbreviations: repetition *a*`:`*b* (denoting *b* consecutive *a*'s) and enumeration *a*`-`*b* (denoting *a*`,`*a*±1`,`...`,`*b*; note that an enumeration may go up or down, depending on whether *a*<*b* or *a*>*b*). The meaning of these constructs will be discussed below.
+There are two new elements in the syntax, the "transposition" flag `'`, and lists of numbers enclosed in curly braces. For convenience, the latter also support the following abbreviations: repetition *a*`:`*b* (denoting *b* consecutive *a*'s) and enumeration *a*`-`*b* (denoting *a*`,`*a*±1`,`...`,`*b*, which ramps either up or down depending on whether *a*<*b* or *a*>*b*, respectively). The meaning of these constructs will be discussed below.
 
 For the sake of a concrete example, in the following we consider the mapping of channel pressure messages encoding MCU meter values to notes indicating buttons on the AKAI APCmini; please check examples/APCmini.midizaprc in the sources for details. But these translations work the same with any kind of message having a parameter value (i.e., anything but `PC`) and any kind of MIDI output, so similar rules will help with other kinds of "scrambled" MIDI data.
 
@@ -442,7 +446,7 @@ In contrast to standard data translations, there's no increment flag here, so th
 
 In order to describe more precisely how this works, let's assume an input value *v* and a modulus *k*. We divide *v* by *k*, yielding the quotient (offset) *q* = *v* div *k* and the remainder (value) *r* =  *v* mod *k*. E.g., with *k* = 16 and *v* = 21, you'll get *q* = 1 and *r* = 5 (21 divided by 16 yields 1 with a remainder of 5). The calculated offset *q* is then applied to the note itself, and the remainder *r* becomes the velocity of that note. So in the example the output would be the note `C#0` (`C0` offset by 1) with a velocity of 5. On the APCmini, this message will light up the second button in the bottom row of the 8x8 grid in yellow.
 
-This simple kind of transformation is surprisingly versatile, and there are some variations of the syntax which make it even more flexible. One such variation is *transposition*, denoted with the `'` (apostrophe) flag at the end of the output message. It reverses the roles of *q* and *r*, so that the remainder becomes the offset and the quotient the value of the output message. For instance, with `CP[16] C0` and the same input value of 21, you'd get the note `F0` (`C0` offset by 5) with a velocity of 1 instead. We won't need this here, but it's very convenient in some situations, and we'll see more examples of its use in the following section.
+This simple kind of transformation is surprisingly versatile, and there are some variations of the syntax which make it even more flexible. One such variation is *transposition*, denoted with the `'` (apostrophe) flag at the end of the output message. It reverses the roles of *q* and *r*, so that the remainder becomes the offset and the quotient the value of the output message. For instance, with `CP[16] C0` and the same input value of 21, you'd get the note `F0` (`C0` offset by 5) with a velocity of 1 instead. We won't utilize this in the present example, but it's very convenient in some situations, and we'll see some more examples of its use in the following section.
 
 As usual in data translations, you can also specify a step size to upscale the output value *r*:
 
@@ -484,7 +488,7 @@ CP[16] C0{0,1} G#0{0:5,5} E1{0:8,3}
 
 Note that each of the output notes will be offset by the same amount, so that the green, yellow and red buttons will always be lined up vertically in this example. (The APCmini.midizaprc example uses a similar, albeit more elaborate translation to handle MCU meter data.)
 
-Another example from the Mackie protocol is time feedback. The following rule (also from the APCmini.midizaprc example) decodes the lowest digit in the time display (`CC69`) to count off time on some of the scene launch buttons of the APCmini. Note that the digits are actually encoded in ASCII, hence the copious amount of initial zeros in the value lists below with which we skip over all the non-digit characters at the beginning of the ASCII table.
+Another example from the Mackie protocol is time feedback. The following rule (also from the APCmini.midizaprc example) decodes the least significant digit of the beat number in the time display (`CC69`) to count off time on some of the scene launch buttons of the APCmini. Note that the digits are actually encoded in ASCII, hence the copious amount of initial zeros in the value lists below with which we skip over all the non-digit characters at the beginning of the ASCII table.
 
 ~~~
 CC69[128] F7{0:49,1,0} E7{0:50,1,0} Eb7{0:51,1,0} D7{0:52,1,0}
@@ -502,29 +506,23 @@ One common trick that we already encountered in the preceding section is to choo
 CC1[128] C5
 ~~~
 
-This translates the `CC1` (modulation wheel) controller to  a `C5` (middle C) note message in such a way that the controller value becomes the velocity of the note. Note that this is different from both the key translation `CC1 C5` (which only preserves the "on"/"off" status but looses the actual parameter value) and the incremental data translation `CC1= C5` (which usually preserves the value, but executes the translation in a step-wise fashion for each unit change in the value). Key and incremental data translations are more useful when used in conjunction with key and mouse output, but for pure MIDI bindings like the one above, a mod translation is often preferable.
+This translates the `CC1` (modulation wheel) controller to  a `C5` (middle C) note message in such a way that the controller value becomes the velocity of the note. Note that this is different from both the key translation `CC1 C5` (which only preserves the "on"/"off" status but looses the actual parameter value) and the incremental data translation `CC1= C5` (which involves some internal state for keeping track of current values, and executes the translation in a step-wise fashion for each unit change). In contrast, a mod translation maps messages one-to-one and does not involve any ramping to arrive at the new value. Therefore, while key and incremental data translations are often used in conjunction with key and mouse output, for pure MIDI bindings like the one above a mod translation is often preferable.
 
-You also need to use a trivial mod translation if your binding involves discrete value lists, because these are only available in mod translations. Value lists, which actually represent discrete *mappings* from input to output values, offer much more flexibility than simple step sizes. In fact, they can be used to realize *any* discrete mapping of the input values. For instance, here's how to map controller values to the first few Fibonacci numbers:
+You also need to use a mod translation if your binding involves discrete value lists, because these are not available in other kinds of translations. Value lists can represent *any* discrete mapping from input to output values, and thus offer much more flexibility than simple step sizes. For instance, here's how to map controller values to the first few Fibonacci numbers:
 
 ~~~
 CC1[128] CC1{0,1,1,2,3,5,8,13,21,34,55,89}
 ~~~
 
-Another useful bit of notation are enumerations, which are used to denote an ascending or descending range of values. E.g., to reverse the values of a controller you may write:
+Value lists offer some conveniences to facilitate their use, *repetitions* (which we've already discussed in the previous section) and *enumerations*. Enumerations are used to denote an ascending or descending range of values. E.g., to reverse the values of a controller you may write:
 
 ~~~
 CC1[128] CC1{127-0}
 ~~~
 
-The output values might be in any order, and you can throw in any combination of singleton values, enumerations, and repetitions:
+The values in a list may be in any order, and you can throw in any combination of singleton values, enumerations and repetitions. E.g., the list `{0:2-5,7:5-0}` starts with two zeros, then ramps up to 5 followed by five 7s, before finally fading back to 0. For us mortals, that's much easier to read and also much less error-prone to write than `{0,0,1,2,3,4,5,7,7,7,7,7,6,5,4,3,2,1,0}`.
 
-~~~
-CC1[128] CC1{0:2-5,7:5-0}
-~~~
-
-The list on the `CC1` message there consists of two zeros, followed by the values 1-5, followed by five 7s, before finally going back down to 0.
-
-The mod translations above are all trivial translations with a zero offset. Conversely, if you're only interested in the offset, you can also use a modulus of 1 to nullify the remainder instead. This can be used, e.g., if you want to map controller values to note *numbers* (rather than velocities):
+The mod translations above are all trivial translations with a zero offset. Conversely, you can also use a modulus of 1 to nullify the remainder instead, if you're only interested in the offset. This can be used, e.g., if you want to map controller values to note *numbers* (rather than velocities):
 
 ~~~
 CC1[1] C0
@@ -554,12 +552,18 @@ CC1[16]{0} CC1
 Extracting the *high* nibble is just as easy (this is another case where the transposition flag comes in handy):
 
 ~~~
-CC1[16]{0} CC1'
+CC1[16]{0} CC2'
 ~~~
 
-Using similar rules, you can extract pretty much any part of controller values, velocities etc. that you need. (A more elaborate example can be found at the end of the next section.)
+Note that this works because the output mapping (which in this case forces the offset to 0) is applied *after* the transposition. Thus you can also output *both* the low and high nibbles at the same time:
 
-As you can see, mod translations in combination with discrete value lists are fairly powerful and let you implement pretty much any desired mapping with ease. There are some limitations, though. In particular, the reversal of the above "note-encoding" operation, i.e., *extracting* the note number from a note input is rather tedious (it involves writing down rules for each and every single note). Also, there's no direct way to combine different kinds of translations of the same input (but see below for a way to work around this problem). Conversely, there's no way to consolidate the values of multiple input messages into a single output message either (even the following section won't help with this).
+~~~
+CC1[16]{0} CC1 CC2'
+~~~
+
+Using similar rules, you can extract any part of an input value, down to every single bit if needed (see the example at the end of the next section).
+
+As you can see, mod translations in combination with discrete value lists are fairly powerful and let you implement pretty much any desired mapping with ease. There are some limitations, though. In particular, the reversal of the `CC1[1] C0` translation, i.e., *extracting* the note number from a note input, is rather tedious (it involves writing down rules for each and every single note). Also, there's no direct way to combine different kinds of translations of the same input (but see below for a way to work around this problem), or to consolidate the values of multiple input messages into a single output message.
 
 ## Macro Translations
 
@@ -569,7 +573,7 @@ There are some situations in which it is hard to construct a translation in a si
 CC0= $CC1
 ~~~
 
-Note that you can *only* call mod translations this way, so the message to be expanded (`CC1` in this example) must be bound in a mod translation somewhere; otherwise you'll get a warning about the message being undefined and no output will be generated. Also, we want to make sure that the message isn't also used as a "real" input, so that we are free to define it as needed. MIDI has 2048 distinct controllers, though (128 for each of the 16 MIDI channels), so in most cases it shouldn't be too hard to find a controller that's free to use for such internal translations.
+Note that you can *only* call mod translations this way, so the message to be expanded (`CC1` in this example) must be bound in a mod translation somewhere; otherwise you'll get a warning about the message being undefined and no output will be generated. Also, you want to make sure that the message isn't also used as a "real" input, so that you are free to define it as needed. MIDI has 2048 distinct controllers, though (128 for each of the 16 MIDI channels), so in most cases it shouldn't be too hard to find a controller that's free to use for such internal translations.
 
 Let's introduce a few terms which will make it easier to talk about these things. We refer to a mod translation being called in this manner as a *macro translation*, and we also call the left-hand side of the translation a *macro*, and the invocation of a macro using the dollar symbol a *macro call*.
 
@@ -580,24 +584,24 @@ CC0= $CC1    #1
 CC1[128] C5  #2
 ~~~
 
-On a conceptual level, the macro expansion process works pretty much like the production rules of a grammar, with the "dollar" tokens playing the role of the non-terminals. Thus, with the definitions above a `CC0` message will be processed as follows:
+On a conceptual level, the macro expansion process works pretty much like the production rules of a grammar, with the "dollar" tokens playing the role of the nonterminals. Thus, with the definitions above a `CC0` message will be processed as follows:
 
 - Rule #1 is applied, constructing the output sequence with the `CC1` message as usual.
 
-- Instead of outputting the resulting `CC1` message, the program now looks for a mod translation of that message which can be applied recursively.
+- Instead of outputting the resulting `CC1` message directly, the program now looks for a mod translation of that message which can be applied recursively.
 
 - Rule #2 is applied, yielding a `C5` message which is substituted for the `$CC1` token in rule #1.
 
 The end result is of course a `C5` message with the same velocity as the value of the `CC1` message, which in turn comes from the original `CC0` controller value.
 
-This example is admittedly a bit silly, because we could just have written `CC0= C5` instead and be done with it. So let's try something more complicated which really *needs* recursive translations to work. For instance, suppose that we'd like to output *two* messages instead: the note message `C5` as before, followed by a `CC1` message with just the low nibble of the controller value. Now each of these translations is easy to define:
+Of course, we could also just have written `CC0= C5` here and be done with it. So let's try something slightly more complicated which really *needs* recursive translations to work. For instance, suppose that we'd like to output *two* messages instead: the note message `C5` as before, followed by a `CC1` message with just the low nibble of the controller value. Now each of these translations is easy to define:
 
 ~~~
 CC0= C5
 CC0[16]{0} CC1
 ~~~
 
-But we can't write them this way, because we're not allowed to bind `CC0` to two different output sequences at once (if you try this, the parser will complain and just ignore the second rule). However, we can massage those rules a bit to obtain:
+But we can't write them this way, because we're not allowed to bind `CC0` in two different translations at once (the parser will complain and just ignore the second rule). The single rule `CC0[16]{0} C0 CC1` won't work either since it only passes the low nibble to the `C0` message. However, we can massage those rules a bit to obtain the following:
 
 ~~~
 CC0= C5 $CC1
@@ -606,16 +610,16 @@ CC1[16]{0} CC1
 
 This works and the transformation we did here is actually quite straightforward. In the same vein, we can combine as many different mod translations as we like, even if they involve different moduli and offset transformations.
 
-C programmers will have realized by now that macro translations work pretty much like parameter-less macros in the C programming language. The same caveats apply here, too. Specifically, midizap's configuration language provides no way to break out of a recursive macro, so you do *not* want to have a macro invoke itself (either directly or indirectly), because that will always lead to an infinite recursion. For instance:
+If you know C, you will have realized by now that macro translations work pretty much like parameter-less macros in the C programming language. The same caveats apply here, too. Specifically, the configuration language provides no way to break out of a recursive macro, so you do *not* want to have a macro invoke itself (either directly or indirectly), because that will always lead to an infinite recursion. E.g.:
 
 ~~~
 CC0[128] $CC1
 CC1[128] $CC0 # don't do this!
 ~~~
 
-midizap *will* catch infinite recursion after a few iterations, so, for educational purposes you can (and should) try the example above with midizap and see what happens. As you'll notice, the program prints an error message indicating the translation and message which caused the problem, so that you can correct your mistake.
+midizap *will* catch infinite recursion after a few iterations, so for educational purposes you can (and should) try the example above and see what happens. As you'll notice, the program prints an error message indicating the translation and message which caused the problem, so that you can correct your mistake.
 
-So macro translations are too limited to make for a Turing-complete programming language, but there's still a lot that can be done with them. Here's another example which spits out the individual bits of a controller value, using the approach that we discussed earlier in the context of nibble extraction. Input comes from `CC7` in the example, and bit #*i* of the controller value becomes `CC`*i* in the output, where *i* runs from 0 to 6. (You should try these translations with the debugging options to see what exactly is going on there.) 
+So macro translations are too limited to make for a Turing-complete programming language, but there's still a lot that can be done with them. Here's another instructive example which spits out the individual bits of a controller value, using the approach that we discussed earlier in the context of nibble extraction. Input comes from `CC7` in the example, and bit #*i* of the controller value becomes `CC`*i* in the output, where *i* runs from 0 to 6. Note that each of these rules uses successively smaller powers of 2 as its modulus and passes on the remainder to the next rule, while the topmost bit is extracted with transposition. (You may want to try these translations with the debugging options to see what exactly is going on here.)
 
 ~~~
 CC7[64]{0} $CC6 CC6'
@@ -634,7 +638,7 @@ There probably are some. Please submit bug reports and pull requests at the midi
 
 The names of some of the debugging options are rather idiosyncratic. midizap inherited them from Eric Messick's ShuttlePRO program, and we decided to keep them for compatibility reasons.
 
-midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now. So there's no native Mac or Windows support, and there won't be until someone in the know about Mac and Windows equivalents for the X11 XTest extension comes along and ports it over. (Your pull requests are appreciated!)
+midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now. So there's no native Mac or Windows support, and there won't be until someone in the know about Mac and Windows equivalents for the X11 XTest extension comes along and ports midizap to these systems.
 
 midizap tries to keep things simple, which implies that it has its limitations. In particular, midizap lacks support for system messages and some more interesting ways of mapping, filtering and recombining MIDI data right now. There are other, more powerful utilities which do these things, but they are also more complicated and usually require at least some programming skills. Fortunately, midizap usually does the job reasonably well for simple mapping tasks (and even some rather complicated ones, such as the APCmini MCU emulation included in the distribution). But if things start getting fiddly then you should consider using a more comprehensive tool like [Pd][] instead.
 
@@ -653,7 +657,7 @@ midizap is free and open source software licensed under the GPLv3.
 Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)  
 Copyright 2018 Albert Graef (<aggraef@gmail.com>)
 
-This is a version of Eric Messick's ShuttlePRO program which has been redesigned to work with Jack MIDI instead of the Contour Design Shuttle devices. ShuttlePRO was written in 2013 by Eric Messick, based on earlier code by Trammell Hudson and Arendt David. The MIDI support was added by Albert Graef. All the key and mouse translation features of the original program still work as before, but it goes without saying that the configuration language and the translation code have undergone some substantial changes to accommodate the MIDI input and output facilities. The Jack MIDI backend is based on code from Spencer Jackson's osc2midi utility, and on the simple_session_client.c example available in the Jack git repository.
+This is a version of Eric Messick's ShuttlePRO program which has been redesigned to work with Jack MIDI instead of the Contour Design Shuttle devices. ShuttlePRO was written in 2013 by Eric Messick, based on earlier code by Trammell Hudson and Arendt David. The MIDI support was added by Albert Gräf. All the key and mouse translation features of the original program still work as before, but it goes without saying that the configuration language and the translation code have undergone some substantial changes to accommodate the MIDI input and output facilities. The Jack MIDI backend is based on code from Spencer Jackson's osc2midi utility, and on the simple_session_client.c example available in the Jack git repository.
 
 [MIDI]: https://www.midi.org/
 [OSC]: http://opensoundcontrol.org/

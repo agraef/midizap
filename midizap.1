@@ -467,14 +467,37 @@ ignored.
 .PP
 Each \f[C][name]\ regex\f[] line introduces the list of MIDI message
 translations for the named translation class.
-The name is only used for debugging output and diagnostics, and needn't
-be unique.
-When focus is on a window whose class or title matches the regular
-expression \f[C]regex\f[], the corresponding translations are in effect.
+E.g., the following header might be used to begin a new section for the
+Kdenlive video editor:
+.IP
+.nf
+\f[C]
+[Kdenlive]\ ^kdenlive$
+\f[]
+.fi
+.PP
+Please refer to regex(7) for an explanation of the regular expression
+syntax.
+The regex above will match \f[C]kdenlive\f[] and nothing else, because
+we tied the match to beginning and end with the \f[C]^\f[] and
+\f[C]$\f[] anchors.
+.PP
+When focus is on a window whose class or title matches the (basic)
+regular expression \f[C]regex\f[], the corresponding translations are in
+effect.
 An empty regex for the last class will always match, allowing default
 translations.
 Any output sequences not bound in a matched section will be loaded from
 the default section if they are bound there.
+In addition, there are two special default sections labeled
+\f[C][MIDI]\f[] and \f[C][MIDI2]\f[] which are used specifically for
+MIDI translations, please see the \f[I]MIDI Output\f[] and \f[I]MIDI
+Feedback\f[] sections for details.
+If these sections are present, they should precede the main default
+section.
+All other sections, including the main default section, can be named any
+way you like; the name is only used for debugging output and
+diagnostics, and needn't be unique.
 .PP
 The translations define what output should be produced for the given
 MIDI input.
@@ -515,7 +538,6 @@ key pressure; followed by \f[C]:\f[] and a note designation);
 \f[C]PC\f[] (program change, followed by a program number); \f[C]CP\f[]
 and \f[C]PB\f[] (channel pressure and pitch bend; these don't have a
 numeric suffix, as they apply to the entire MIDI channel).
-.PP
 We will go into the other syntactic bits and pieces of MIDI message
 designations later, but it's good to have the following grammar in EBNF
 notation handy for reference.
@@ -654,7 +676,6 @@ These usually take the form of jog wheels or rotary encoders which can
 be turned endlessly in either direction.
 In contrast, absolute\-valued controllers are usually faders or knobs
 which are confined to a range between minimum and maximum values.
-.PP
 Encoders emit a special \f[I]sign bit\f[] value indicating a
 \f[I]relative\f[] change, where a value < 64 usually denotes an
 increment (representing clockwise rotation), and a value > 64 a
@@ -1132,9 +1153,8 @@ One important application, which we'll use as a running example below,
 is the decoding of meter (RMS level) data in the Mackie protocol.
 There, each meter value is sent by the host application in the form of a
 key pressure message whose value consists of a mixer channel index 0..7
-in the \[lq]high nibble\[rq] (bits 4..6 = \f[I]v\f[] div 16, where
-\f[I]v\f[] is the key pressure value) and the corresponding meter value
-in the \[lq]low nibble\[rq] (bits 0..3 = \f[I]v\f[] mod 16).
+in the \[lq]high nibble\[rq] (bits 4..6) and the corresponding meter
+value in the \[lq]low nibble\[rq] (bits 0..3).
 .PP
 midizap offers a special variation of data mode to help decoding such
 messages.
@@ -1160,9 +1180,9 @@ For convenience, the latter also support the following abbreviations:
 repetition \f[I]a\f[]\f[C]:\f[]\f[I]b\f[] (denoting \f[I]b\f[]
 consecutive \f[I]a\f[]'s) and enumeration
 \f[I]a\f[]\f[C]\-\f[]\f[I]b\f[] (denoting
-\f[I]a\f[]\f[C],\f[]\f[I]a\f[]±1\f[C],\f[]\&...\f[C],\f[]\f[I]b\f[];
-note that an enumeration may go up or down, depending on whether
-\f[I]a\f[]<\f[I]b\f[] or \f[I]a\f[]>\f[I]b\f[]).
+\f[I]a\f[]\f[C],\f[]\f[I]a\f[]±1\f[C],\f[]\&...\f[C],\f[]\f[I]b\f[],
+which ramps either up or down depending on whether \f[I]a\f[]<\f[I]b\f[]
+or \f[I]a\f[]>\f[I]b\f[], respectively).
 The meaning of these constructs will be discussed below.
 .PP
 For the sake of a concrete example, in the following we consider the
@@ -1220,8 +1240,9 @@ message.
 For instance, with \f[C]CP[16]\ C0\f[] and the same input value of 21,
 you'd get the note \f[C]F0\f[] (\f[C]C0\f[] offset by 5) with a velocity
 of 1 instead.
-We won't need this here, but it's very convenient in some situations,
-and we'll see more examples of its use in the following section.
+We won't utilize this in the present example, but it's very convenient
+in some situations, and we'll see some more examples of its use in the
+following section.
 .PP
 As usual in data translations, you can also specify a step size to
 upscale the output value \f[I]r\f[]:
@@ -1308,8 +1329,9 @@ translation to handle MCU meter data.)
 .PP
 Another example from the Mackie protocol is time feedback.
 The following rule (also from the APCmini.midizaprc example) decodes the
-lowest digit in the time display (\f[C]CC69\f[]) to count off time on
-some of the scene launch buttons of the APCmini.
+least significant digit of the beat number in the time display
+(\f[C]CC69\f[]) to count off time on some of the scene launch buttons of
+the APCmini.
 Note that the digits are actually encoded in ASCII, hence the copious
 amount of initial zeros in the value lists below with which we skip over
 all the non\-digit characters at the beginning of the ASCII table.
@@ -1354,21 +1376,21 @@ value becomes the velocity of the note.
 Note that this is different from both the key translation
 \f[C]CC1\ C5\f[] (which only preserves the \[lq]on\[rq]/\[lq]off\[rq]
 status but looses the actual parameter value) and the incremental data
-translation \f[C]CC1=\ C5\f[] (which usually preserves the value, but
-executes the translation in a step\-wise fashion for each unit change in
-the value).
-Key and incremental data translations are more useful when used in
-conjunction with key and mouse output, but for pure MIDI bindings like
-the one above, a mod translation is often preferable.
+translation \f[C]CC1=\ C5\f[] (which involves some internal state for
+keeping track of current values, and executes the translation in a
+step\-wise fashion for each unit change).
+In contrast, a mod translation maps messages one\-to\-one and does not
+involve any ramping to arrive at the new value.
+Therefore, while key and incremental data translations are often used in
+conjunction with key and mouse output, for pure MIDI bindings like the
+one above a mod translation is often preferable.
 .PP
-You also need to use a trivial mod translation if your binding involves
-discrete value lists, because these are only available in mod
+You also need to use a mod translation if your binding involves discrete
+value lists, because these are not available in other kinds of
 translations.
-Value lists, which actually represent discrete \f[I]mappings\f[] from
-input to output values, offer much more flexibility than simple step
+Value lists can represent \f[I]any\f[] discrete mapping from input to
+output values, and thus offer much more flexibility than simple step
 sizes.
-In fact, they can be used to realize \f[I]any\f[] discrete mapping of
-the input values.
 For instance, here's how to map controller values to the first few
 Fibonacci numbers:
 .IP
@@ -1378,8 +1400,11 @@ CC1[128]\ CC1{0,1,1,2,3,5,8,13,21,34,55,89}
 \f[]
 .fi
 .PP
-Another useful bit of notation are enumerations, which are used to
-denote an ascending or descending range of values.
+Value lists offer some conveniences to facilitate their use,
+\f[I]repetitions\f[] (which we've already discussed in the previous
+section) and \f[I]enumerations\f[].
+Enumerations are used to denote an ascending or descending range of
+values.
 E.g., to reverse the values of a controller you may write:
 .IP
 .nf
@@ -1388,23 +1413,18 @@ CC1[128]\ CC1{127\-0}
 \f[]
 .fi
 .PP
-The output values might be in any order, and you can throw in any
-combination of singleton values, enumerations, and repetitions:
-.IP
-.nf
-\f[C]
-CC1[128]\ CC1{0:2\-5,7:5\-0}
-\f[]
-.fi
-.PP
-The list on the \f[C]CC1\f[] message there consists of two zeros,
-followed by the values 1\-5, followed by five 7s, before finally going
-back down to 0.
+The values in a list may be in any order, and you can throw in any
+combination of singleton values, enumerations and repetitions.
+E.g., the list \f[C]{0:2\-5,7:5\-0}\f[] starts with two zeros, then
+ramps up to 5 followed by five 7s, before finally fading back to 0.
+For us mortals, that's much easier to read and also much less
+error\-prone to write than
+\f[C]{0,0,1,2,3,4,5,7,7,7,7,7,6,5,4,3,2,1,0}\f[].
 .PP
 The mod translations above are all trivial translations with a zero
 offset.
-Conversely, if you're only interested in the offset, you can also use a
-modulus of 1 to nullify the remainder instead.
+Conversely, you can also use a modulus of 1 to nullify the remainder
+instead, if you're only interested in the offset.
 This can be used, e.g., if you want to map controller values to note
 \f[I]numbers\f[] (rather than velocities):
 .IP
@@ -1461,28 +1481,36 @@ case where the transposition flag comes in handy):
 .IP
 .nf
 \f[C]
-CC1[16]{0}\ CC1\[aq]
+CC1[16]{0}\ CC2\[aq]
 \f[]
 .fi
 .PP
-Using similar rules, you can extract pretty much any part of controller
-values, velocities etc.
-that you need.
-(A more elaborate example can be found at the end of the next section.)
+Note that this works because the output mapping (which in this case
+forces the offset to 0) is applied \f[I]after\f[] the transposition.
+Thus you can also output \f[I]both\f[] the low and high nibbles at the
+same time:
+.IP
+.nf
+\f[C]
+CC1[16]{0}\ CC1\ CC2\[aq]
+\f[]
+.fi
+.PP
+Using similar rules, you can extract any part of an input value, down to
+every single bit if needed (see the example at the end of the next
+section).
 .PP
 As you can see, mod translations in combination with discrete value
 lists are fairly powerful and let you implement pretty much any desired
 mapping with ease.
 There are some limitations, though.
-In particular, the reversal of the above \[lq]note\-encoding\[rq]
-operation, i.e., \f[I]extracting\f[] the note number from a note input
-is rather tedious (it involves writing down rules for each and every
-single note).
+In particular, the reversal of the \f[C]CC1[1]\ C0\f[] translation,
+i.e., \f[I]extracting\f[] the note number from a note input, is rather
+tedious (it involves writing down rules for each and every single note).
 Also, there's no direct way to combine different kinds of translations
-of the same input (but see below for a way to work around this problem).
-Conversely, there's no way to consolidate the values of multiple input
-messages into a single output message either (even the following section
-won't help with this).
+of the same input (but see below for a way to work around this problem),
+or to consolidate the values of multiple input messages into a single
+output message.
 .SS Macro Translations
 .PP
 There are some situations in which it is hard to construct a translation
@@ -1503,8 +1531,8 @@ Note that you can \f[I]only\f[] call mod translations this way, so the
 message to be expanded (\f[C]CC1\f[] in this example) must be bound in a
 mod translation somewhere; otherwise you'll get a warning about the
 message being undefined and no output will be generated.
-Also, we want to make sure that the message isn't also used as a
-\[lq]real\[rq] input, so that we are free to define it as needed.
+Also, you want to make sure that the message isn't also used as a
+\[lq]real\[rq] input, so that you are free to define it as needed.
 MIDI has 2048 distinct controllers, though (128 for each of the 16 MIDI
 channels), so in most cases it shouldn't be too hard to find a
 controller that's free to use for such internal translations.
@@ -1528,16 +1556,16 @@ CC1[128]\ C5\ \ #2
 .PP
 On a conceptual level, the macro expansion process works pretty much
 like the production rules of a grammar, with the \[lq]dollar\[rq] tokens
-playing the role of the non\-terminals.
+playing the role of the nonterminals.
 Thus, with the definitions above a \f[C]CC0\f[] message will be
 processed as follows:
 .IP \[bu] 2
 Rule #1 is applied, constructing the output sequence with the
 \f[C]CC1\f[] message as usual.
 .IP \[bu] 2
-Instead of outputting the resulting \f[C]CC1\f[] message, the program
-now looks for a mod translation of that message which can be applied
-recursively.
+Instead of outputting the resulting \f[C]CC1\f[] message directly, the
+program now looks for a mod translation of that message which can be
+applied recursively.
 .IP \[bu] 2
 Rule #2 is applied, yielding a \f[C]C5\f[] message which is substituted
 for the \f[C]$CC1\f[] token in rule #1.
@@ -1546,10 +1574,10 @@ The end result is of course a \f[C]C5\f[] message with the same velocity
 as the value of the \f[C]CC1\f[] message, which in turn comes from the
 original \f[C]CC0\f[] controller value.
 .PP
-This example is admittedly a bit silly, because we could just have
-written \f[C]CC0=\ C5\f[] instead and be done with it.
-So let's try something more complicated which really \f[I]needs\f[]
-recursive translations to work.
+Of course, we could also just have written \f[C]CC0=\ C5\f[] here and be
+done with it.
+So let's try something slightly more complicated which really
+\f[I]needs\f[] recursive translations to work.
 For instance, suppose that we'd like to output \f[I]two\f[] messages
 instead: the note message \f[C]C5\f[] as before, followed by a
 \f[C]CC1\f[] message with just the low nibble of the controller value.
@@ -1563,9 +1591,11 @@ CC0[16]{0}\ CC1
 .fi
 .PP
 But we can't write them this way, because we're not allowed to bind
-\f[C]CC0\f[] to two different output sequences at once (if you try this,
-the parser will complain and just ignore the second rule).
-However, we can massage those rules a bit to obtain:
+\f[C]CC0\f[] in two different translations at once (the parser will
+complain and just ignore the second rule).
+The single rule \f[C]CC0[16]{0}\ C0\ CC1\f[] won't work either since it
+only passes the low nibble to the \f[C]C0\f[] message.
+However, we can massage those rules a bit to obtain the following:
 .IP
 .nf
 \f[C]
@@ -1580,14 +1610,15 @@ In the same vein, we can combine as many different mod translations as
 we like, even if they involve different moduli and offset
 transformations.
 .PP
-C programmers will have realized by now that macro translations work
-pretty much like parameter\-less macros in the C programming language.
+If you know C, you will have realized by now that macro translations
+work pretty much like parameter\-less macros in the C programming
+language.
 The same caveats apply here, too.
-Specifically, midizap's configuration language provides no way to break
-out of a recursive macro, so you do \f[I]not\f[] want to have a macro
-invoke itself (either directly or indirectly), because that will always
-lead to an infinite recursion.
-For instance:
+Specifically, the configuration language provides no way to break out of
+a recursive macro, so you do \f[I]not\f[] want to have a macro invoke
+itself (either directly or indirectly), because that will always lead to
+an infinite recursion.
+E.g.:
 .IP
 .nf
 \f[C]
@@ -1597,8 +1628,8 @@ CC1[128]\ $CC0\ #\ don\[aq]t\ do\ this!
 .fi
 .PP
 midizap \f[I]will\f[] catch infinite recursion after a few iterations,
-so, for educational purposes you can (and should) try the example above
-with midizap and see what happens.
+so for educational purposes you can (and should) try the example above
+and see what happens.
 As you'll notice, the program prints an error message indicating the
 translation and message which caused the problem, so that you can
 correct your mistake.
@@ -1606,14 +1637,17 @@ correct your mistake.
 So macro translations are too limited to make for a Turing\-complete
 programming language, but there's still a lot that can be done with
 them.
-Here's another example which spits out the individual bits of a
-controller value, using the approach that we discussed earlier in the
-context of nibble extraction.
+Here's another instructive example which spits out the individual bits
+of a controller value, using the approach that we discussed earlier in
+the context of nibble extraction.
 Input comes from \f[C]CC7\f[] in the example, and bit #\f[I]i\f[] of the
 controller value becomes \f[C]CC\f[]\f[I]i\f[] in the output, where
 \f[I]i\f[] runs from 0 to 6.
-(You should try these translations with the debugging options to see
-what exactly is going on there.)
+Note that each of these rules uses successively smaller powers of 2 as
+its modulus and passes on the remainder to the next rule, while the
+topmost bit is extracted with transposition.
+(You may want to try these translations with the debugging options to
+see what exactly is going on here.)
 .IP
 .nf
 \f[C]
@@ -1651,8 +1685,7 @@ support is tailored to X11, i.e., it's pretty much tied to Unix/X11
 systems right now.
 So there's no native Mac or Windows support, and there won't be until
 someone in the know about Mac and Windows equivalents for the X11 XTest
-extension comes along and ports it over.
-(Your pull requests are appreciated!)
+extension comes along and ports midizap to these systems.
 .PP
 midizap tries to keep things simple, which implies that it has its
 limitations.
@@ -1699,7 +1732,7 @@ redesigned to work with Jack MIDI instead of the Contour Design Shuttle
 devices.
 ShuttlePRO was written in 2013 by Eric Messick, based on earlier code by
 Trammell Hudson and Arendt David.
-The MIDI support was added by Albert Graef.
+The MIDI support was added by Albert Gräf.
 All the key and mouse translation features of the original program still
 work as before, but it goes without saying that the configuration
 language and the translation code have undergone some substantial
