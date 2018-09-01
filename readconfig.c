@@ -900,7 +900,7 @@ re_press_temp_modifiers(void)
    msg   ::= note | other
    note  ::= ( "a" | ... | "g" ) [ "#" | "b" ]
    other ::= "ch" | "pb" | "pc" | "cc" | "cp" | "kp:" note
-   steps ::= "[" number "]" | "{" list "}" | "[" number "]" "{" list "}"
+   steps ::= [ "[" [ number ] "]" ] [ "{" list "}" ]
    list  ::= number { "," number | ":" number | "-" number }
    flag  ::= "-" | "+" | "=" | "<" | ">" | "~" | "'"
 
@@ -1085,7 +1085,12 @@ parse_midi(char *tok, char *s, int lhs, int mode,
   *mod = 0;
   int step2 = 0, n_steps2 = 0, *steps2 = 0;
   if (*p == '[' || *p == '{') {
-    if ((p = parse_steps(tok, p, step, n_steps, steps))) {
+    if (p[0] == '[' && p[1] == ']') {
+      // basic mod translation with zero offset; only permitted on the lhs
+      if (!lhs) return 0;
+      *step = -1; // sentinel value, modulus will be filled in later
+      p += 2;
+    } else if ((p = parse_steps(tok, p, step, n_steps, steps))) {
       if (*n_steps) {
 	// only permitted on the rhs in mod translations
 	if (lhs || mode < 2) return 0;
@@ -1159,8 +1164,7 @@ parse_midi(char *tok, char *s, int lhs, int mode,
   // check for the different messages types we support
   if (strcmp(s, "ch") == 0) {
     if (lhs) return 0; // not permitted on lhs
-    if (*step) return 0; // step size not permitted
-    if (*n_steps) return 0; // steps not permitted
+    if (*step || *n_steps) return 0; // not permitted
     if (*swap || steps2 || n_steps2) return 0; // not permitted
     // we return a bogus status of 0 here, along with the MIDI channel
     // in the data byte; also check that the MIDI channel is in the
@@ -1175,7 +1179,9 @@ parse_midi(char *tok, char *s, int lhs, int mode,
     if (lhs && *step && !*incr) {
       *mod = *step; *step = step2;
       *n_steps = n_steps2; *steps = steps2;
+      if (*mod < 0) *mod = 16384;
     }
+    if (lhs && *incr && *step < 0) return 0; // not permitted
     if (lhs && !*step) *step = 1; // default
     return 1;
   } else if (strcmp(s, "cp") == 0) {
@@ -1185,13 +1191,14 @@ parse_midi(char *tok, char *s, int lhs, int mode,
     if (lhs && *step && !*incr) {
       *mod = *step; *step = step2;
       *n_steps = n_steps2; *steps = steps2;
+      if (*mod < 0) *mod = 128;
     }
+    if (lhs && *incr && *step < 0) return 0; // not permitted
     if (lhs && !*step) *step = 1; // default
     return 1;
   } else if (strcmp(s, "pc") == 0) {
     // program change
-    if (*step) return 0; // step size not permitted
-    if (*n_steps) return 0; // steps not permitted
+    if (*step || *n_steps) return 0; // not permitted
     if (steps2 || n_steps2) return 0; // not permitted
     if (m < 0 || m > 127) return 0;
     *status = 0xc0 | k; *data = m;
@@ -1204,7 +1211,9 @@ parse_midi(char *tok, char *s, int lhs, int mode,
     if (lhs && *step && !*incr) {
       *mod = *step; *step = step2;
       *n_steps = n_steps2; *steps = steps2;
+      if (*mod < 0) *mod = 128;
     }
+    if (lhs && *incr && *step < 0) return 0; // not permitted
     if (lhs && !*step) *step = 1; // default
     return 1;
   } else if (strcmp(s, "kp") == 0) {
@@ -1215,15 +1224,19 @@ parse_midi(char *tok, char *s, int lhs, int mode,
     if (lhs && *step && !*incr) {
       *mod = *step; *step = step2;
       *n_steps = n_steps2; *steps = steps2;
+      if (*mod < 0) *mod = 128;
     }
+    if (lhs && *incr && *step < 0) return 0; // not permitted
     if (lhs && !*step) *step = 1; // default
     return 1;
   } else {
     // step size on lhs indicates modulus
-    if (lhs && *step) {
+    if (lhs && *step && !*incr) {
       *mod = *step; *step = step2;
       *n_steps = n_steps2; *steps = steps2;
+      if (*mod < 0) *mod = 128;
     }
+    if (lhs && *incr && *step < 0) return 0; // not permitted
     if (lhs && !*step) *step = 1; // default
     // we must be looking at a MIDI note here, with m denoting the
     // octave number; first character is the note name (must be a..g);

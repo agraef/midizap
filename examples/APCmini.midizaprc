@@ -203,7 +203,7 @@ G#7 D7
 # lists below to skip over all the non-digit characters at the beginning of
 # the ASCII table.
 
-?CC69[128] F7{0:49,1,0} E7{0:50,1,0} Eb7{0:51,1,0} D7{0:52,1,0}
+?CC69[] F7{0:49,1,0} E7{0:50,1,0} Eb7{0:51,1,0} D7{0:52,1,0}
 
 # no feedback for faders (faders aren't motorized)
 
