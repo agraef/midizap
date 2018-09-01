@@ -7,8 +7,8 @@
 midizap \[en] control your multimedia applications with MIDI
 .SH Synopsis
 .PP
-midizap [\-h] [\-k] [\-o[2]] [\-j \f[I]name\f[]] [\-P[\f[I]prio\f[]]]
-[\-r \f[I]rcfile\f[]] [\-d[rskmj]]
+midizap [\-h] [\-k] [\-o[\f[I]n\f[]]] [\-j \f[I]name\f[]]
+[\-P[\f[I]prio\f[]]] [\-r \f[I]rcfile\f[]] [\-d[rskmj]]
 .SH Options
 .TP
 .B \-h
@@ -24,23 +24,26 @@ corresponding off messages.
 .RS
 .RE
 .TP
-.B \-o[2]
-Enable MIDI output.
-Add \[lq]2\[rq] for a second pair of MIDI ports to be used, e.g., for
-controller feedback.
-See Sections \f[I]MIDI Output\f[] and \f[I]MIDI Feedback\f[].
+.B \-o[\f[I]n\f[]]
+Enable MIDI output and set the number of output ports \f[I]n\f[] (1 by
+default).
+Use \f[I]n\f[] = 2 for a second pair of MIDI ports, e.g., for controller
+feedback, or \f[I]n\f[] = 0 to disable MIDI output.
+This overrides the corresponding directive in the configuration file.
+See Section \f[I]Jack\-Related Options\f[].
 .RS
 .RE
 .TP
 .B \-j \f[I]name\f[]
 Set the Jack client name.
+This overrides the corresponding directive in the configuration file.
 Default: \[lq]midizap\[rq].
 See Section \f[I]Jack\-Related Options\f[].
 .RS
 .RE
 .TP
 .B \-P[\f[I]prio\f[]]
-Run with the given real\-time priority (90 if not specified).
+Run with the given real\-time priority (default: 90).
 See Section \f[I]Jack\-Related Options\f[].
 .RS
 .RE
@@ -80,12 +83,10 @@ a default section at the end of the file, if available.
 .PP
 The midizaprc file is just an ordinary text file which you can edit to
 configure the program.
-The configuration language is described in detail with lots of examples
-later in this manual.
-But the syntax is actually pretty straightforward, basically just a list
-of MIDI messages (denoted with familiar human\-readable mnemonics, no
-hex numbers!) and their translations, which is divided into sections for
-different applications.
+The configuration language is fairly straightforward, basically the file
+is just a list of MIDI messages (denoted with familiar human\-readable
+mnemonics, no hex numbers!) and their translations, which is divided
+into sections for different applications.
 An example.midizaprc file containing sample configurations for some
 applications is included in the sources to get you started, and you can
 find some more examples of configuration files for various purposes in
@@ -279,7 +280,7 @@ controller; and \f[C]j\f[] adds some debugging output from the Jack
 driver.
 You can also just use \f[C]\-d\f[] to enable all debugging output.
 (Most of these options are also available as directives in the midizaprc
-file; please check the distributed example.midizaprc for details.)
+file, you can find these in example.midizaprc.)
 .PP
 Have a look at the distributed midizaprc file for more examples.
 Most of the other translations in the file assume a Mackie\-like device
@@ -367,7 +368,7 @@ options) to set midizap's Jack client name and the number of input and
 output ports it uses.
 (If both the command line options and directives in the midizaprc file
 are used, the former take priority, so that it's always possible to
-override the options in the midizaprc file from the command line.)
+override the configuration settings from the command line.)
 .PP
 Firstly, there's the \f[C]\-j\f[] option and the \f[C]JACK_NAME\f[]
 directive which change the Jack client name from the default
@@ -402,17 +403,16 @@ JACK_PORTS\ 1
 \f[]
 .fi
 .PP
-You may want to place this directive directly into a configuration file
-if the configuration is primarily aimed at doing MIDI translations, so
-you'd like to have the MIDI output enabled by default.
-Typically, such configurations will include just a default
-\f[C][MIDI]\f[] section and little else.
-As explained in the \f[I]MIDI Feedback\f[] section, it's also possible
-to have \f[I]two\f[] pairs of input and output ports, in order to deal
-with controller feedback from the application.
-This is achieved by either invoking midizap with the \f[C]\-o2\f[]
-option, or by employing the \f[C]JACK_PORTS\ 2\f[] directive in the
-configuration file.
+The given number of output ports must be 0, 1 or 2.
+Zero means that MIDI output is disabled (which is the default anyway, so
+you don't have to specify it explicitly).
+You may want to use \f[C]JACK_PORTS\ 1\f[] if the configuration is
+primarily aimed at doing MIDI translations, so you'd like to have MIDI
+output enabled by default.
+\f[C]JACK_PORTS\ 2\f[] or the \f[C]\-o2\f[] option indicates that
+\f[I]two\f[] pairs of input and output ports are to be created (the
+second port is typically used to deal with controller feedback from the
+application, see the \f[I]MIDI Feedback\f[] section for details).
 .PP
 \f[B]NOTE:\f[] If you notice bad latency or jitter in MIDI output, you
 should try running midizap with real\-time priorities.
@@ -435,10 +435,11 @@ have in the session, use QjackCtl to set up all the connections as
 needed, and then hit the \[lq]Save\[rq] button in the Session dialog to
 have the session recorded.
 (The \[lq]Save and Quit\[rq] option does the same, but also asks midizap
-to quit afterwards.) Now, at any later time you can rerun the recorded
-session with the \[lq]Load\[rq] button in the same dialog.
-Also, your most frequently used sessions are available in the
-\[lq]Recent\[rq] menu from where they can be launched quickly.
+and other Jack session clients to quit afterwards.) Now, at any later
+time you can rerun the recorded session with the \[lq]Load\[rq] button
+in the same dialog.
+Also, your most recent sessions are available in the \[lq]Recent\[rq]
+menu from where they can be launched quickly.
 .SH Translation Syntax
 .PP
 The midizap configuration file consists of sections defining translation
@@ -533,7 +534,7 @@ Enharmonic spellings are equivalent, so, e.g., \f[C]D#\f[] and
 .PP
 The other messages are denoted using short mnemonics: \f[C]KP\f[]
 (aftertouch a.k.a.
-key pressure; followed by \f[C]:\f[] and a note designation);
+key pressure, followed by \f[C]:\f[] and a note designation);
 \f[C]CC\f[] (control change, followed by a controller number);
 \f[C]PC\f[] (program change, followed by a program number); \f[C]CP\f[]
 and \f[C]PB\f[] (channel pressure and pitch bend; these don't have a
