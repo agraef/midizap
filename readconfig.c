@@ -1043,7 +1043,7 @@ parse_midi(char *tok, char *s, int lhs, int mode,
   char *p = tok, *t;
   int n, m = -1, k = midi_channel;
   s[0] = 0;
-  while (*p && !isdigit(*p) && !strchr("+-=<>~'[:", *p)) p++;
+  while (*p && !isdigit(*p) && !strchr("+-=<>~'[{:", *p)) p++;
   if (p == tok || p-tok > 10) return 0; // no valid token
   // the token by itself
   strncpy(s, tok, p-tok); s[p-tok] = 0;
