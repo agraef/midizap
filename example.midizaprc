@@ -170,14 +170,15 @@
 # incremental mode for endless rotary encoders.
 
 
-# Shotcut (WM_CLASS is "shotcut")
-# see https://www.shotcut.org/howtos/keyboard-shortcuts/
+# Bindings for the Kdenlive and Shotcut video editors (matched by their
+# WM_CLASS).  These have very similar key bindings, see e.g.:
+# https://www.shotcut.org/howtos/keyboard-shortcuts/
 
-[Shotcut] ^shotcut$
+[Kdenlive/Shotcut] ^shotcut\|kdenlive$
 
-# Shotcut uses the customary J-K-L shortcuts, each successive J or L key
-# decrements or increments the playback speed. We assign these to the
-# MCU Rewind and Forward controls.
+# Both Kdenlive and Shotcut use the J-K-L shortcuts, where each
+# successive J or L key decrements or increments the playback speed.  We
+# assign these to the MCU Rewind and Forward controls.
 
 # playback controls
  A#7 XK_space    # Play/Pause
@@ -200,33 +201,6 @@
  D#8 XK_End      # End
 
 # the jog wheel moves single frames to the left or the right
- CC60< XK_Left    # Frame reverse
- CC60> XK_Right   # Frame forward
-
-
-# Kdenlive (same bindings as above)
-
-[Kdenlive] ^kdenlive$
-
-# playback controls
- A#7 XK_space    # Play/Pause
- A7  "K"         # Stop
- G7  "J"         # Rewind
- G#7 "L"         # Forward
-
-# punch in/out (sets in and out points)
- D#7 "I"         # Set In
- E7  "O"         # Set Out
-
-# alternate binding for set in/out (cursor up/down)
- C8  "I"         # Set In
- C#8 "O"         # Set Out
-
-# cursor left/right
- D8  XK_Home     # Beginning
- D#8 XK_End      # End
-
-# jog wheel
  CC60< XK_Left    # Frame reverse
  CC60> XK_Right   # Frame forward
 
