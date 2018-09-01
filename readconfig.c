@@ -1829,10 +1829,10 @@ read_config_file(void)
 	char *a = token(NULL, &delim);
 	int k, n;
 	if (!jack_num_outputs) {
-	  if (sscanf(a, "%d%n", &k, &n) == 1 && !a[n] && k>=1 && k<=2) {
+	  if (sscanf(a, "%d%n", &k, &n) == 1 && !a[n] && k>=0 && k<=2) {
 	    jack_num_outputs = k;
 	  } else {
-	    fprintf(stderr, "invalid port number: %s, must be 1 or 2\n", a);
+	    fprintf(stderr, "invalid port number: %s, must be 0, 1 or 2\n", a);
 	  }
 	}
 	continue;

@@ -1486,10 +1486,10 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
 
 void help(char *progname)
 {
-  fprintf(stderr, "Usage: %s [-h] [-k] [-o[2]] [-j name] [-P[prio]] [-r rcfile] [-d[rskmj]]\n", progname);
+  fprintf(stderr, "Usage: %s [-h] [-k] [-o[n]] [-j name] [-P[prio]] [-r rcfile] [-d[rskmj]]\n", progname);
   fprintf(stderr, "-h print this message\n");
   fprintf(stderr, "-k keep track of key status (ignore double notes)\n");
-  fprintf(stderr, "-o enable MIDI output (add 2 for a second pair of ports)\n");
+  fprintf(stderr, "-o set number of MIDI output ports (0-2, default: 1)\n");
   fprintf(stderr, "-j jack client name (default: midizap)\n");
   fprintf(stderr, "-P set real-time priority (default: 90)\n");
   fprintf(stderr, "-r config file name (default: MIDIZAP_CONFIG_FILE variable or ~/.midizaprc)\n");
@@ -1587,12 +1587,16 @@ main(int argc, char **argv)
 	if (!strcmp(a, "2")) {
 	  jack_num_outputs = 2;
 	  add_command("-o2", 1);
-	} else if (strcmp(a, "1")) {
-	  fprintf(stderr, "%s: wrong port number (-o), must be 1 or 2\n", argv[0]);
+	} else if (!strcmp(a, "1")) {
+	  add_command("-o1", 1);
+	} else if (!strcmp(a, "0")) {
+	  jack_num_outputs = -1; // override config setting
+	  add_command("-o0", 1);
+	} else {
+	  fprintf(stderr, "%s: wrong port number (-o), must be 0, 1 or 2\n", argv[0]);
 	  fprintf(stderr, "Try -h for help.\n");
 	  exit(1);
-	} else
-	  add_command("-o1", 1);
+	}
       } else
 	add_command("-o", 1);
       break;
@@ -1671,14 +1675,15 @@ main(int argc, char **argv)
   initdisplay();
 
   // Force the config file to be loaded initially, so that we pick up the Jack
-  // client name to be used (if not set from the command line). This cannot be
-  // changed later, so if you want to make changes to the client name in the
-  // config file take effect, you need to restart the program.
+  // client name and number of output ports (if not set from the command
+  // line). This cannot be changed later, so if you want to make changes to
+  // the client name or number of ports take effect, you need to restart the
+  // program.
   read_config_file();
 
   seq.client_name = jack_client_name;
   seq.n_in = jack_num_outputs>1?jack_num_outputs:1;
-  seq.n_out = jack_num_outputs;
+  seq.n_out = jack_num_outputs>0?jack_num_outputs:0;
   if (!init_jack(&seq, debug_jack)) {
     exit(1);
   }
