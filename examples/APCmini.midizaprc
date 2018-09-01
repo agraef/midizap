@@ -12,27 +12,28 @@ JACK_NAME "midizap-APCmini"
 JACK_PORTS 2
 
 # This turns the APCmini into a Mackie-compatible controller, so that it can
-# be used with Linux DAW programs like Ardour. The emulation is complicated by
-# the APCmini having no encoders, no motorized faders, and not nearly as many
-# dedicated buttons as a Mackie device. But it offers enough controls to be
-# usable as a basic DAW controller. I tested it with Ardour.
+# be used with Linux DAW programs like Ardour.  The emulation is complicated
+# by the APCmini having no encoders, no motorized faders, and not nearly as
+# many dedicated buttons as a Mackie device.  But it offers enough controls to
+# be usable as a basic DAW controller.  I tested it with Ardour.
 
 # SETUP: In Ardour, enable the Mackie control surface, then connect Ardour's
-# "mackie control" ports to midizap's midi_out and midi_in2 ports, and the
+# Mackie control ports to midizap's midi_out and midi_in2 ports, and the
 # APCmini to midizap's midi_in and midi_out2 ports.
 
 # PROTOCOL DOCUMENTATION: The Mackie protocol is fairly ubiquitous, but since
-# the manufacturers can't be bothered to properly *document* their stuff these
+# manufacturers can't be bothered to properly *document* their stuff these
 # days, we have to rely on volunteers who do their work using some reverse
-# engineering. Here are the links that I found most useful:
+# engineering.  Here are the links that I found most useful:
 
 # http://www.budgetfeatures.com/XctlDOC/Xctl Protocol for X-Touch V1.0.pdf
 
-# (This chart really is a piece of art. It's actually about the Behringer
-# X-Touch, but since that device is MCU-compatible, there's a wealth of useful
-# information in there; just ignore the bits which pertain to Xctl.)
+# (This chart really is a piece of art.  It's actually about the Behringer
+# X-Touch, but since that device is Mackie-compatible, there's a wealth of
+# useful information in there; just ignore the bits which pertain to Xctl.)
 
-# There's another fairly comprehensive one here:
+# There's another fairly comprehensive one here (lacks the feedback messages,
+# though):
 
 # http://www.jjlee.com/qlab/Mackie Control MIDI Map.pdf
 
@@ -53,8 +54,8 @@ C7  B7  # Rec
 C#7 G7  # Rew
 D7  G#7 # FFwd
 
-# the next three buttons below are used for the MCU shift keys
-# NOTE: The MCU actually has four shift keys, so one has to go. You may want
+# the next three buttons below are used for the MC shift keys
+# NOTE: The MC actually has four shift keys, so one has to go. You may want
 # to rearrange these as needed.
 D#7 A#5 # Shift
 E7  B5  # Control
@@ -74,7 +75,7 @@ F7  C6  # Option
 ^F7  C#5
 
 # bottom 3x8 grid: mute/solo/rec
-# NOTE: Incidentally, these happen to be identical to corresponding MCU input.
+# NOTE: Incidentally, these happen to be identical to corresponding MC input.
 
 # rec (bottom row of the grid)
 C0  C0
@@ -129,7 +130,7 @@ B5  G2
 ^A#5 F3  # Send
 ^B5  A3  # Instr (Device)
 
-# faders (MCU uses pitch bends here, use 129 as step size to get full range)
+# faders (MC uses pitch bends here, use 129 as step size to get full range)
 CC48= PB[129]-1
 CC49= PB[129]-2
 CC50= PB[129]-3
@@ -156,46 +157,51 @@ CC55= PB[129]-8
 [MIDI2]
 
 # transport (will light up in green)
-A7  A#6
+A7  A#6 $CC0 # reset all meters, see "meter feedback" below
 A#7 B6
 B7  C7[2] # Rec, blinks when engaged
 #C#7 C7 # Cycle
 G7  C#7
 G#7 D7
 
-# Feedback for the MCU shift keys. We've disabled this by default since
-# it doesn't add much value and clobbers the time display below.
+# Feedback for the MC shift keys. We've disabled this by default since it
+# doesn't add much value and clobbers some of the blinkenlights below.
 
 #A#5 D#7
 #B5  E7
 #C6  F7
 
-# Blinkenlights galore!  The Mackie protocol provides us with both time
-# and meter data for which we provide some translations here which make
-# various LEDs light up in different colors.
+# Blinkenlights galore!  The Mackie protocol provides us with both time and
+# meter data for which we provide some translations here which make various
+# LEDs light up in different colors.
 
-# Meter feedback: The Mackie protocol packs all 8 channel meters into a
-# single channel pressure message which we need to transform into the
-# corresponding note messages for the LEDs.  Note that we only use the
-# upper 5x8 part of the grid here, in order not to clobber the 3 rows at
-# the bottom with the rec/solo/mute buttons.  This means that the
-# meters, which actually have 8 different values, have to be squashed
-# into 5 LEDs per channel.
+# Meter feedback: Each meter value is sent as a channel pressure message (on
+# the first MIDI channel) with the mixer channel index 0..7 in the hi- and the
+# meter value in the lo-nibble of the velocity value.  On a real MCP device
+# like the X-Touch, the meters have 7 segments (4 green, 3 orange, and 1 red),
+# but the actual range of the meter values seems to be more like 0..13 (at
+# least that's what Ardour outputs, YMMV).  Note that we only use the upper
+# 5x8 part of the grid here, in order not to clobber the three rows at the
+# bottom with the rec/solo/mute buttons, so we have to squash the meter values
+# into those 5 LEDs per strip in some way.  The following setup with 3 green,
+# 1 yellow and 1 red LED seems to work reasonably well, but you might want to
+# adjust the colors and the mapping of the meter values to your liking.
 
-?CP[16] C2{0,1} G#2{0:3,1} E3{0:5,5} C4{0:7,5} G#4{0:8,3}
+?CP[16] C2{0,1} G#2{0:3,1} E3{0:6,1} C4{0:9,5} G#4{0:12,3}
 
-# Here's an alternative decoding, which creates horizontal meters
-# covering the full range, with the first channel on top.  This is just
-# for illustration purposes -- as it ranges across the entire 8x8 grid,
-# it will clobber the rec/solo/mute controls.
+# NOTE: We only report the values as we receive them here, there's no
+# automatic decay of the meters like with real Mackie hardware.  Thus we
+# explicitly reset all meters when transport stops below.  (Ardour at least
+# does *not* do that automatically.)  NB: We use CC0 as a macro here,
+# hopefully this won't occur as real feedback?
 
-#?CP[16][-8] G#4{0,1} A4{0,0,1} A#4{0:3,1} B4{0:4,1} C5{0:5,5} C#5{0:6,5} D5{0:7,5} D#5{0:8,3}
+?CC0[1] $CP{0} $CP{16} $CP{32} $CP{48} $CP{64} $CP{80} $CP{96} $CP{112}
 
-# This decodes the least significant digit in the time display (CC69) to
-# count off time on the 4 bottommost scene launch buttons.  Note that
-# the digits are encoded in ASCII here, therefore the copious amount of
-# zeros in the value lists below to skip over all the non-digit
-# characters at the beginning of the ASCII table.
+# This decodes the least significant digit in the time display (CC69) to count
+# off time on the 4 bottommost scene launch buttons.  Note that the digits are
+# encoded in ASCII here, therefore the copious amount of zeros in the value
+# lists below to skip over all the non-digit characters at the beginning of
+# the ASCII table.
 
 ?CC69[128] F7{0:49,1,0} E7{0:50,1,0} Eb7{0:51,1,0} D7{0:52,1,0}
 
