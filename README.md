@@ -380,9 +380,9 @@ CC1[3]= CC1[2]
 
 The above translation will only be triggered when the input value changes by 3 units, and the change in the output value will then be doubled again, so that the net effect is to scale the input value by 2/3. (Note that for most ratios this will only give a rough approximation; the method works best if the input and output step sizes are reasonably small.)
 
-**NOTE:** All data translations we've seen so far handle *incremental* value changes only. In order to be able to detect these changes and, in the case of MIDI output, to perform the corresponding changes to the output values, midizap has to keep track of all the current parameter values of all messages on all MIDI channels, on both the input and the output side. While this is easy enough, midizap has no way of knowing the *actual* state of your controllers and MIDI applications, so when the program starts up, it simply assumes all these values to be zero. This means that midizap's "shadow" values of controllers, pitch bends etc. may initially well be out of sync with your input devices and applications, and you may have to wiggle a control in order to "calibrate" it.
+**NOTE:** All data translations we've seen so far handle *incremental* value changes only. In order to be able to detect these changes and, in the case of MIDI output, change the output values accordingly, midizap has to keep track of all the current parameter values of all messages on all MIDI channels, for both input and output. While this is easy enough, midizap has no way of knowing the *actual* state of your controllers and MIDI applications, so when the program starts up, it simply assumes all these values to be zero. This means that midizap's "shadow" values of controllers, pitch bends etc. may initially well be out of sync with your input devices and applications, and you may have to wiggle a control in order to "calibrate" it.
 
-This becomes most apparent when using negative step sizes, as in the translation `CC1= CC1[-1]` from above. If you start increasing that control initially, midizap still thinks that the `CC1` output controller is at value 0, so the change will not have any visible effect until you've moved the control up a bit and then start pulling it back down again. In fact, to get the full range of output values, in this case you will first have to move the control all the way up and then down again to calibrate it. (For pure MIDI translations, there's an alternative form of data translation which works directly with absolute values and thus doesn't have this defect, see *Mod Translations* in the *Advanced Features* section below.)
+This becomes most apparent when using negative step sizes, as in the translation `CC1= CC1[-1]` from above. If you start increasing that control initially, midizap still thinks that the `CC1` output controller is at value 0, so the change will not have any visible effect until you've moved the control up a bit and then start pulling it back down again. In fact, to get the full range of output values in this case, you will first have to move the control all the way up and then down again to calibrate it. (For pure MIDI translations, there's an alternative form of data translation which works directly with the absolute values and thus doesn't have this defect, see *Mod Translations* in the *Advanced Features* section below.)
 
 ## Shift State
 
@@ -425,7 +425,7 @@ An in-depth discussion of controller feedback is beyond the scope of this manual
 
 Most of the time, MIDI feedback uses just the standard kinds of MIDI messages readily supported by midizap, such as note messages which make buttons light up in different colors, or control change messages which set the positions of motor faders. However, there are some encodings of feedback messages which combine different bits of information in a single message, making them difficult or even impossible to translate using the simple kinds of rules we've seen so far. midizap offers a special variation of data mode to help decoding such messages. We call them *mod translations* (ak.a. "modulus" or "modifier" translations), because they involve operations with integer moduli which enable you to both calculate output from input values in a direct fashion, *and* modify the output messages themselves along the way.
 
-One important task, which we'll use as a running example below, is the decoding of meter (RMS level) data in the Mackie protocol. There, each meter value is represented as a key pressure message whose value consists of a mixer channel index 0..7 in the "high nibble" (bits 4..6) and the corresponding meter value in the "low nibble" (bits 0..3). Specifically, we will show how to map these values to notes indicating buttons on the AKAI APCmini; please check examples/APCmini.midizaprc in the sources for details about this device. This involves (1) extracting the meter values and transforming them to colors encoded as velocities, as well as (2) offsetting the note messages in order to display different values on different buttons, which is exactly what mod translations are designed to do. But mod translations aren't limited to this specific use case; similar rules will apply to other kinds of "scrambled" MIDI data.
+One important task, which we'll use as a running example below, is the decoding of meter (RMS level) data in the Mackie protocol. There, each meter value is represented as a key pressure message whose value consists of a mixer channel index 0..7 in the "high nibble" (bits 4..6) and the corresponding meter value in the "low nibble" (bits 0..3). We will show how to map these values to notes indicating buttons on the AKAI APCmini (please check examples/APCmini.midizaprc in the sources for details about this device). This involves extracting and mapping the meter values, as well as shifting the target note, which is exactly the kind of operation that mod translations are designed to perform. Mod translations aren't limited to this specific use case, however; similar rules will apply to other kinds of "scrambled" MIDI data.
 
 In its simplest form, the translation looks as follows:
 
@@ -448,7 +448,7 @@ flag  ::= "'"
 
 There are three new elements in the syntax, an empty modulus bracket `[]`, the "transposition" flag `'`, and lists of numbers enclosed in curly braces. These have the following meaning:
 
-- The *empty modulus* bracket, denoted `[]` on the left-hand side of a mod translation, indicates a default modulus large enough (> 8192 for `PB`, > 127 for other messages) so that the quotient *q* always becomes zero and thus the translation only passes on the input value (which then becomes the remainder *r*) as is.
+- The *empty modulus* bracket, denoted `[]` on the left-hand side of a mod translation, indicates a default modulus large enough (> 8192 for `PB`, > 127 for other messages) so that the offset *q* always becomes zero and the translation passes on the entire input value as is.
 
 - *Transposition*, denoted with the `'` (apostrophe) suffix on an output message, reverses the roles of *q* and *r*, so that the remainder becomes the offset and the quotient the value of the output message.
 
@@ -548,7 +548,7 @@ This rule will translate a zero velocity to -1, which isn't in the valid range, 
 C0[] C0{-1,127}
 ~~~
 
-This translation may look a bit odd, but can be useful at times if the application interprets note inputs, e.g., as radio buttons, and may get confused by note-off messages. Note that it's impossible to do this kind of mapping with key or incremental data translations, because these don't allow you to suppress the note-off messages.
+This translation may look a bit odd, but can be useful at times if the application interprets note inputs, e.g., as radio or toggle buttons, and may get confused by note-off messages. Note that it's impossible to do this kind of mapping with key or incremental data translations, because these don't allow you to suppress the note-off messages.
 
 Last but not least, you can also use a modulus of 1 to nullify the *remainder* instead, if you want to use the input value solely as an offset. For instance, here's how you can map controller values to note *numbers* (rather than velocities):
 
@@ -632,7 +632,7 @@ CC0[] C5
 CC0[16]{0} CC1
 ~~~
 
-But we can't just put these two rules into a configuration file, because we're not allowed to bind `CC0` in two different translations at once (if you try this, the parser will complain and just ignore the second rule). And the single rule `CC0[16]{0} C0 CC1` won't work either, because it only passes the low nibble to the `C0` message. However, using a macro call we can massage those rules into an eligible form:
+But we can't just put these two rules into a configuration file, because we're not allowed to bind `CC0` in two different translations at once (if you try this, the parser will complain and just ignore the second rule). And the single rule `CC0[16]{0} C5 CC1` won't work either, because it only passes the low nibble to the `C5` message. However, using a macro call we can massage those rules into an eligible form:
 
 ~~~
 CC0[] C5 $CC1
@@ -670,7 +670,7 @@ There probably are some. Please submit bug reports and pull requests at the midi
 
 The names of some of the debugging options are rather idiosyncratic. midizap inherited them from Eric Messick's ShuttlePRO program, and we decided to keep them for backward compatibility.
 
-midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now. So there's no native Mac or Windows support, and that's not going to change until someone, who's in the know about Mac and Windows equivalents for the X11 XTest extension, comes along and ports it over.
+midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now. So there's no native Mac or Windows support, and that's not going to change until someone who's in the know about Mac and Windows equivalents for the X11 XTest extension, comes along and ports it over.
 
 midizap tries to keep things simple, which implies that it has its limitations. In particular, midizap lacks support for system messages and some more interesting ways of mapping, filtering and recombining MIDI data right now. There are other, more powerful utilities which do these things, but they are also more complicated and usually require programming skills. Fortunately, midizap often does the job reasonably well for simple mapping tasks (and even some rather complicated ones, such as the APCmini Mackie emulation included in the distribution). But if things start getting fiddly then you should consider using a more comprehensive tool like [Pd][] instead.
 
