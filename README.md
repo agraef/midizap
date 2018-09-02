@@ -602,13 +602,17 @@ There are some situations in which it is hard or even impossible to construct a 
 CC0[] $CC1
 ~~~
 
-Note that you can *only* call mod translations this way, so the message to be expanded (`CC1` in this example) must be bound in a mod translation somewhere; otherwise you'll get a warning about the message being undefined and no output will be generated. (On the other hand, the translation hosting the call may be *any* kind of translation, so we might just as well have used, e.g., `CC0= $CC1` in our example.)
+Note that you can *only* call mod translations this way, so the message to be expanded (`CC1` in this example) must be bound in a mod translation somewhere; otherwise you'll get a warning about the message being undefined and no output will be generated. On the other hand, the translation *containing* the call may also be a key or incremental data translation instead, so we might just as well have written, e.g.:
 
-Also, you want to make sure that the message to be expanded isn't also used as a "real" input, so that you are free to define it as needed. But MIDI has plenty of messages on offer (like 128 distinct control change messages on each of the 16 MIDI channels, which amounts to a total of 2048 `CC` messages alone), so it shouldn't be too hard to find one that can be used for internal purposes.
+~~~
+CC0= $CC1
+~~~
 
 Before we proceed, let's introduce a few terms which will make it easier to talk about these things. We refer to a mod translation being called in this manner as a *macro translation*, and we also call the left-hand side of the translation a *macro*, and the invocation of a macro using the dollar symbol a *macro call*.
 
-For illustration purposes, let's define the `CC1` macro so that it outputs just a single note message:
+In principle, any message which can occur on the left-hand side of a data translation (i.e., everything but `PC`) can also be defined as a macro. However, you want to make sure that the message isn't already in use as a "real" input, so that you are free to define it as needed. Fortunately, MIDI has plenty of messages on offer (there are 2048 distinct `CC` messages alone, 128 on each of the 16 MIDI channels), so it shouldn't be too hard to find one that can be used for internal purposes.
+
+To continue our example, let's define the `CC1` macro so that it outputs just a single note message:
 
 ~~~
 CC0[] $CC1  #1
@@ -650,10 +654,9 @@ CC1[128] $CC0 # don't do this!
 
 midizap *will* catch infinite recursion after a few iterations, so for educational purposes you can (and should) try the example above and see what happens.
 
-Thus macro translations are too limited to make for a Turing-complete programming language, but there's still a lot of fun to be had with them. Here's another instructive example which spits out the individual bits of a controller value, using the approach that we discussed earlier in the context of nibble extraction. Input comes from `CC7` in the example, and bit #*i* of the controller value becomes `CC`*i* in the output, where *i* runs from 0 to 6. Note that each of these rules uses a successively smaller power of 2 as modulus and passes on the remainder to the next rule, while transposition is used to extract and output the topmost bit in the quotient. (You may want to run this example with debugging enabled to see what exactly is going on there.)
+So macro translations are too limited to make for a Turing-complete programming language, but there's still a lot of fun to be had with them. Here's another instructive example which spits out the individual bits of a controller value, using the approach that we discussed earlier in the context of nibble extraction. Input comes from `CC7` in the example, and bit #*i* of the controller value becomes `CC`*i* in the output, where *i* runs from 0 to 6. Note that each of these rules uses a successively smaller power of 2 as modulus and passes on the remainder to the next rule, while transposition is used to extract and output the topmost bit in the quotient. (You may want to run this example with debugging enabled to see what exactly is going on there.)
 
 ~~~
-# macro example: translate CC7 to individual bits CC0 .. CC6
 CC7[64]{0} $CC6 CC6'
 CC6[32]{0} $CC5 CC5'
 CC5[16]{0} $CC4 CC4'
@@ -662,7 +665,7 @@ CC3[4]{0}  $CC2 CC2'
 CC2[2]{0}  CC0  CC1'
 ~~~
 
-Translations like these may actually be useful at times, but if your rules involve a lot of complicated macros, then you should ask yourself whether midizap is still the right tool for the job. midizap is designed to be simple, and consequently its macro facility is also fairly limited, so you may be better off using something which offers real programming capabilities when tackling more advanced use cases.
+A final caveat is in order here. Complicated macro translations like the one above certainly have their uses, but they're still rather limited. If you find that your application involves a lot of tricky translations, you may be better off using a more advanced tool which offers real programming capabilities.
 
 # Bugs
 

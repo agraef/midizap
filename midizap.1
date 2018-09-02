@@ -1618,17 +1618,15 @@ Note that you can \f[I]only\f[] call mod translations this way, so the
 message to be expanded (\f[C]CC1\f[] in this example) must be bound in a
 mod translation somewhere; otherwise you'll get a warning about the
 message being undefined and no output will be generated.
-(On the other hand, the translation hosting the call may be \f[I]any\f[]
-kind of translation, so we might just as well have used, e.g.,
-\f[C]CC0=\ $CC1\f[] in our example.)
-.PP
-Also, you want to make sure that the message to be expanded isn't also
-used as a \[lq]real\[rq] input, so that you are free to define it as
-needed.
-But MIDI has plenty of messages on offer (like 128 distinct control
-change messages on each of the 16 MIDI channels, which amounts to a
-total of 2048 \f[C]CC\f[] messages alone), so it shouldn't be too hard
-to find one that can be used for internal purposes.
+On the other hand, the translation \f[I]containing\f[] the call may also
+be a key or incremental data translation instead, so we might just as
+well have written, e.g.:
+.IP
+.nf
+\f[C]
+CC0=\ $CC1
+\f[]
+.fi
 .PP
 Before we proceed, let's introduce a few terms which will make it easier
 to talk about these things.
@@ -1637,8 +1635,18 @@ We refer to a mod translation being called in this manner as a
 translation a \f[I]macro\f[], and the invocation of a macro using the
 dollar symbol a \f[I]macro call\f[].
 .PP
-For illustration purposes, let's define the \f[C]CC1\f[] macro so that
-it outputs just a single note message:
+In principle, any message which can occur on the left\-hand side of a
+data translation (i.e., everything but \f[C]PC\f[]) can also be defined
+as a macro.
+However, you want to make sure that the message isn't already in use as
+a \[lq]real\[rq] input, so that you are free to define it as needed.
+Fortunately, MIDI has plenty of messages on offer (there are 2048
+distinct \f[C]CC\f[] messages alone, 128 on each of the 16 MIDI
+channels), so it shouldn't be too hard to find one that can be used for
+internal purposes.
+.PP
+To continue our example, let's define the \f[C]CC1\f[] macro so that it
+outputs just a single note message:
 .IP
 .nf
 \f[C]
@@ -1726,7 +1734,7 @@ midizap \f[I]will\f[] catch infinite recursion after a few iterations,
 so for educational purposes you can (and should) try the example above
 and see what happens.
 .PP
-Thus macro translations are too limited to make for a Turing\-complete
+So macro translations are too limited to make for a Turing\-complete
 programming language, but there's still a lot of fun to be had with
 them.
 Here's another instructive example which spits out the individual bits
@@ -1744,7 +1752,6 @@ exactly is going on there.)
 .IP
 .nf
 \f[C]
-#\ macro\ example:\ translate\ CC7\ to\ individual\ bits\ CC0\ ..\ CC6
 CC7[64]{0}\ $CC6\ CC6\[aq]
 CC6[32]{0}\ $CC5\ CC5\[aq]
 CC5[16]{0}\ $CC4\ CC4\[aq]
@@ -1754,13 +1761,12 @@ CC2[2]{0}\ \ CC0\ \ CC1\[aq]
 \f[]
 .fi
 .PP
-Translations like these may actually be useful at times, but if your
-rules involve a lot of complicated macros, then you should ask yourself
-whether midizap is still the right tool for the job.
-midizap is designed to be simple, and consequently its macro facility is
-also fairly limited, so you may be better off using something which
-offers real programming capabilities when tackling more advanced use
-cases.
+A final caveat is in order here.
+Complicated macro translations like the one above certainly have their
+uses, but they're still rather limited.
+If you find that your application involves a lot of tricky translations,
+you may be better off using a more advanced tool which offers real
+programming capabilities.
 .SH Bugs
 .PP
 There probably are some.
