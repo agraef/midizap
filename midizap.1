@@ -467,29 +467,26 @@ is skipped by the parser.
 Empty lines and lines containing nothing but whitespace are also
 ignored.
 .PP
-Each \f[C][name]\ regex\f[] line introduces the list of MIDI message
-translations for the named translation class.
-E.g., the following line might be used to begin a section for the
-Kdenlive video editor:
-.IP
-.nf
-\f[C]
-[Kdenlive]\ ^kdenlive$
-\f[]
-.fi
+Lines beginning with a \f[C][\f[]\f[I]name\f[]\f[C]]\f[] header are also
+special.
+Each such line introduces a translation class \f[I]name\f[], which may
+be followed by a basic regular expression \f[I]regex\f[] (see the
+regex(7) manual page) to be matched against the X11 window class and
+title (in that order).
+Note that \f[I]everything\f[] following the
+\f[C][\f[]\f[I]name\f[]\f[C]]\f[] header is taken verbatim here; the
+\f[I]regex\f[] part is the entire rest of the line, ignoring leading and
+trailing whitespace, but including embedded whitespace or \f[C]#\f[]
+characters (so you can't place a comment on such lines).
 .PP
-Please refer to regex(7) for an explanation of the regular expression
-syntax.
-When focus is on a window whose class or title matches the (basic)
-regular expression \f[C]regex\f[], the corresponding translations are in
-effect.
-The sections are matched in the order in which they are listed in the
-configuration, so classes with the most specific regexes should come
-first.
-An empty regex for the last class will always match, allowing default
-translations.
-Any output sequences not bound in a matched section will be loaded from
-the default section if they are bound there.
+The sections are matched against the window with the keyboard focus in
+the order in which they are listed in the configuration file.
+The first class which matches the window class or title determines the
+translations to be used for that window.
+An empty \f[I]regex\f[] for the last class will always match, allowing
+default translations.
+If a translation cannot be found in the matched section, it will be
+loaded from the default section if possible.
 In addition, there are two special default sections labeled
 \f[C][MIDI]\f[] and \f[C][MIDI2]\f[] which are used specifically for
 MIDI translations, please see the \f[I]MIDI Output\f[] and \f[I]MIDI
@@ -497,8 +494,8 @@ Feedback\f[] sections for details.
 If these sections are present, they should precede the main default
 section.
 All other sections, including the main default section, can be named any
-way you like; the name is only used for debugging output and
-diagnostics, and needn't be unique.
+way you like; the given \f[I]name\f[] is only used for debugging output
+and diagnostics, and needn't be unique.
 .PP
 The translations define what output should be produced for the given
 MIDI input.
@@ -512,6 +509,23 @@ The output sequence may be empty, or just the special token \f[C]NOP\f[]
 (which doesn't produce any output), to indicate that the translation
 outputs nothing at all.
 This suppresses any default translation for this input.
+.PP
+Example:
+.IP
+.nf
+\f[C]
+[Konsole]\ ^konsole$\ 
+\ G5\ \ \ \ XK_Up
+\ A5\ \ \ \ XK_Down
+\f[]
+.fi
+.PP
+This binds the G and A keys in the middle octave of your MIDI keyboard
+to the X11 cursor up and down keys, in a section named \f[C]Konsole\f[]
+which matches KDE terminal windows by their class name \f[C]konsole\f[].
+So the bindings in this translation class will let you cycle through the
+command history of the shell when the keyboard focus is on a Konsole
+window.
 .PP
 \f[B]NOTE:\f[] Translations \f[I]must be determined uniquely\f[] in each
 translation class, i.e., each input message may be bound to at most one
@@ -528,9 +542,9 @@ There's no real standard for symbolic designations of MIDI messages, but
 we hope that most users will find midizap's notation easy to understand
 and remember.
 Notes are specified using a customary format which musicians will find
-familiar: a note name \f[C]A..G\f[] is followed by an (optional)
-accidental (\f[C]#\f[] or \f[C]b\f[]), and a (mandatory) MIDI octave
-number.
+familiar: a note name \f[C]A\f[], \f[C]B\f[], \&..., \f[C]G\f[] is
+followed by an (optional) accidental (\f[C]#\f[] or \f[C]b\f[]), and a
+(mandatory) MIDI octave number.
 Note that all MIDI octaves start at the note C, so \f[C]B0\f[] comes
 before \f[C]C1\f[].
 By default, \f[C]C5\f[] denotes middle C (you can change this if you

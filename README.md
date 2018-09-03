@@ -174,21 +174,27 @@ PB output                 # pitch bend
 
 The `#` character at the beginning of a line and after whitespace is special; it indicates that the rest of the line is a comment, which is skipped by the parser. Empty lines and lines containing nothing but whitespace are also ignored.
 
-Each `[name] regex` line introduces the list of MIDI message translations for the named translation class. E.g., the following line might be used to begin a section for the Kdenlive video editor: 
+Lines beginning with a `[`*name*`]` header are also special. Each such line introduces a translation class *name*, which may be followed by a basic regular expression *regex* (see the regex(7) manual page) to be matched against the X11 window class and title (in that order). Note that *everything* following the `[`*name*`]` header is taken verbatim here; the *regex* part is the entire rest of the line, ignoring leading and trailing whitespace, but including embedded whitespace or `#` characters (so you can't place a comment on such lines).
 
-~~~
-[Kdenlive] ^kdenlive$
-~~~
-
-Please refer to regex(7) for an explanation of the regular expression syntax. When focus is on a window whose class or title matches the (basic) regular expression `regex`, the corresponding translations are in effect. The sections are matched in the order in which they are listed in the configuration, so classes with the most specific regexes should come first. An empty regex for the last class will always match, allowing default translations. Any output sequences not bound in a matched section will be loaded from the default section if they are bound there. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the name is only used for debugging output and diagnostics, and needn't be unique.
+The sections are matched against the window with the keyboard focus in the order in which they are listed in the configuration file. The first class which matches the window class or title determines the translations to be used for that window. An empty *regex* for the last class will always match, allowing default translations. If a translation cannot be found in the matched section, it will be loaded from the default section if possible. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the given *name* is only used for debugging output and diagnostics, and needn't be unique.
 
 The translations define what output should be produced for the given MIDI input. Each translation must be on a line by itself. The left-hand side (first token) of the translation denotes the MIDI message to be translated. The corresponding right-hand side (the rest of the line) is a sequence of zero or more tokens, separated by whitespace, indicating either MIDI messages or X11 keyboard and mouse events to be output. The output sequence may be empty, or just the special token `NOP` (which doesn't produce any output), to indicate that the translation outputs nothing at all. This suppresses any default translation for this input.
+
+Example:
+
+~~~
+[Konsole] ^konsole$ 
+ G5    XK_Up
+ A5    XK_Down
+~~~
+
+This binds the G and A keys in the middle octave of your MIDI keyboard to the X11 cursor up and down keys, in a section named `Konsole` which matches KDE terminal windows by their class name `konsole`. So the bindings in this translation class will let you cycle through the command history of the shell when the keyboard focus is on a Konsole window.
 
 **NOTE:** Translations *must be determined uniquely* in each translation class, i.e., each input message may be bound to at most one output sequence in each section. Otherwise, the parser will print an error message, and the extra translations will be ignored. This restriction makes it easier to detect inconsistencies, and it also ensures that midizap's operation is completely *deterministic*. That is, for each input sequence on a given window the program will always generate exactly the same output sequence.
 
 ## MIDI Message Notation
  
-There's no real standard for symbolic designations of MIDI messages, but we hope that most users will find midizap's notation easy to understand and remember. Notes are specified using a customary format which musicians will find familiar: a note name `A..G` is followed by an (optional) accidental (`#` or `b`), and a (mandatory) MIDI octave number. Note that all MIDI octaves start at the note C, so `B0` comes before `C1`. By default, `C5` denotes middle C (you can change this if you want, see *Octave Numbering* below). Enharmonic spellings are equivalent, so, e.g., `D#5` and `Eb5` denote exactly the same MIDI note.
+There's no real standard for symbolic designations of MIDI messages, but we hope that most users will find midizap's notation easy to understand and remember. Notes are specified using a customary format which musicians will find familiar: a note name `A`, `B`, ..., `G` is followed by an (optional) accidental (`#` or `b`), and a (mandatory) MIDI octave number. Note that all MIDI octaves start at the note C, so `B0` comes before `C1`. By default, `C5` denotes middle C (you can change this if you want, see *Octave Numbering* below). Enharmonic spellings are equivalent, so, e.g., `D#5` and `Eb5` denote exactly the same MIDI note.
 
 The other messages are denoted using short mnemonics: `KP:`*note* (aftertouch a.k.a. key pressure for the given note); `CC`*n* (control change for the given controller number); `PC`*n* (program change for the given program number); `CP` (channel pressure); and `PB` (pitch bend). We will go into the other syntactic bits and pieces of MIDI message designations later, but it's good to have the following grammar in EBNF notation handy for reference. (To keep things simple, the grammar is somewhat abridged, but it covers all the frequently used notation. There is some additional syntax for special forms of translations which will be introduced later.)
 
