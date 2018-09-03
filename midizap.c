@@ -785,6 +785,9 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan,
     } else if (s->shift) {
       // toggle shift status
       shift = !shift;
+    } else if (!s->status) {
+      // do nothing (NOP)
+      ;
     } else {
       if (s->recursive && depth >= MAX_DEPTH) {
 	char name[100];

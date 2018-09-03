@@ -626,6 +626,8 @@ print_stroke(stroke *s, int mod, int step, int n_steps, int *steps, int val)
       printf("%s/%c ", str, s->press ? 'D' : 'U');
     } else if (s->shift) {
       printf("SHIFT ");
+    } else if (!s->status) {
+      printf("NOP ");
     } else {
       int status = s->status & 0xf0;
       int channel = (s->status & 0x0f) + 1;
@@ -752,7 +754,7 @@ stroke **press_first_stroke;
 stroke **release_first_stroke;
 stroke **alt_press_stroke;
 stroke **alt_release_stroke;
-int is_keystroke, is_bidirectional, is_anyshift, is_midi, mode;
+int is_keystroke, is_bidirectional, is_anyshift, is_midi, is_nop, mode;
 char *current_translation;
 char *key_name;
 int first_release_stroke; // is this the first stroke of a release?
@@ -794,6 +796,21 @@ append_shift(void)
     *first_stroke = s;
   }
   last_stroke = s;
+}
+
+void
+append_nop(void)
+{
+  stroke *s = (stroke *)allocate(sizeof(stroke));
+
+  memset(s, 0, sizeof(stroke));
+  if (*first_stroke) {
+    last_stroke->next = s;
+  } else {
+    *first_stroke = s;
+  }
+  last_stroke = s;
+  is_nop = is_keystroke;
 }
 
 void
@@ -1262,7 +1279,7 @@ start_translation(translation *tr, char *which_key)
   }
   current_translation = tr->name;
   key_name = which_key;
-  is_keystroke = is_bidirectional = is_midi = is_anyshift = 0;
+  is_keystroke = is_bidirectional = is_midi = is_nop = is_anyshift = 0;
   first_release_stroke = 0;
   regular_key_down = 0;
   modifier_count = 0;
@@ -1539,6 +1556,7 @@ add_release(int all_keys)
   //printf("add_release(%d)\n", all_keys);
   release_modifiers(all_keys);
   if (!all_keys) {
+    if (!*first_stroke) append_nop();
     first_stroke = release_first_stroke;
     if (is_midi) {
       // walk the list of "press" strokes, find all "dirty" (as yet unhandled)
@@ -1555,9 +1573,8 @@ add_release(int all_keys)
       }
     }
   }
-  if (regular_key_down != 0) {
-    append_stroke(regular_key_down, 0);
-  }
+  if (regular_key_down) append_stroke(regular_key_down, 0);
+  if (all_keys && is_nop && !*first_stroke) append_nop();
   regular_key_down = 0;
   first_release_stroke = 1;
   if (all_keys && is_bidirectional) {
@@ -1569,6 +1586,8 @@ add_release(int all_keys)
 	append_stroke(s->keysym, s->press);
       } else if (s->shift) {
 	append_shift();
+      } else if (!s->status) {
+	append_nop();
       } else {
 	append_midi(s->status, s->data,
 		    s->step, s->n_steps, s->steps,
@@ -1586,6 +1605,8 @@ add_release(int all_keys)
 	append_stroke(s->keysym, s->press);
       } else if (s->shift) {
 	append_shift();
+      } else if (!s->status) {
+	append_nop();
       } else {
 	append_midi(s->status, s->data,
 		    s->step, s->n_steps, s->steps,
@@ -1601,6 +1622,8 @@ add_release(int all_keys)
 	  append_stroke(s->keysym, s->press);
 	} else if (s->shift) {
 	  append_shift();
+	} else if (!s->status) {
+	  append_nop();
 	} else {
 	  append_midi(s->status, s->data,
 		      s->step, s->n_steps, s->steps,
@@ -1869,6 +1892,8 @@ read_config_file(void)
 	    add_keystroke(tok, PRESS_RELEASE);
 	  else if (!strcmp(tok, "SHIFT"))
 	    append_shift();
+	  else if (!strcmp(tok, "NOP"))
+	    append_nop();
 	  else if (strncmp(tok, "XK", 2))
 	    add_midi(tok);
 	  else
