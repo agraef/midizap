@@ -506,8 +506,12 @@ Each translation must be on a line by itself.
 The left\-hand side (first token) of the translation denotes the MIDI
 message to be translated.
 The corresponding right\-hand side (the rest of the line) is a sequence
-of one or more tokens, separated by whitespace, indicating either MIDI
+of zero or more tokens, separated by whitespace, indicating either MIDI
 messages or X11 keyboard and mouse events to be output.
+The output sequence may be empty, or just the special token \f[C]NOP\f[]
+(which doesn't produce any output), to indicate that the translation
+outputs nothing at all.
+This suppresses any default translation for this input.
 .PP
 \f[B]NOTE:\f[] Translations \f[I]must be determined uniquely\f[] in each
 translation class, i.e., each input message may be bound to at most one
