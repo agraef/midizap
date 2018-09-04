@@ -174,23 +174,26 @@ PB output                 # pitch bend
 
 The `#` character at the beginning of a line and after whitespace is special; it indicates that the rest of the line is a comment, which is skipped by the parser. Empty lines and lines containing nothing but whitespace are also ignored.
 
-Lines beginning with a `[`*name*`]` header are also special. Each such line introduces a translation class *name*, which may be followed by a basic regular expression *regex* (see the regex(7) manual page) to be matched against the X11 window class and title (in that order). Note that *everything* following the `[`*name*`]` header is taken verbatim here; the *regex* part is the entire rest of the line, ignoring leading and trailing whitespace, but including embedded whitespace or `#` characters (so you can't place a comment on such lines).
+Lines beginning with a `[`*name*`]` header are also special. Each such line introduces a translation class *name*, which may be followed by a basic regular expression *regex* (see the regex(7) manual page) to be matched against window class and title. Note that *everything* following the `[`*name*`]` header on the same line is taken verbatim; the *regex* part is the entire rest of the line, ignoring leading and trailing whitespace, but including embedded whitespace and `#` characters (so you can't place a comment on such lines).
 
-The sections are matched against the window with the keyboard focus in the order in which they are listed in the configuration file. The first class which matches the window class or title determines the translations to be used for that window. An empty *regex* for the last class will always match, allowing default translations. If a translation cannot be found in the matched section, it will be loaded from the default section if possible. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the given *name* is only used for debugging output and diagnostics, and needn't be unique.
+To find a set of eligible translations, midizap matches class and title of the window with the keyboard focus against each section, in the order in which they are listed in the configuration file. For each section, midizap first tries to match the window class (the `WM_CLASS` property; this usually provides the better clues for identifying an application), then the window title (the `WM_NAME` property). The first section which matches determines the translations to be used for that window. An empty *regex* for the last class will always match, allowing default translations. If a translation cannot be found in the matched section, it will be loaded from the default section if possible. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the given *name* is only used for debugging output and diagnostics, and needn't be unique.
 
-The translations define what output should be produced for the given MIDI input. Each translation must be on a line by itself. The left-hand side (first token) of the translation denotes the MIDI message to be translated. The corresponding right-hand side (the rest of the line) is a sequence of zero or more tokens, separated by whitespace, indicating either MIDI messages or X11 keyboard and mouse events to be output. The output sequence may be empty, or just the special token `NOP` (which doesn't produce any output), to indicate that the translation outputs nothing at all. This suppresses any default translation for this input.
+The translations define what output should be produced for the given MIDI input. Each translation must be on a line by itself. The left-hand side (first token) of the translation denotes the MIDI message to be translated. The corresponding right-hand side (the rest of the line) is a sequence of zero or more tokens, separated by whitespace, indicating either MIDI messages or X11 keyboard and mouse events to be output. The output sequence may be empty, or just the special token `NOP` (which doesn't produce any output), to indicate that the translation outputs nothing at all; this suppresses the default translation for this input. Translation classes may be empty as well (i.e., not provide any translations), in which case *only* the default translations are active, even if a later non-default section matches the same window.
 
 Example:
 
 ~~~
-[Konsole] ^konsole$ 
- G5    XK_Up
- A5    XK_Down
+[Terminal] ^.*-terminal.*\|konsole\|xterm$ 
+ F5    XK_Up
+ F#5   "pwd"
+ G5    XK_Down
+ G#5   "ls"
+ A5    XK_Return
 ~~~
 
-This binds the G and A keys in the middle octave of your MIDI keyboard to the X11 cursor up and down keys, in a section named `Konsole` which matches KDE terminal windows by their class name `konsole`. So the bindings in this translation class will let you cycle through the command history of the shell when the keyboard focus is on a Konsole window.
+This binds a few keys in the middle octave to the Up, Down and Return keys as well as some frequently used shell commands, in a section named `Terminal` which matches some common types of terminal windows by their class names. The bindings in this translation class will let you operate the shell from your MIDI keyboard when the keyboard focus is on a terminal window.
 
-**NOTE:** Translations *must be determined uniquely* in each translation class, i.e., each input message may be bound to at most one output sequence in each section. Otherwise, the parser will print an error message, and the extra translations will be ignored. This restriction makes it easier to detect inconsistencies, and it also ensures that midizap's operation is completely *deterministic*. That is, for each input sequence on a given window the program will always generate exactly the same output sequence.
+**NOTE:** Translations may be listed in any order, but they *must be determined uniquely*, i.e., each input message may be bound to at most one output sequence in each translation class. Otherwise, the parser will print an error message, and the extra translations will be ignored. This restriction makes it easier to detect inconsistencies, and it also ensures that midizap's operation is completely *deterministic*. That is, for each input sequence on a given window the program will always generate exactly the same output sequence.
 
 ## MIDI Message Notation
  
@@ -693,7 +696,7 @@ The [Bome MIDI Translator][] seems to be a popular MIDI and keystroke mapping to
 
 # Authors, License and Credits
 
-midizap is free and open source software licensed under the GPLv3, see the LICENSE file for details.
+midizap is free and open source software licensed under the GPLv3, please see the LICENSE file in the distribution for details.
 
 Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)  
 Copyright 2018 Albert Graef (<aggraef@gmail.com>)

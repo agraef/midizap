@@ -471,18 +471,23 @@ Lines beginning with a \f[C][\f[]\f[I]name\f[]\f[C]]\f[] header are also
 special.
 Each such line introduces a translation class \f[I]name\f[], which may
 be followed by a basic regular expression \f[I]regex\f[] (see the
-regex(7) manual page) to be matched against the X11 window class and
-title (in that order).
+regex(7) manual page) to be matched against window class and title.
 Note that \f[I]everything\f[] following the
-\f[C][\f[]\f[I]name\f[]\f[C]]\f[] header is taken verbatim here; the
-\f[I]regex\f[] part is the entire rest of the line, ignoring leading and
-trailing whitespace, but including embedded whitespace or \f[C]#\f[]
-characters (so you can't place a comment on such lines).
+\f[C][\f[]\f[I]name\f[]\f[C]]\f[] header on the same line is taken
+verbatim; the \f[I]regex\f[] part is the entire rest of the line,
+ignoring leading and trailing whitespace, but including embedded
+whitespace and \f[C]#\f[] characters (so you can't place a comment on
+such lines).
 .PP
-The sections are matched against the window with the keyboard focus in
-the order in which they are listed in the configuration file.
-The first class which matches the window class or title determines the
-translations to be used for that window.
+To find a set of eligible translations, midizap matches class and title
+of the window with the keyboard focus against each section, in the order
+in which they are listed in the configuration file.
+For each section, midizap first tries to match the window class (the
+\f[C]WM_CLASS\f[] property; this usually provides the better clues for
+identifying an application), then the window title (the \f[C]WM_NAME\f[]
+property).
+The first section which matches determines the translations to be used
+for that window.
 An empty \f[I]regex\f[] for the last class will always match, allowing
 default translations.
 If a translation cannot be found in the matched section, it will be
@@ -507,29 +512,35 @@ of zero or more tokens, separated by whitespace, indicating either MIDI
 messages or X11 keyboard and mouse events to be output.
 The output sequence may be empty, or just the special token \f[C]NOP\f[]
 (which doesn't produce any output), to indicate that the translation
-outputs nothing at all.
-This suppresses any default translation for this input.
+outputs nothing at all; this suppresses the default translation for this
+input.
+Translation classes may be empty as well (i.e., not provide any
+translations), in which case \f[I]only\f[] the default translations are
+active, even if a later non\-default section matches the same window.
 .PP
 Example:
 .IP
 .nf
 \f[C]
-[Konsole]\ ^konsole$\ 
-\ G5\ \ \ \ XK_Up
-\ A5\ \ \ \ XK_Down
+[Terminal]\ ^.*\-terminal.*\\|konsole\\|xterm$\ 
+\ F5\ \ \ \ XK_Up
+\ F#5\ \ \ "pwd"
+\ G5\ \ \ \ XK_Down
+\ G#5\ \ \ "ls"
+\ A5\ \ \ \ XK_Return
 \f[]
 .fi
 .PP
-This binds the G and A keys in the middle octave of your MIDI keyboard
-to the X11 cursor up and down keys, in a section named \f[C]Konsole\f[]
-which matches KDE terminal windows by their class name \f[C]konsole\f[].
-So the bindings in this translation class will let you cycle through the
-command history of the shell when the keyboard focus is on a Konsole
-window.
+This binds a few keys in the middle octave to the Up, Down and Return
+keys as well as some frequently used shell commands, in a section named
+\f[C]Terminal\f[] which matches some common types of terminal windows by
+their class names.
+The bindings in this translation class will let you operate the shell
+from your MIDI keyboard when the keyboard focus is on a terminal window.
 .PP
-\f[B]NOTE:\f[] Translations \f[I]must be determined uniquely\f[] in each
-translation class, i.e., each input message may be bound to at most one
-output sequence in each section.
+\f[B]NOTE:\f[] Translations may be listed in any order, but they
+\f[I]must be determined uniquely\f[], i.e., each input message may be
+bound to at most one output sequence in each translation class.
 Otherwise, the parser will print an error message, and the extra
 translations will be ignored.
 This restriction makes it easier to detect inconsistencies, and it also
@@ -1836,8 +1847,8 @@ be worth a look if you need a midizap alternative which runs on these
 systems.
 .SH Authors, License and Credits
 .PP
-midizap is free and open source software licensed under the GPLv3, see
-the LICENSE file for details.
+midizap is free and open source software licensed under the GPLv3,
+please see the LICENSE file in the distribution for details.
 .PP
 Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)
 .PD 0
