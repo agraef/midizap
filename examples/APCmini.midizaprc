@@ -131,16 +131,16 @@ B5  G2
 ^B5  A3  # Instr (Device)
 
 # faders (MC uses pitch bends here, use 129 as step size to get full range)
-CC48= PB[129]-1
-CC49= PB[129]-2
-CC50= PB[129]-3
-CC51= PB[129]-4
-CC52= PB[129]-5
-CC53= PB[129]-6
-CC54= PB[129]-7
-CC55= PB[129]-8
+CC48[] PB[129]-1
+CC49[] PB[129]-2
+CC50[] PB[129]-3
+CC51[] PB[129]-4
+CC52[] PB[129]-5
+CC53[] PB[129]-6
+CC54[] PB[129]-7
+CC55[] PB[129]-8
 # master fader
-?CC56= PB[129]-9
+?CC56[] PB[129]-9
 
 # faders become encoders when shifted (CC16..CC23, incremental mode)
 ^CC48= CC16~
