@@ -1297,7 +1297,7 @@ These have the following meaning:
 .IP \[bu] 2
 The \f[I]empty modulus\f[] bracket, denoted \f[C][]\f[] on the
 left\-hand side of a mod translation, indicates a default modulus large
-enough (> 8192 for \f[C]PB\f[], > 127 for other messages) so that the
+enough (16384 for \f[C]PB\f[], 128 for other messages) so that the
 offset \f[I]q\f[] always becomes zero and the translation passes on the
 entire input value as is.
 .IP \[bu] 2
@@ -1325,6 +1325,17 @@ While we will introduce value lists in a moment, we won't actually use
 the default modulus or transposition in this section.
 But they're very convenient in some situations, and we'll get back to
 them in the following sections.
+.PP
+\f[B]NOTE:\f[] In the context of mod translations, pitch bend values are
+interpreted as \f[I]unsigned\f[] quantities in the range 0..16383 (with
+8192 denoting the center value), which corresponds to the way they are
+actually encoded in MIDI.
+This makes the modular arithmetic work consistently for all types of
+MIDI messages, and also makes it easier to convert between pitch bends
+and other types of parameter values in mod translations.
+Normally you shouldn't have to worry about this, but the change in
+representation needs to be taken into account when transforming pitch
+bend values with value lists.
 .PP
 Let's return to our example.
 As usual in data translations, you can also specify a step size on the

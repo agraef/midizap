@@ -457,13 +457,15 @@ flag  ::= "'"
 
 There are three new elements in the syntax, an empty modulus bracket `[]`, the "transposition" flag `'`, and lists of numbers enclosed in curly braces. These have the following meaning:
 
-- The *empty modulus* bracket, denoted `[]` on the left-hand side of a mod translation, indicates a default modulus large enough (> 8192 for `PB`, > 127 for other messages) so that the offset *q* always becomes zero and the translation passes on the entire input value as is.
+- The *empty modulus* bracket, denoted `[]` on the left-hand side of a mod translation, indicates a default modulus large enough (16384 for `PB`, 128 for other messages) so that the offset *q* always becomes zero and the translation passes on the entire input value as is.
 
 - *Transposition*, denoted with the `'` (apostrophe) suffix on an output message, reverses the roles of *q* and *r*, so that the remainder becomes the offset and the quotient the value of the output message.
 
 - *Value lists*, denoted as lists of numbers separated by commas and enclosed in curly braces, provide a way to describe *discrete mappings* of input to output values. To these ends, the input value is used as an index into the list to give the corresponding output value, and the last value in the list will be used for any index which runs past the end of the list. There are also some convenient shortcuts which let you construct these lists more easily: repetition *a*`:`*b* (denoting *b* consecutive *a*'s) and enumeration *a*`-`*b* (denoting *a*`,`*a*±1`,`...`,`*b*, which ramps either up or down depending on whether *a*<=*b* or *a*>*b*, respectively).
 
 These are often used in concert. While we will introduce value lists in a moment, we won't actually use the default modulus or transposition in this section. But they're very convenient in some situations, and we'll get back to them in the following sections.
+
+**NOTE:** In the context of mod translations, pitch bend values are interpreted as *unsigned* quantities in the range 0..16383 (with 8192 denoting the center value), which corresponds to the way they are actually encoded in MIDI. This makes the modular arithmetic work consistently for all types of MIDI messages, and also makes it easier to convert between pitch bends and other types of parameter values in mod translations. Normally you shouldn't have to worry about this, but the change in representation needs to be taken into account when transforming pitch bend values with value lists.
  
 Let's return to our example. As usual in data translations, you can also specify a step size on the right-hand side to upscale the output value (which is the remainder *r* here):
 
