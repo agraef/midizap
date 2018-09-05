@@ -601,8 +601,6 @@ CC1[16]{0} CC1 CC2'
 
 Using similar rules, you can extract almost any part of an input value, down to every single bit if needed (see the end of the next section for an example).
 
-As you can see, mod translations in combination with discrete value lists are fairly powerful and let you implement pretty much any desired mapping with ease. There are some limitations, though. In particular, the reversal of the `CC1[1] C0` translation in the previous section, i.e., *extracting* the note number from a note input, is rather tedious (it involves writing down rules for each and every single note). Also, there's no direct way to combine different kinds of translations of the same input, or to consolidate the values of multiple input messages into a single output message. (The macro facility in the following section helps with the former, but not with the latter problem.)
-
 ## Macro Translations
 
 There are some situations in which it is hard or even impossible to construct a translation in a single step, but it may become much easier if we can recursively invoke other translations. midizap allows you to do this by "calling" the mod translation for a MIDI message on the right-hand side of a translation. This is done by prefixing the message to be expanded with the `$` character:
