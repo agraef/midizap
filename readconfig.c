@@ -714,7 +714,7 @@ print_stroke(stroke *s, int mod, int step, int n_steps, int *steps, int val)
       case 0xe0:
 	if (mod) {
 	  int v = datavals(s->swap?val/mod:val%mod, s->step, s->steps, s->n_steps);
-	  printf("PB[%d]-%d%s ", v, channel, suffix);
+	  printf("PB[%d]-%d%s ", v-8192, channel, suffix);
 	} else if (s->steps) {
 	  printf("PB{");
 	  for (int i = 0; i < s->n_steps; i++)

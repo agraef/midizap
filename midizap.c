@@ -225,7 +225,7 @@ send_midi(uint8_t portno, int status, int data,
       }
       msg[1] = cpvalue[chan];
     } else if (mod) {
-      int v = datavals(swap?val%mod:val/mod, step, steps, n_steps);
+      int v = datavals(swap?val/mod:val%mod, step, steps, n_steps);
       if (v > 127 || v < 0) return;
       msg[1] = v;
     } else if (!index) {
@@ -252,9 +252,9 @@ send_midi(uint8_t portno, int status, int data,
       }
       pbval = pbvalue[chan];
     } else if (mod) {
-      int v = datavals(swap?val%mod:val/mod, step, steps, n_steps);
-      if (v > 8191 || v < -8192) return;
-      pbval = 8192+v;
+      int v = datavals(swap?val/mod:val%mod, step, steps, n_steps);
+      if (v > 16383 || v < 0) return;
+      pbval = v;
     } else if (!index) {
       pbval = 8192+dataval(step, -8192, 8191);
     } else {
@@ -270,7 +270,7 @@ send_midi(uint8_t portno, int status, int data,
   }
   case 0xc0:
     if (mod) {
-      int d = msg[1] + datavals(swap?val/mod:val%mod, mod_step, mod_steps, mod_n_steps);
+      int d = msg[1] + datavals(swap?val%mod:val/mod, mod_step, mod_steps, mod_n_steps);
       if (d > 127 || d < 0) return;
       msg[1] = d;
     }
@@ -1448,7 +1448,7 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
     start_debug();
     //fprintf(stderr, "pb %d\n", bend);
     if (get_pb_mod(tr, portno, chan)) {
-      send_strokes(tr, portno, status, chan, 0, bend, 0, 0, depth);
+      send_strokes(tr, portno, status, chan, 0, bend+8192, 0, 0, depth);
       end_debug();
       break;
     }
