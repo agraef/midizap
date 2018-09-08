@@ -20,7 +20,7 @@ typedef struct input_event EV;
 Display *display;
 
 JACK_SEQ seq;
-int jack_num_outputs = 0, debug_jack = 0;
+int jack_num_outputs = 0, debug_jack = 0, passthrough = 0;
 int shift = 0;
 
 void
@@ -1489,14 +1489,15 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
 
 void help(char *progname)
 {
-  fprintf(stderr, "Usage: %s [-h] [-k] [-o[n]] [-j name] [-P[prio]] [-r rcfile] [-d[rskmj]]\n", progname);
+  fprintf(stderr, "Usage: %s [-hks] [-d[rskmj]] [-o[n]] [-j name] [-P[prio]] [-r rcfile]\n", progname);
   fprintf(stderr, "-h print this message\n");
+  fprintf(stderr, "-d debug (r = regex, s = strokes, k = keys, m = midi, j = jack; default: all)\n");
+  fprintf(stderr, "-j jack client name (default: midizap)\n");
   fprintf(stderr, "-k keep track of key status (ignore double notes)\n");
   fprintf(stderr, "-o set number of MIDI output ports (0-2, default: 1)\n");
-  fprintf(stderr, "-j jack client name (default: midizap)\n");
   fprintf(stderr, "-P set real-time priority (default: 90)\n");
   fprintf(stderr, "-r config file name (default: MIDIZAP_CONFIG_FILE variable or ~/.midizaprc)\n");
-  fprintf(stderr, "-d debug (r = regex, s = strokes, k = keys, m = midi, j = jack; default: all)\n");
+  fprintf(stderr, "-s pass-through of system messages\n");
 }
 
 uint8_t quit = 0;
@@ -1573,7 +1574,7 @@ main(int argc, char **argv)
   // Start recording the command line to be passed to Jack session management.
   add_command(argv[0], 0);
 
-  while ((opt = getopt(argc, argv, "hko::d::j:r:P::")) != -1) {
+  while ((opt = getopt(argc, argv, "hko::d::j:r:P::s")) != -1) {
     switch (opt) {
     case 'h':
       help(argv[0]);
@@ -1662,6 +1663,10 @@ main(int argc, char **argv)
 	exit(1);
       }
       break;
+    case 's':
+      passthrough = 1;
+      add_command("-s", 1);
+      break;
     default:
       fprintf(stderr, "Try -h for help.\n");
       exit(1);
@@ -1687,6 +1692,7 @@ main(int argc, char **argv)
   seq.client_name = jack_client_name;
   seq.n_in = jack_num_outputs>1?jack_num_outputs:1;
   seq.n_out = jack_num_outputs>0?jack_num_outputs:0;
+  seq.passthrough = jack_num_outputs>0?passthrough:0;
   if (!init_jack(&seq, debug_jack)) {
     exit(1);
   }

@@ -150,10 +150,22 @@ process_midi_input(JACK_SEQ* seq,jack_nframes_t nframes)
     jack_midi_event_t event;
 
     void *port_buffer = jack_port_get_buffer(seq->input_port[k], nframes);
+    // this is used for direct pass-through of system messages
+    void *out_buffer = seq->passthrough && k < seq->n_out?
+      jack_port_get_buffer(seq->output_port[k], nframes):0;
     if (port_buffer == NULL)
     {
       fprintf(stderr, "jack_port_get_buffer failed, cannot receive anything.\n");
       return;
+    }
+
+    if (out_buffer)
+    {
+#ifdef JACK_MIDI_NEEDS_NFRAMES
+      jack_midi_clear_buffer(out_buffer, nframes);
+#else
+      jack_midi_clear_buffer(out_buffer);
+#endif
     }
 
 #ifdef JACK_MIDI_NEEDS_NFRAMES
@@ -174,7 +186,7 @@ process_midi_input(JACK_SEQ* seq,jack_nframes_t nframes)
       {
 	//successful event get
 
-	if (event.size <= 3 && event.size >= 1)
+	if (event.size <= 3 && event.size >= 1 && event.buffer[0] < 0xf0)
 	{
 	  //not sysex or something
 
@@ -184,6 +196,16 @@ process_midi_input(JACK_SEQ* seq,jack_nframes_t nframes)
 	  rev.time = event.time;
 	  memcpy(rev.data, event.buffer, rev.len);
 	  queue_message(seq->ringbuffer_in[k],&rev);
+	}
+	else if (out_buffer && event.size >= 1 && event.buffer[0] >= 0xf0)
+	{
+	  // direct pass-through of system messages
+#ifdef JACK_MIDI_NEEDS_NFRAMES
+	  uint8_t *buffer = jack_midi_event_reserve(out_buffer, event.time, event.size, nframes);
+#else
+	  uint8_t *buffer = jack_midi_event_reserve(out_buffer, event.time, event.size);
+#endif
+	  if (buffer) memcpy(buffer, event.buffer, event.size);
 	}
       }
 
@@ -211,11 +233,14 @@ process_midi_output(JACK_SEQ* seq,jack_nframes_t nframes)
       return;
     }
 
+    if (!seq->passthrough)
+    {
 #ifdef JACK_MIDI_NEEDS_NFRAMES
-    jack_midi_clear_buffer(port_buffer, nframes);
+      jack_midi_clear_buffer(port_buffer, nframes);
 #else
-    jack_midi_clear_buffer(port_buffer);
+      jack_midi_clear_buffer(port_buffer);
 #endif
+    }
 
     while (jack_ringbuffer_read_space(seq->ringbuffer_out[k]))
     {
