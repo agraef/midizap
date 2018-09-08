@@ -6,12 +6,18 @@ midizap -- control your multimedia applications with MIDI
 
 # Synopsis
 
-midizap [-h] [-k] [-o[*n*]] [-j *name*] [-P[*prio*]] [-r *rcfile*] [-d[rskmj]]
+midizap [-hks] [-d[rskmj]] [-j *name*] [-o[*n*]] [-P[*prio*]] [-r *rcfile*]
 
 # Options
 
 -h
-:   Print a short help message.
+:   Print a short help message and exit.
+
+-d[rskmj]
+:   Enable various debugging options: r = regex (print matched translation sections), s = strokes (print the parsed configuration file in a human-readable format), k = keys (print executed translations), m = midi (MIDI monitor, print all recognizable MIDI input), j = jack (additional Jack debugging output). Just `-d` enables all debugging options. See Section *Basic Usage*.
+
+-j *name*
+:   Set the Jack client name. This overrides the corresponding directive in the configuration file. Default: "midizap". See Section *Jack-Related Options*.
 
 -k
 :   Keep track of key (on/off) status of MIDI notes and control switches. This isn't generally recommended, but may occasionally be useful to deal with quirky controllers sending note- or control-ons without corresponding off messages.
@@ -19,17 +25,14 @@ midizap [-h] [-k] [-o[*n*]] [-j *name*] [-P[*prio*]] [-r *rcfile*] [-d[rskmj]]
 -o[*n*]
 :   Enable MIDI output and set the number of output ports *n* (1 by default). Use *n* = 2 for a second pair of MIDI ports, e.g., for controller feedback, or *n* = 0 to disable MIDI output. This overrides the corresponding directive in the configuration file.  See Section *Jack-Related Options*.
 
--j *name*
-:   Set the Jack client name. This overrides the corresponding directive in the configuration file. Default: "midizap". See Section *Jack-Related Options*.
-
 -P[*prio*]
 :   Run with the given real-time priority (default: 90). See Section *Jack-Related Options*.
 
 -r *rcfile*
 :   Set the configuration file name. Default: taken from the MIDIZAP_CONFIG_FILE environment variable if it exists, or ~/.midizaprc if it exists, /etc/midizaprc otherwise. See Section *Configuration File*.
 
--d[rskmj]
-:   Enable various debugging options: r = regex (print matched translation sections), s = strokes (print the parsed configuration file in a human-readable format), k = keys (print executed translations), m = midi (MIDI monitor, print all recognizable MIDI input), j = jack (additional Jack debugging output). Just `-d` enables all debugging options. See Section *Basic Usage*.
+-s
+:   Pass through system messages from MIDI input to output.  See Section *MIDI Output*.
 
 # Description
 
@@ -47,7 +50,7 @@ First, make sure that you have the required dependencies installed. The program 
 
     sudo apt install build-essential libx11-dev libxtst-dev libjack-dev
 
-Then just run `make` and `sudo make install`. This installs the example.midizaprc file as /etc/midizaprc, and the midizap program and the manual page in the default install location. Usually this will be under /usr/local, but the installation prefix can be changed with the `prefix` variable in the Makefile. Also, package maintainers can use the `DESTDIR` variable as usual to install into a staging directory for packaging purposes.
+Then just run `make` and `sudo make install`. This installs the example.midizaprc file as /etc/midizaprc, and the midizap program and the manual page in the default install location. Usually this will be under /usr/local, but the installation prefix can be changed with the `prefix` variable in the Makefile. Also, package maintainers can use the `DESTDIR` variable to install into a staging directory for packaging purposes.
 
 # Configuration File
 
@@ -67,7 +70,7 @@ The midizap program is a command line application, so you typically run it from 
 
 Try `midizap -h` for a brief summary of the available options with which the program can be invoked.
 
-midizap uses [Jack][] for doing all its MIDI input and output, so you need to be able to run Jack and connect the Jack MIDI inputs and outputs of the program. While it's possible to do all of that from the command line as well, we recommend using a Jack front-end and patchbay program like [QjackCtl][] to manage Jack and to set up the MIDI connections. In QjackCtl's setup, make sure that you have selected `seq` as the MIDI driver. This exposes the ALSA sequencer ports of your MIDI hardware and other non-Jack ALSA MIDI applications as Jack MIDI ports, so that they can easily be connected to midizap. (We're assuming that you're using Jack1 here. Jack2 works in a very similar way, but may require some more fiddling; in particular, you may have to use [a2jmidid][] as a separate ALSA-Jack MIDI bridge in order to have the ALSA MIDI devices show properly as Jack MIDI devices.)
+midizap uses [Jack][] for doing all its MIDI input and output, so you need to be able to run Jack and connect the Jack MIDI inputs and outputs of the program. We recommend using a Jack front-end and patchbay program like [QjackCtl][] for this purpose. In QjackCtl's setup, make sure that you have selected `seq` as the MIDI driver. This exposes the ALSA sequencer ports of your MIDI hardware and other non-Jack ALSA MIDI applications as Jack MIDI ports, so that they can easily be connected to midizap. (We're assuming that you're using Jack1 here. Jack2 works in a very similar way, but may require some more fiddling; in particular, you may have to use [a2jmidid][] as a separate ALSA-Jack MIDI bridge in order to have the ALSA MIDI devices show properly as Jack MIDI devices.)
 
 Having that set up, start Jack, make sure that your MIDI controller is connected, and try running `midizap` from the command line (without any arguments). In QjackCtl, open the Connections dialog and activate the second tab named "MIDI", which shows all available Jack MIDI inputs and outputs. On the right side of the MIDI tab, you should now see a client named `midizap` with one MIDI input port named `midi_in`. That's the one you need to connect to your MIDI controller, whose output port should be visible under the `alsa_midi` client on the left side of the dialog.
 
@@ -132,7 +135,7 @@ Note the `-10` suffix on the output messages in the above example, which indicat
 
 E.g., the input note `C4` is mapped to `C3-10`, the note C in the third MIDI octave, which on channel 10 will produce the sound of a bass drum, at least on GM compatible synthesizers like Fluidsynth. The binding for the volume controller (`CC7`) at the end of the entry sends volume changes to the same drum channel (`CC7-10`), so that you can use the volume control on your keyboard to change the volume on the drum channel. The program keeps track of the values of both input and output controllers on all MIDI channels internally, so with the translations above all that happens automagically.
 
-Besides MIDI notes and control change (`CC`) messages, the midizap program also recognizes key and channel pressure (`KP`, `CP`), program change (`PC`), and pitch bend (`PB`) messages, which should cover most common use cases. These are discussed in more detail in the *Translation Syntax* section below.
+Besides MIDI notes and control change (`CC`) messages, the midizap program also recognizes key and channel pressure (`KP`, `CP`), program change (`PC`), and pitch bend (`PB`) messages, which should cover most common use cases. These are discussed in more detail in the *Translation Syntax* section below. In addition, while midizap cannot translate system messages such as system exclusive, it can pass them through if you specify the `-s` option on the command line.
 
 # Jack-Related Options
 
@@ -426,7 +429,7 @@ This section covers functionality which is used less often than the basic featur
 
 Some MIDI controllers need a more elaborate setup than what we've seen so far, because they have motor faders, LEDs, etc. requiring feedback from the application. To accommodate these, you can use the `-o2` option of midizap, or the `JACK_PORTS 2` directive in the midizaprc file, to create a second pair of MIDI input and output ports, named `midi_in2` and `midi_out2`. Use of this option also activates a second MIDI default section in the midizaprc file, labeled `[MIDI2]`, which is used exclusively for translating MIDI input from the second input port and sending the resulting MIDI output to the second output port. Typically, the translations in the `[MIDI2]` section will be the inverse of those in the `[MIDI]` section, or whatever it takes to translate the MIDI feedback from the application back to MIDI data which the controller understands.
 
-You then wire up midizap's `midi_in` and `midi_out` ports to controller and application as before, but in addition you also connect the application back to midizap's `midi_in2` port, and the `midi_out2` port to the controller. This reverse path is what is needed to translate the feedback from the application and send it back to the controller.
+You then wire up midizap's `midi_in` and `midi_out` ports to controller and application as before, but in addition you also connect the application back to midizap's `midi_in2` port, and the `midi_out2` port to the controller. This reverse path is what is needed to translate the feedback from the application and send it back to the controller. (The `-s` option also works on the feedback port, passing through all system messages from the second input port to the second output port unchanged.)
 
 An in-depth discussion of controller feedback is beyond the scope of this manual, but we present a few useful tidbits below. Also, the distribution includes a full-blown example of this kind of setup for your perusal, please check examples/APCmini.midizaprc in the sources. It shows how to emulate a Mackie controller with AKAI's APCmini device, so that it readily works with DAW software such as Ardour.
 
@@ -684,7 +687,7 @@ The names of some of the debugging options are rather idiosyncratic. midizap inh
 
 midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now. So there's no native Mac or Windows support, and that's not going to change until someone who's in the know about Mac and Windows equivalents for the X11 XTest extension, comes along and ports it over.
 
-midizap tries to keep things simple, which implies that it has its limitations. In particular, midizap lacks support for system messages and some more interesting ways of mapping, filtering and recombining MIDI data right now. There are other, more powerful utilities which do these things, but they are also more complicated and usually require programming skills. Fortunately, midizap often does the job reasonably well for simple mapping tasks (and even some rather complicated ones, such as the APCmini Mackie emulation included in the distribution). But if things start getting fiddly then you should consider using a more comprehensive tool like [Pd][] instead.
+midizap tries to keep things simple, which implies that it has its limitations. In particular, midizap lacks support for translating system messages and some more interesting ways of mapping, filtering and recombining MIDI data right now. There are other, more powerful utilities which do these things, but they are also more complicated and usually require programming skills. Fortunately, midizap often does the job reasonably well for simple mapping tasks (and even some rather complicated ones, such as the APCmini Mackie emulation included in the distribution). But if things start getting fiddly then you should consider using a more comprehensive tool like [Pd][] instead.
 
 # See Also
 

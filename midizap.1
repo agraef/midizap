@@ -7,12 +7,31 @@
 midizap \[en] control your multimedia applications with MIDI
 .SH Synopsis
 .PP
-midizap [\-h] [\-k] [\-o[\f[I]n\f[]]] [\-j \f[I]name\f[]]
-[\-P[\f[I]prio\f[]]] [\-r \f[I]rcfile\f[]] [\-d[rskmj]]
+midizap [\-hks] [\-d[rskmj]] [\-j \f[I]name\f[]] [\-o[\f[I]n\f[]]]
+[\-P[\f[I]prio\f[]]] [\-r \f[I]rcfile\f[]]
 .SH Options
 .TP
 .B \-h
-Print a short help message.
+Print a short help message and exit.
+.RS
+.RE
+.TP
+.B \-d[rskmj]
+Enable various debugging options: r = regex (print matched translation
+sections), s = strokes (print the parsed configuration file in a
+human\-readable format), k = keys (print executed translations), m =
+midi (MIDI monitor, print all recognizable MIDI input), j = jack
+(additional Jack debugging output).
+Just \f[C]\-d\f[] enables all debugging options.
+See Section \f[I]Basic Usage\f[].
+.RS
+.RE
+.TP
+.B \-j \f[I]name\f[]
+Set the Jack client name.
+This overrides the corresponding directive in the configuration file.
+Default: \[lq]midizap\[rq].
+See Section \f[I]Jack\-Related Options\f[].
 .RS
 .RE
 .TP
@@ -34,14 +53,6 @@ See Section \f[I]Jack\-Related Options\f[].
 .RS
 .RE
 .TP
-.B \-j \f[I]name\f[]
-Set the Jack client name.
-This overrides the corresponding directive in the configuration file.
-Default: \[lq]midizap\[rq].
-See Section \f[I]Jack\-Related Options\f[].
-.RS
-.RE
-.TP
 .B \-P[\f[I]prio\f[]]
 Run with the given real\-time priority (default: 90).
 See Section \f[I]Jack\-Related Options\f[].
@@ -56,14 +67,9 @@ See Section \f[I]Configuration File\f[].
 .RS
 .RE
 .TP
-.B \-d[rskmj]
-Enable various debugging options: r = regex (print matched translation
-sections), s = strokes (print the parsed configuration file in a
-human\-readable format), k = keys (print executed translations), m =
-midi (MIDI monitor, print all recognizable MIDI input), j = jack
-(additional Jack debugging output).
-Just \f[C]\-d\f[] enables all debugging options.
-See Section \f[I]Basic Usage\f[].
+.B \-s
+Pass through system messages from MIDI input to output.
+See Section \f[I]MIDI Output\f[].
 .RS
 .RE
 .SH Description
@@ -129,8 +135,8 @@ This installs the example.midizaprc file as /etc/midizaprc, and the
 midizap program and the manual page in the default install location.
 Usually this will be under /usr/local, but the installation prefix can
 be changed with the \f[C]prefix\f[] variable in the Makefile.
-Also, package maintainers can use the \f[C]DESTDIR\f[] variable as usual
-to install into a staging directory for packaging purposes.
+Also, package maintainers can use the \f[C]DESTDIR\f[] variable to
+install into a staging directory for packaging purposes.
 .SH Configuration File
 .PP
 After installation the system\-wide default configuration file will be
@@ -178,10 +184,8 @@ with which the program can be invoked.
 midizap uses Jack (http://jackaudio.org/) for doing all its MIDI input
 and output, so you need to be able to run Jack and connect the Jack MIDI
 inputs and outputs of the program.
-While it's possible to do all of that from the command line as well, we
-recommend using a Jack front\-end and patchbay program like
-QjackCtl (https://qjackctl.sourceforge.io/) to manage Jack and to set up
-the MIDI connections.
+We recommend using a Jack front\-end and patchbay program like
+QjackCtl (https://qjackctl.sourceforge.io/) for this purpose.
 In QjackCtl's setup, make sure that you have selected \f[C]seq\f[] as
 the MIDI driver.
 This exposes the ALSA sequencer ports of your MIDI hardware and other
@@ -362,6 +366,9 @@ midizap program also recognizes key and channel pressure (\f[C]KP\f[],
 messages, which should cover most common use cases.
 These are discussed in more detail in the \f[I]Translation Syntax\f[]
 section below.
+In addition, while midizap cannot translate system messages such as
+system exclusive, it can pass them through if you specify the
+\f[C]\-s\f[] option on the command line.
 .SH Jack\-Related Options
 .PP
 There are some additional directives (and corresponding command line
@@ -1197,6 +1204,9 @@ connect the application back to midizap's \f[C]midi_in2\f[] port, and
 the \f[C]midi_out2\f[] port to the controller.
 This reverse path is what is needed to translate the feedback from the
 application and send it back to the controller.
+(The \f[C]\-s\f[] option also works on the feedback port, passing
+through all system messages from the second input port to the second
+output port unchanged.)
 .PP
 An in\-depth discussion of controller feedback is beyond the scope of
 this manual, but we present a few useful tidbits below.
@@ -1815,9 +1825,9 @@ for the X11 XTest extension, comes along and ports it over.
 .PP
 midizap tries to keep things simple, which implies that it has its
 limitations.
-In particular, midizap lacks support for system messages and some more
-interesting ways of mapping, filtering and recombining MIDI data right
-now.
+In particular, midizap lacks support for translating system messages and
+some more interesting ways of mapping, filtering and recombining MIDI
+data right now.
 There are other, more powerful utilities which do these things, but they
 are also more complicated and usually require programming skills.
 Fortunately, midizap often does the job reasonably well for simple
