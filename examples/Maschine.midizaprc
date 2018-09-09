@@ -1,0 +1,315 @@
+
+# Mackie emulation for the NI Maschine Mk3
+
+# Copyright (c) 2018 Albert Graef <aggraef@gmail.com>
+
+# Copying and distribution of this file, with or without modification, are
+# permitted in any medium without royalty provided the copyright notice and
+# this notice are preserved.  This file is offered as-is, without any
+# warranty.
+
+JACK_NAME "midizap-Maschine"
+JACK_PORTS 2
+
+# NOTE: At present, this controller isn't properly supported by ALSA, but it
+# can be made to work in Linux with Harry van Haaren's Ctlra software. Use
+# this version: https://github.com/agraef/openAV-Ctlra/tree/mapping_v1-ag
+# Run ctlra_daemon -fnm alongside with midizap -s, and connect the ports as
+# follows: Ctlra Maschine Mk3 -> midizap midi_in / midi_out -> Ardour mackie
+# control in / mackie control out -> midizap midi_in2 / midi_out2 -> Ctlra
+# Maschine Mk3.
+
+[MIDI]
+
+# The Mk3's dedicated shift key is used to provide alternative functions
+# to some of the buttons and the faders.
+?F0 SHIFT RELEASE SHIFT
+
+# transport (assigned to the transport section on the bottom left)
+F#3  A7  # Stop
+E3   A#7 # Play
+F3   B7  # Rec
+C3   D7  # Cycle (RESTART/Loop key)
+C#3  G7  # Rew   (ERASE/Replace key)
+D3   G#7 # FFwd  (TAP/Metro key)
+D#3  C#7 # Nudge (FOLLOW/Grid key)
+
+# additional functions on shifted keys
+^C#3 D#7 # In    (SHIFT ERASE/Replace key)
+^F3  E7  # Out   (SHIFT Rec key)
+^D3  F7  # Click (SHIFT TAP/Metro key)
+^D#3 C7  # Mark  (SHIFT FOLLOW/Grid key)
+
+# switch between SMPTE and BBT timecode
+C#4  F4  #       (MIDI/Channel key)
+
+# Bank/channel left/right (arrow keys in the top left section)
+E4   A#3 # Bank Left
+A3   B3  # Bank Right
+^E4  C4  # Channel Left
+^A3  C#4 # Channel Right
+
+# the four buttons below the arrow keys are assigned to the utility functions
+F4   G#6 # Save   (SAVE/File key)
+G#3  A6  # Undo   (SETTINGS key)
+F#4  A#6 # Cancel (AUTO key)
+G3   B6  # Enter  (MACRO/Set key)
+
+# Track/Pan/Send/Instr (4 buttons right above the grid)
+# NOTE: Only Pan and Send appear to be supported in Ardour.
+G#1  E3  # Track  (PAD MODE key)
+A1   F#3 # Pan    (KEYBOARD key)
+A#1  F3  # Send   (CHORDS key)
+B1   A3  # Instr  (STEPS key)
+
+# the four buttons right above the touchstrip are used for the MC shift keys
+A2   A#5 # Shift   (PITCH key)
+A#2  B5  # Control (MOD key)
+B2   C6  # Option  (PERFORM key)
+D1   C#6 # Alt/Cmd (NOTES key)
+
+# big encoder press/left/right/up/down assigned to the zoom/cursor keys
+D0   C8  # Up
+E0   C#8 # Down
+D#0  D8  # Left
+C#0  D#8 # Right
+C0   E8  # Zoom
+
+# The Mk3 only has one row of dedicated "channel buttons" on the top, which we
+# use for channel select. But we'd also like to have buttons for rec, solo and
+# mute, so we (rather arbitrarily) bind them to the shifted A..H and grid
+# buttons.
+
+# track select (top row right above the display)
+G4  C2
+G#4 C#2
+A4  D2
+A#4 D#2
+B4  E2
+C5  F2
+C#5 F#2
+D5  G2
+
+# shifted top row
+# We assign these to the function keys F1..F8 here, but of course you can
+# remap these as needed.
+^G4  F#4
+^G#4 G4
+^A4  G#4
+^A#4 A4
+^B4  A#4
+^C5  B4
+^C#5 C5
+^D5  C#5
+
+# shifted A..H keys = rec
+^F#0 C0
+^G0  C#0
+^G#0 D0
+^A0  D#0
+^A#0 E0
+^B0  F0
+^C1  F#0
+^C#1 G0
+
+# upper half of grid, shifted = solo
+^C4-10  G#0
+^C#4-10 A0
+^D4-10  A#0
+^D#4-10 B0
+^G#3-10 C1
+^A3-10  C#1
+^A#3-10 D1
+^B3-10  D#1
+
+# lower half of grid, shifted = mute
+^E3-10  E1
+^F3-10  F1
+^F#3-10 F#1
+^G3-10  G1
+^C3-10  G#1
+^C#3-10 A1
+^D3-10  A#1
+^D#3-10 B1
+
+# The unshifted grid buttons are passed through unchanged, so that you can
+# still use them as drum pads (provided that you filter out all MIDI channels
+# except channel 10). Note that we use mod translations here, in order to
+# preserve the velocities.
+
+C3[]-10  C3-10
+C#3[]-10 C#3-10
+D3[]-10  D3-10
+D#3[]-10 D#3-10
+E3[]-10  E3-10
+F3[]-10  F3-10
+F#3[]-10 F#3-10
+G3[]-10  G3-10
+G#3[]-10 G#3-10
+A3[]-10  A3-10
+A#3[]-10 A#3-10
+B3[]-10  B3-10
+C4[]-10  C4-10
+C#4[]-10 C#4-10
+D4[]-10  D4-10
+D#4[]-10 D#4-10
+
+# Map the unshifted A..H buttons to program changes on channel 10 so that you
+# can quickly switch the sounds of your drumkit, drum patterns etc. (This is
+# just an example, you might want to disable these or remap them as you see
+# fit.)
+
+F#0 PC0-10
+G0  PC1-10
+G#0 PC2-10
+A0  PC3-10
+A#0 PC4-10
+B0  PC5-10
+C1  PC6-10
+C#1 PC7-10
+
+# big encoder assigned to MCP jog wheel
+?CC0~ CC60~
+
+# encoders mapped to MCP channel faders
+# (MC uses pitch bends here, use 129 as step size to get full range)
+CC1~ PB[129]-1
+CC2~ PB[129]-2
+CC3~ PB[129]-3
+CC4~ PB[129]-4
+CC5~ PB[129]-5
+CC6~ PB[129]-6
+CC7~ PB[129]-7
+CC8~ PB[129]-8
+# master fader (touchstrip)
+CC9[] PB[129]-9
+
+# encoders become the MCP encoders when shifted (CC16..CC23, incremental mode)
+^CC1~ CC16~
+^CC2~ CC17~
+^CC3~ CC18~
+^CC4~ CC19~
+^CC5~ CC20~
+^CC6~ CC21~
+^CC7~ CC22~
+^CC8~ CC23~
+
+# encoder touches
+E5  G#8
+F5  A8
+F#5 A#8
+G5  B8
+G#5 C9
+A5  C#9
+A#5 D9
+B5  D#9
+D#5 E9
+
+# feedback section ########################################################
+
+[MIDI2]
+
+# transport
+A7   F#3 $CC0 # reset all meters, see "meter feedback" below
+A#7  E3
+B7   F3 # Rec
+D7   C3 # Cycle
+G7   C#3
+G#7  D3
+C#7  D#3
+
+^F7  D3
+^C7  D#3
+
+# SMPTE/BBT
+F4   C#4
+
+# channel left/right keys
+?C4  E4
+?C#4 A3
+
+# row above grid (track/pan/send/instr)
+E3   G#1
+F#3  A1
+F3   A#1
+A3   B1
+
+# feedback for the MC shift keys
+A#5  A2  # Shift
+B5   A#2 # Control
+C6   B2  # Option
+C#6  D1  # Alt/Cmd
+
+# zoom (as the big encoder itself has no led, we light up the 4 leds around it
+# instead; color: 4 = blue)
+E8   C#0[4] D0[4] D#0[4] E0[4]
+
+# select
+# NOTE: Ardour apparently doesn't update these when changing banks.
+?C2  G4
+?C#2 G#4
+?D2  A4
+?D#2 A#4
+?E2  B4
+?F2  C5
+?F#2 C#5
+?G2  D5
+
+# rec: color = white
+?C0  F#0
+?C#0 G0
+?D0  G#0
+?D#0 A0
+?E0  A#0
+?F0  B0
+?F#0 C1
+?G0  C#1
+
+# solo: color = green (vel. 2)
+?G#0 C4[2]-10
+?A0  C#4[2]-10
+?A#0 D4[2]-10
+?B0  D#4[2]-10
+?C1  G#3[2]-10
+?C#1 A3[2]-10
+?D1  A#3[2]-10
+?D#1 B3[2]-10
+
+# mute: color = yellow (vel. 3)
+?E1  E3[3]-10
+?F1  F3[3]-10
+?F#1 F#3[3]-10
+?G1  G3[3]-10
+?G#1 C3[3]-10
+?A1  C#3[3]-10
+?A#1 D3[3]-10
+?B1  D#3[3]-10
+
+# Meter and timecode feedback (simply passed through, ctlra_daemon
+# handles these automagically).
+
+# meter values
+?CP[] CP
+
+# NOTE: We only report the values as we receive them here, there's no
+# automatic decay of the meters like with real Mackie hardware.  Thus we
+# explicitly reset all meters when transport stops below.  (Ardour at least
+# does *not* do that automatically.)  NB: We use CC0 as a macro here,
+# hopefully this won't occur as real feedback?
+
+?CC0[1] CP{0} CP{16} CP{32} CP{48} CP{64} CP{80} CP{96} CP{112}
+
+# timecode
+?CC64[] CC64
+?CC65[] CC65
+?CC66[] CC66
+?CC67[] CC67
+?CC68[] CC68
+?CC69[] CC69
+?CC70[] CC70
+?CC71[] CC71
+?CC72[] CC72
+?CC73[] CC73
+
+# no feedback for encoders, only touchstrip
+PB[128]{0}-9 CC9'
