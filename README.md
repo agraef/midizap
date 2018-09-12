@@ -6,7 +6,7 @@ midizap -- control your multimedia applications with MIDI
 
 # Synopsis
 
-midizap [-hks] [-d[rskmj]] [-j *name*] [-o[*n*]] [-P[*prio*]] [-r *rcfile*]
+midizap [-hkns] [-d[rskmj]] [-j *name*] [-o[*n*]] [-P[*prio*]] [-r *rcfile*]
 
 # Options
 
@@ -22,8 +22,11 @@ midizap [-hks] [-d[rskmj]] [-j *name*] [-o[*n*]] [-P[*prio*]] [-r *rcfile*]
 -k
 :   Keep track of key (on/off) status of MIDI notes and control switches. This isn't generally recommended, but may occasionally be useful to deal with quirky controllers sending note- or control-ons without corresponding off messages.
 
+-n
+:   No automatic feedback. This disables the automatic recording of feedback values from the second input port (`-o2`). Note that automatic feedback is often needed to make controller feedback from the application work properly, so this option should *not* be used unless you use the second port for different purposes. See Section *MIDI Feedback*.
+
 -o[*n*]
-:   Enable MIDI output and set the number of output ports *n* (1 by default). Use *n* = 2 for a second pair of MIDI ports, e.g., for controller feedback, or *n* = 0 to disable MIDI output. This overrides the corresponding directive in the configuration file.  See Section *Jack-Related Options*.
+:   Enable MIDI output and set the number of output ports *n* (1 by default). Use *n* = 2 for a second pair of MIDI ports, e.g., for controller feedback, or *n* = 0 to disable MIDI output. This overrides the corresponding directive in the configuration file. See Section *Jack-Related Options*.
 
 -P[*prio*]
 :   Run with the given real-time priority (default: 90). See Section *Jack-Related Options*.
@@ -110,7 +113,7 @@ A5-1[U]: XK_Down/U
 
 The debugging options will be very helpful when you start developing your own bindings. The `-d` option can be combined with various option characters to choose exactly which kinds of debugging output you want; `r` ("regex") prints the matched translation section (if any) along with the window name and class of the focused window; `s` ("strokes") prints the parsed contents of the configuration file in a human-readable form whenever the file is loaded; `k` ("keys") shows the recognized translations as the program executes them, in the same format as `s`; `m` ("MIDI") prints *any* MIDI input, so that you can figure out which MIDI tokens to use for configuring the translations for your controller; and `j` adds some debugging output from the Jack driver. You can also just use `-d` to enable all debugging output. (Most of these options are also available as directives in the midizaprc file, these are listed in the comments at the beginning of example.midizaprc.)
 
-Have a look at the distributed midizaprc file for more examples. Most of the other translations in the file assume a Mackie-like device with standard playback controls and a jog wheel. Any standard DAW controller which can be switched into Mackie mode should work with these out of the box. There are also some more generic examples, like the one above, which will work with almost any kind of MIDI keyboard. The examples are mostly for illustrative and testing purposes, though, to help you get started. You will want to edit them and add translations for your own controllers and favorite applications.
+Most of the other translations in the distributed midizaprc file assume a Mackie-like device with standard playback controls and a jog wheel. There are also a few more generic examples, like the one above, which will work with almost any kind of MIDI keyboard. The examples are mostly for illustrative and testing purposes, though, to help you get started. You will want to edit them and add translations for your own controllers and favorite applications.
 
 # MIDI Output
 
@@ -131,11 +134,9 @@ You can try it and test that it works by running `midizap -o` along with a MIDI 
  CC7=  CC7-10
 ~~~
 
-Note the `-10` suffix on the output messages in the above example, which indicates that output goes to MIDI channel 10. In midizaprc syntax, MIDI channels are 1-based, so they are numbered 1..16, and 10 denotes the GM (General MIDI) drum channel.
+Note the `-10` suffix on the output messages in the above example, which indicates that output goes to MIDI channel 10. In midizaprc syntax, MIDI channels are 1-based, so they are numbered 1..16, and 10 denotes the GM (General MIDI) drum channel. E.g., the input note `C4` is mapped to `C3-10`, the note C in the third MIDI octave, which on channel 10 will produce the sound of a bass drum, at least on GM compatible synthesizers like Fluidsynth. The binding for the volume controller (`CC7`) at the end of the entry sends volume changes to the same drum channel (`CC7-10`), so that you can use the volume control on your keyboard to change the volume on the drum channel.
 
-E.g., the input note `C4` is mapped to `C3-10`, the note C in the third MIDI octave, which on channel 10 will produce the sound of a bass drum, at least on GM compatible synthesizers like Fluidsynth. The binding for the volume controller (`CC7`) at the end of the entry sends volume changes to the same drum channel (`CC7-10`), so that you can use the volume control on your keyboard to change the volume on the drum channel. The program keeps track of the values of both input and output controllers on all MIDI channels internally, so with the translations above all that happens automagically.
-
-Besides MIDI notes and control change (`CC`) messages, the midizap program also recognizes key and channel pressure (`KP`, `CP`), program change (`PC`), and pitch bend (`PB`) messages, which should cover most common use cases. These are discussed in more detail in the *Translation Syntax* section below. In addition, while midizap cannot translate system messages such as system exclusive, it can pass them through if you specify the `-s` option on the command line.
+Besides MIDI notes and control change (`CC`) messages, the midizap program also recognizes key and channel pressure (`KP`, `CP`), program change (`PC`), and pitch bend (`PB`) messages, which should cover most common use cases. These are discussed in more detail in the *Translation Syntax* section below. In addition, while midizap cannot translate system messages such as system exclusive, it can pass them through if you specify the `-s` option on the command line, or the special `SYSTEM_PASSTHROUGH` directive in the configuration file.
 
 # Jack-Related Options
 
@@ -200,9 +201,9 @@ This binds a few keys in the middle octave to the Up, Down and Return keys as we
 
 ## MIDI Message Notation
  
-There's no real standard for symbolic designations of MIDI messages, but we hope that most users will find midizap's notation easy to understand and remember. Notes are specified using a customary format which musicians will find familiar: a note name `A`, `B`, ..., `G` is followed by an (optional) accidental (`#` or `b`), and a (mandatory) MIDI octave number. Note that all MIDI octaves start at the note C, so `B0` comes before `C1`. By default, `C5` denotes middle C (you can change this if you want, see *Octave Numbering* below). Enharmonic spellings are equivalent, so, e.g., `D#5` and `Eb5` denote exactly the same MIDI note.
+There's no real standard for symbolic designations of MIDI messages, but we hope that most users will find midizap's notation easy to understand and remember. Notes are specified using a format which musicians will find familiar: a note name `A`, `B`, ..., `G` is followed by an (optional) accidental (`#` or `b`), and a (mandatory) MIDI octave number. Note that all MIDI octaves start at the note C, so `B0` comes before `C1`. By default, `C5` denotes middle C (you can change this if you want, see *Octave Numbering* below). Enharmonic spellings are equivalent, so, e.g., `D#5` and `Eb5` denote exactly the same MIDI note.
 
-The other messages are denoted using short mnemonics: `KP:`*note* (aftertouch a.k.a. key pressure for the given note); `CC`*n* (control change for the given controller number); `PC`*n* (program change for the given program number); `CP` (channel pressure); and `PB` (pitch bend). We will go into the other syntactic bits and pieces of MIDI message designations later, but it's good to have the following grammar in EBNF notation handy for reference. (To keep things simple, the grammar is somewhat abridged, but it covers all the frequently used notation. There is some additional syntax for special forms of translations which will be introduced later.)
+The other messages are denoted using short mnemonics: `KP:`*note* (aftertouch a.k.a.\ key pressure for the given note); `CC`*n* (control change for the given controller number); `PC`*n* (program change for the given program number); `CP` (channel pressure); and `PB` (pitch bend). We will go into the other syntactic bits and pieces of MIDI message designations later, but it's good to have the following grammar in EBNF notation handy for reference. (To keep things simple, the grammar is somewhat abridged, but it covers all the frequently used notation. There is some additional syntax for special forms of translations which will be introduced later.)
 
 ~~~
 token ::= msg [ "[" number "]" ] [ "-" number ] [ flag ]
@@ -392,9 +393,11 @@ CC1[3]= CC1[2]
 
 The above translation will only be triggered when the input value changes by 3 units, and the change in the output value will then be doubled again, so that the net effect is to scale the input value by 2/3. (Note that for most ratios this will only give a rough approximation; the method works best if the input and output step sizes are reasonably small.)
 
-**NOTE:** All data translations we've seen so far handle *incremental* value changes only. In order to be able to detect these changes and, in the case of MIDI output, change the output values accordingly, midizap has to keep track of all the current parameter values of all messages on all MIDI channels, for both input and output. While this is easy enough, midizap has no way of knowing the *actual* state of your controllers and MIDI applications, so when the program starts up, it simply assumes all these values to be zero. This means that midizap's "shadow" values of controllers, pitch bends etc. may initially well be out of sync with your input devices and applications, and you may have to wiggle a control in order to "calibrate" it.
+**NOTE:** All data translations we've seen so far handle *incremental* value changes only. In order to be able to detect these changes and, in the case of MIDI output, change the output values accordingly, midizap has to keep track of all the current parameter values of all messages on all MIDI channels, for both input and output. This is easy enough, but midizap usually has no way of knowing the *actual* state of your controllers and MIDI applications, so when the program starts up, it simply assumes all these values to be zero. This means that midizap's "shadow" values of controllers, pitch bends etc. may initially well be out of sync with your input devices and applications, and you may have to wiggle a control in order to "calibrate" it.
 
-This becomes most apparent when using negative step sizes, as in the translation `CC1= CC1[-1]` from above. If you start increasing that control initially, midizap still thinks that the `CC1` output controller is at value 0, so the change will not have any visible effect until you've moved the control up a bit and then start pulling it back down again. In fact, to get the full range of output values in this case, you will first have to move the control all the way up and then down again to calibrate it. (For pure MIDI translations, there's an alternative form of data translation which works directly with the absolute values and thus doesn't have this defect, see *Mod Translations* in the *Advanced Features* section below.)
+This becomes most apparent when using negative step sizes, as in the translation `CC1= CC1[-1]` from above. If you start increasing that control initially, midizap still thinks that the `CC1` output controller is at value 0, so the change will not have any visible effect until you've moved the control up a bit and then start pulling it back down again. In fact, to get the full range of output values in this case, you will first have to move the control all the way up and then down again to calibrate it.
+
+However, it is possible to get rid of these defects by making use of controller *feedback*, if both your controller and the host application have that feature. See *MIDI Feedback* in the *Advanced Features* section below for details.
 
 ## Shift State
 
@@ -429,13 +432,17 @@ This section covers functionality which is used less often than the basic featur
 
 Some MIDI controllers need a more elaborate setup than what we've seen so far, because they have motor faders, LEDs, etc. requiring feedback from the application. To accommodate these, you can use the `-o2` option of midizap, or the `JACK_PORTS 2` directive in the midizaprc file, to create a second pair of MIDI input and output ports, named `midi_in2` and `midi_out2`. Use of this option also activates a second MIDI default section in the midizaprc file, labeled `[MIDI2]`, which is used exclusively for translating MIDI input from the second input port and sending the resulting MIDI output to the second output port. Typically, the translations in the `[MIDI2]` section will be the inverse of those in the `[MIDI]` section, or whatever it takes to translate the MIDI feedback from the application back to MIDI data which the controller understands.
 
-You then wire up midizap's `midi_in` and `midi_out` ports to controller and application as before, but in addition you also connect the application back to midizap's `midi_in2` port, and the `midi_out2` port to the controller. This reverse path is what is needed to translate the feedback from the application and send it back to the controller. (The `-s` option also works on the feedback port, passing through all system messages from the second input port to the second output port unchanged.)
+You then wire up midizap's `midi_in` and `midi_out` ports to controller and application as before, but in addition you also connect the application back to midizap's `midi_in2` port, and the `midi_out2` port to the controller. This reverse path is what is needed to translate the feedback from the application and send it back to the controller. (The `-s` option a.k.a.\ `SYSTEM_PASSTHROUGH` directive also works on the feedback port, passing through all system messages from the second input port to the second output port unchanged.)
 
-An in-depth discussion of controller feedback is beyond the scope of this manual, but we present a few useful tidbits below. Also, the distribution includes a full-blown example of this kind of setup for your perusal, please check examples/APCmini.midizaprc in the sources. It shows how to emulate a Mackie controller with AKAI's APCmini device, so that it readily works with DAW software such as Ardour.
+In most cases, MIDI feedback also gets rid of controls being out of sync with the application. To these ends, the current state of controls communicated by the host application via the `midi_in2` port will also be recorded in midizap itself, so that subsequent MIDI output for incremental data translations will use the proper values for determining the required relative changes. We refer to this as *automatic feedback*. Many cheaper devices will provide you with simple sign-bit encoders which don't need any kind of feedback for themselves. In this case the automatic feedback will be all that's needed to keep controller and application in sync, and you don't even have to write any translation rules for the feedback side; just enabling the feedback port and hooking it up to the application will be enough. (In fact, if the application also supports sign-bit encoders for all its controls, then you probably won't need any feedback at all.) More expensive controllers may provide faders with motors or LEDs on them, however, in which case additional translation rules for the feedback will be needed.
+
+**NOTE:** Automatic feedback is enabled automatically whenever you create a second pair of ports using `-o2`. If you're using the second pair for more esoteric purposes, you may want to disable it, which can be done with the `-n` option, or the `NO_FEEDBACK` directive in the configuration file. This prevents the internal bookkeeping required to make incremental data translations work properly with feedback-enabled host applications, so *only* use this option if feedback isn't needed.
+
+An in-depth discussion of controller feedback is beyond the scope of this manual, but we present a few interesting examples below. Also, the distribution includes a full-blown example of this kind of setup for your perusal, please check examples/APCmini.midizaprc in the sources. It shows how to emulate a Mackie controller with AKAI's APCmini device, so that it readily works with DAW software such as Ardour.
 
 ## Mod Translations
 
-Most of the time, MIDI feedback uses just the standard kinds of MIDI messages readily supported by midizap, such as note messages which make buttons light up in different colors, or control change messages which set the positions of motor faders. However, there are some encodings of feedback messages which combine different bits of information in a single message, making them difficult or even impossible to translate using the simple kinds of rules we've seen so far. midizap offers a special variation of data mode to help decoding such messages. We call them *mod translations* (a.k.a. "modulus" or "modifier" translations), because they involve operations with integer moduli which enable you to both calculate output from input values in a direct fashion, *and* modify the output messages themselves along the way.
+Most of the time, MIDI feedback uses just the standard kinds of MIDI messages readily supported by midizap, such as note messages which make buttons light up in different colors, or control change messages which set the positions of motor faders. However, there are some encodings of feedback messages which combine different bits of information in a single message, making them difficult or even impossible to translate using the simple kinds of rules we've seen so far. midizap offers a special variation of data mode to help decoding such messages. We call them *mod translations* (a.k.a.\ "modulus" or "modifier" translations), because they involve operations with integer moduli which enable you to both calculate output from input values in a direct fashion, *and* modify the output messages themselves along the way.
 
 One important task, which we'll use as a running example below, is the decoding of meter (RMS level) data in the Mackie protocol. There, each meter value is represented as a key pressure message whose value consists of a mixer channel index 0..7 in the "high nibble" (bits 4..6) and the corresponding meter value in the "low nibble" (bits 0..3). We will show how to map these values to notes indicating buttons on the AKAI APCmini (please check examples/APCmini.midizaprc in the sources for details about this device). This involves extracting and mapping the meter values, as well as shifting the target note, which is exactly the kind of operation that mod translations are designed to perform. Mod translations aren't limited to this specific use case, however; similar rules will apply to other kinds of "scrambled" MIDI data.
 
@@ -676,8 +683,6 @@ CC4[8]{0}  $CC3 CC3'
 CC3[4]{0}  $CC2 CC2'
 CC2[2]{0}  CC0  CC1'
 ~~~
-
-A final caveat is in order here. Complicated macro translations like the one above certainly have their uses, but they're still rather limited. If you find that your application involves a lot of tricky translations, you may be better off using a more advanced tool which offers real programming capabilities.
 
 # Bugs
 

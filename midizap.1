@@ -7,7 +7,7 @@
 midizap \[en] control your multimedia applications with MIDI
 .SH Synopsis
 .PP
-midizap [\-hks] [\-d[rskmj]] [\-j \f[I]name\f[]] [\-o[\f[I]n\f[]]]
+midizap [\-hkns] [\-d[rskmj]] [\-j \f[I]name\f[]] [\-o[\f[I]n\f[]]]
 [\-P[\f[I]prio\f[]]] [\-r \f[I]rcfile\f[]]
 .SH Options
 .TP
@@ -40,6 +40,17 @@ Keep track of key (on/off) status of MIDI notes and control switches.
 This isn't generally recommended, but may occasionally be useful to deal
 with quirky controllers sending note\- or control\-ons without
 corresponding off messages.
+.RS
+.RE
+.TP
+.B \-n
+No automatic feedback.
+This disables the automatic recording of feedback values from the second
+input port (\f[C]\-o2\f[]).
+Note that automatic feedback is often needed to make controller feedback
+from the application work properly, so this option should \f[I]not\f[]
+be used unless you use the second port for different purposes.
+See Section \f[I]MIDI Feedback\f[].
 .RS
 .RE
 .TP
@@ -287,12 +298,9 @@ You can also just use \f[C]\-d\f[] to enable all debugging output.
 file, these are listed in the comments at the beginning of
 example.midizaprc.)
 .PP
-Have a look at the distributed midizaprc file for more examples.
-Most of the other translations in the file assume a Mackie\-like device
-with standard playback controls and a jog wheel.
-Any standard DAW controller which can be switched into Mackie mode
-should work with these out of the box.
-There are also some more generic examples, like the one above, which
+Most of the other translations in the distributed midizaprc file assume
+a Mackie\-like device with standard playback controls and a jog wheel.
+There are also a few more generic examples, like the one above, which
 will work with almost any kind of MIDI keyboard.
 The examples are mostly for illustrative and testing purposes, though,
 to help you get started.
@@ -348,7 +356,6 @@ Note the \f[C]\-10\f[] suffix on the output messages in the above
 example, which indicates that output goes to MIDI channel 10.
 In midizaprc syntax, MIDI channels are 1\-based, so they are numbered
 1..16, and 10 denotes the GM (General MIDI) drum channel.
-.PP
 E.g., the input note \f[C]C4\f[] is mapped to \f[C]C3\-10\f[], the note
 C in the third MIDI octave, which on channel 10 will produce the sound
 of a bass drum, at least on GM compatible synthesizers like Fluidsynth.
@@ -356,9 +363,6 @@ The binding for the volume controller (\f[C]CC7\f[]) at the end of the
 entry sends volume changes to the same drum channel (\f[C]CC7\-10\f[]),
 so that you can use the volume control on your keyboard to change the
 volume on the drum channel.
-The program keeps track of the values of both input and output
-controllers on all MIDI channels internally, so with the translations
-above all that happens automagically.
 .PP
 Besides MIDI notes and control change (\f[C]CC\f[]) messages, the
 midizap program also recognizes key and channel pressure (\f[C]KP\f[],
@@ -368,7 +372,8 @@ These are discussed in more detail in the \f[I]Translation Syntax\f[]
 section below.
 In addition, while midizap cannot translate system messages such as
 system exclusive, it can pass them through if you specify the
-\f[C]\-s\f[] option on the command line.
+\f[C]\-s\f[] option on the command line, or the special
+\f[C]SYSTEM_PASSTHROUGH\f[] directive in the configuration file.
 .SH Jack\-Related Options
 .PP
 There are some additional directives (and corresponding command line
@@ -559,10 +564,10 @@ always generate exactly the same output sequence.
 There's no real standard for symbolic designations of MIDI messages, but
 we hope that most users will find midizap's notation easy to understand
 and remember.
-Notes are specified using a customary format which musicians will find
-familiar: a note name \f[C]A\f[], \f[C]B\f[], \&..., \f[C]G\f[] is
-followed by an (optional) accidental (\f[C]#\f[] or \f[C]b\f[]), and a
-(mandatory) MIDI octave number.
+Notes are specified using a format which musicians will find familiar: a
+note name \f[C]A\f[], \f[C]B\f[], \&..., \f[C]G\f[] is followed by an
+(optional) accidental (\f[C]#\f[] or \f[C]b\f[]), and a (mandatory) MIDI
+octave number.
 Note that all MIDI octaves start at the note C, so \f[C]B0\f[] comes
 before \f[C]C1\f[].
 By default, \f[C]C5\f[] denotes middle C (you can change this if you
@@ -571,11 +576,10 @@ Enharmonic spellings are equivalent, so, e.g., \f[C]D#5\f[] and
 \f[C]Eb5\f[] denote exactly the same MIDI note.
 .PP
 The other messages are denoted using short mnemonics:
-\f[C]KP:\f[]\f[I]note\f[] (aftertouch a.k.a.
-key pressure for the given note); \f[C]CC\f[]\f[I]n\f[] (control change
-for the given controller number); \f[C]PC\f[]\f[I]n\f[] (program change
-for the given program number); \f[C]CP\f[] (channel pressure); and
-\f[C]PB\f[] (pitch bend).
+\f[C]KP:\f[]\f[I]note\f[] (aftertouch a.k.a.\ key pressure for the given
+note); \f[C]CC\f[]\f[I]n\f[] (control change for the given controller
+number); \f[C]PC\f[]\f[I]n\f[] (program change for the given program
+number); \f[C]CP\f[] (channel pressure); and \f[C]PB\f[] (pitch bend).
 We will go into the other syntactic bits and pieces of MIDI message
 designations later, but it's good to have the following grammar in EBNF
 notation handy for reference.
@@ -1070,7 +1074,7 @@ In order to be able to detect these changes and, in the case of MIDI
 output, change the output values accordingly, midizap has to keep track
 of all the current parameter values of all messages on all MIDI
 channels, for both input and output.
-While this is easy enough, midizap has no way of knowing the
+This is easy enough, but midizap usually has no way of knowing the
 \f[I]actual\f[] state of your controllers and MIDI applications, so when
 the program starts up, it simply assumes all these values to be zero.
 This means that midizap's \[lq]shadow\[rq] values of controllers, pitch
@@ -1088,10 +1092,12 @@ and then start pulling it back down again.
 In fact, to get the full range of output values in this case, you will
 first have to move the control all the way up and then down again to
 calibrate it.
-(For pure MIDI translations, there's an alternative form of data
-translation which works directly with the absolute values and thus
-doesn't have this defect, see \f[I]Mod Translations\f[] in the
-\f[I]Advanced Features\f[] section below.)
+.PP
+However, it is possible to get rid of these defects by making use of
+controller \f[I]feedback\f[], if both your controller and the host
+application have that feature.
+See \f[I]MIDI Feedback\f[] in the \f[I]Advanced Features\f[] section
+below for details.
 .SS Shift State
 .PP
 The special \f[C]SHIFT\f[] token toggles an internal shift state, which
@@ -1204,12 +1210,41 @@ connect the application back to midizap's \f[C]midi_in2\f[] port, and
 the \f[C]midi_out2\f[] port to the controller.
 This reverse path is what is needed to translate the feedback from the
 application and send it back to the controller.
-(The \f[C]\-s\f[] option also works on the feedback port, passing
-through all system messages from the second input port to the second
-output port unchanged.)
+(The \f[C]\-s\f[] option a.k.a.\ \f[C]SYSTEM_PASSTHROUGH\f[] directive
+also works on the feedback port, passing through all system messages
+from the second input port to the second output port unchanged.)
+.PP
+In most cases, MIDI feedback also gets rid of controls being out of sync
+with the application.
+To these ends, the current state of controls communicated by the host
+application via the \f[C]midi_in2\f[] port will also be recorded in
+midizap itself, so that subsequent MIDI output for incremental data
+translations will use the proper values for determining the required
+relative changes.
+We refer to this as \f[I]automatic feedback\f[].
+Many cheaper devices will provide you with simple sign\-bit encoders
+which don't need any kind of feedback for themselves.
+In this case the automatic feedback will be all that's needed to keep
+controller and application in sync, and you don't even have to write any
+translation rules for the feedback side; just enabling the feedback port
+and hooking it up to the application will be enough.
+(In fact, if the application also supports sign\-bit encoders for all
+its controls, then you probably won't need any feedback at all.) More
+expensive controllers may provide faders with motors or LEDs on them,
+however, in which case additional translation rules for the feedback
+will be needed.
+.PP
+\f[B]NOTE:\f[] Automatic feedback is enabled automatically whenever you
+create a second pair of ports using \f[C]\-o2\f[].
+If you're using the second pair for more esoteric purposes, you may want
+to disable it, which can be done with the \f[C]\-n\f[] option, or the
+\f[C]NO_FEEDBACK\f[] directive in the configuration file.
+This prevents the internal bookkeeping required to make incremental data
+translations work properly with feedback\-enabled host applications, so
+\f[I]only\f[] use this option if feedback isn't needed.
 .PP
 An in\-depth discussion of controller feedback is beyond the scope of
-this manual, but we present a few useful tidbits below.
+this manual, but we present a few interesting examples below.
 Also, the distribution includes a full\-blown example of this kind of
 setup for your perusal, please check examples/APCmini.midizaprc in the
 sources.
@@ -1227,11 +1262,11 @@ or even impossible to translate using the simple kinds of rules we've
 seen so far.
 midizap offers a special variation of data mode to help decoding such
 messages.
-We call them \f[I]mod translations\f[] (a.k.a.
-\[lq]modulus\[rq] or \[lq]modifier\[rq] translations), because they
-involve operations with integer moduli which enable you to both
-calculate output from input values in a direct fashion, \f[I]and\f[]
-modify the output messages themselves along the way.
+We call them \f[I]mod translations\f[] (a.k.a.\ \[lq]modulus\[rq] or
+\[lq]modifier\[rq] translations), because they involve operations with
+integer moduli which enable you to both calculate output from input
+values in a direct fashion, \f[I]and\f[] modify the output messages
+themselves along the way.
 .PP
 One important task, which we'll use as a running example below, is the
 decoding of meter (RMS level) data in the Mackie protocol.
@@ -1796,13 +1831,6 @@ CC3[4]{0}\ \ $CC2\ CC2\[aq]
 CC2[2]{0}\ \ CC0\ \ CC1\[aq]
 \f[]
 .fi
-.PP
-A final caveat is in order here.
-Complicated macro translations like the one above certainly have their
-uses, but they're still rather limited.
-If you find that your application involves a lot of tricky translations,
-you may be better off using a more advanced tool which offers real
-programming capabilities.
 .SH Bugs
 .PP
 There probably are some.
