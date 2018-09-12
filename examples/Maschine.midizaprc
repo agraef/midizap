@@ -10,11 +10,12 @@
 
 JACK_NAME "midizap-Maschine"
 JACK_PORTS 2
+SYSTEM_PASSTHROUGH # pass through MCP feedback
 
 # NOTE: At present, this controller isn't properly supported by ALSA, but it
 # can be made to work in Linux with Harry van Haaren's Ctlra software. Use
 # this version: https://github.com/agraef/openAV-Ctlra/tree/mapping_v1-ag
-# Run ctlra_daemon -fnm alongside with midizap -s, and connect the ports as
+# Run ctlra_daemon -fnm alongside with midizap, and connect the ports as
 # follows: Ctlra Maschine Mk3 -> midizap midi_in / midi_out -> Ardour mackie
 # control in / mackie control out -> midizap midi_in2 / midi_out2 -> Ctlra
 # Maschine Mk3.
