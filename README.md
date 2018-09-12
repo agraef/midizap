@@ -23,7 +23,7 @@ midizap [-hkns] [-d[rskmj]] [-j *name*] [-o[*n*]] [-P[*prio*]] [-r *rcfile*]
 :   Keep track of key (on/off) status of MIDI notes and control switches. This isn't generally recommended, but may occasionally be useful to deal with quirky controllers sending note- or control-ons without corresponding off messages.
 
 -n
-:   No automatic feedback. This disables the automatic recording of feedback values from the second input port (`-o2`). Note that automatic feedback is often needed to make controller feedback from the application work properly, so this option should *not* be used unless you use the second port for different purposes. See Section *MIDI Feedback*.
+:   No automatic feedback. By default, midizap keeps track of controller feedback from the second input port if it is enabled (`-o2`). This option lets you disable this feature if the second port is being used for other purposes. See Section *MIDI Feedback*.
 
 -o[*n*]
 :   Enable MIDI output and set the number of output ports *n* (1 by default). Use *n* = 2 for a second pair of MIDI ports, e.g., for controller feedback, or *n* = 0 to disable MIDI output. This overrides the corresponding directive in the configuration file. See Section *Jack-Related Options*.
@@ -250,7 +250,8 @@ Data mode usually tracks changes in the *absolute* value of a control. However, 
 Keyboard and mouse output consists of X key codes with optional up/down indicators, or strings of printable characters enclosed in double quotes. The syntax of these items, as well as the special `RELEASE` and `SHIFT` tokens which will be discussed later, are described by the following grammar:
 
 ~~~
-token   ::= "RELEASE" | "SHIFT" | keycode [ "/" keyflag ] | string
+token   ::= "RELEASE" | "SHIFT" [ number ] |
+	        keycode [ "/" keyflag ] | string
 keycode ::= "XK_Button_1" | "XK_Button_2" | "XK_Button_3" |
             "XK_Scroll_Up" | "XK_Scroll_Down" |
             "XK_..." (X keysyms, see /usr/include/X11/keysymdef.h)
@@ -401,7 +402,7 @@ However, it is possible to get rid of these defects by making use of controller 
 
 ## Shift State
 
-The special `SHIFT` token toggles an internal shift state, which can be used to generate alternative output for certain MIDI messages. Please note that, like the `CH` token, the `SHIFT` token doesn't generate any output by itself; it merely toggles the internal shift bit which can then be queried in other translations to distinguish between shifted and unshifted bindings for the same input message.
+The special `SHIFT` token toggles an internal shift state, which can be used to generate alternative output for certain MIDI messages. Please note that, like the `CH` token, the `SHIFT` token doesn't generate any output by itself; it merely toggles the internal shift state which can then be queried in other translations to distinguish between shifted and unshifted bindings for the same input message.
 
 To these ends, there are two additional prefixes which indicate the shift status in which a translation is active. Unprefixed translations are active only in unshifted state. The `^` prefix denotes a translation which is active only in shifted state, while the `?` prefix indicates a translation which is active in *both* shifted and unshifted state. Many DAW controllers have some designated shift keys which can be used for this purpose, but the following will actually work with any key-style MIDI message. E.g., to bind the shift key on an AKAI APCmini controller (`D8`):
 
@@ -422,7 +423,14 @@ Having set up the translation for the shift key itself, we can now indicate that
 ^CC48= CC16~    # translate to encoder when shifted
 ~~~
 
-To keep things simple, only one shift status is available in the present implementation. Also note that when using a shift key in the manner described above, its status is *only* available internally to the midizap program; the host application never gets to see it. If your host software does its own handling of shift keys (as most Mackie-compatible DAWs do), it's usually more convenient to simply pass those keys on to the application. However, `SHIFT` comes in handy if your controller simply doesn't have enough buttons and faders to control all the essential features of your target application. In this case the internal shift feature makes it possible to double the amount of controls available on the device. For instance, you can emulate a Mackie controller with both encoders and faders on a device which only has a single set of faders, by assigning the shifted faders to the encoders, as shown above.
+midizap actually supports up to four different shift states, which can be denoted as `SHIFT1`, ..., `SHIFT4`, with the corresponding prefixes being `1^`, ..., `4^`. The `SHIFT` token and `^` prefix we've seen above are in fact just abbreviations for `SHIFT1` and `1^`, respectively, and the `?` prefix will match any of the four shift states. So you may also write, e.g.:
+
+~~~
+?D8 SHIFT1 RELEASE SHIFT1
+1^CC48= CC16~
+~~~
+
+To keep things simple, only one shift status can be active at any one time; if you press more than one such key, the last one wins. Also note that when using a shift key in the manner described above, its status is *only* available internally to the midizap program; the host application never gets to see it. If your host software does its own handling of shift keys (as most Mackie-compatible DAWs do), it's usually more convenient to simply pass those keys on to the application. However, `SHIFT` comes in handy if your controller simply doesn't have enough buttons and faders to control all the essential features of your target application. In this case the internal shift state makes it possible to multiply the amount of controls available on the device. For instance, you can emulate a Mackie controller with both encoders and faders on a device which only has a single set of faders, by assigning the shifted faders to the encoders, as shown above.
 
 # Advanced Features
 
@@ -434,9 +442,9 @@ Some MIDI controllers need a more elaborate setup than what we've seen so far, b
 
 You then wire up midizap's `midi_in` and `midi_out` ports to controller and application as before, but in addition you also connect the application back to midizap's `midi_in2` port, and the `midi_out2` port to the controller. This reverse path is what is needed to translate the feedback from the application and send it back to the controller. (The `-s` option a.k.a.\ `SYSTEM_PASSTHROUGH` directive also works on the feedback port, passing through all system messages from the second input port to the second output port unchanged.)
 
-In most cases, MIDI feedback also gets rid of controls being out of sync with the application. To these ends, the current state of controls communicated by the host application via the `midi_in2` port will also be recorded in midizap itself, so that subsequent MIDI output for incremental data translations will use the proper values for determining the required relative changes. We refer to this as *automatic feedback*. Many cheaper devices will provide you with simple sign-bit encoders which don't need any kind of feedback for themselves. In this case the automatic feedback will be all that's needed to keep controller and application in sync, and you don't even have to write any translation rules for the feedback side; just enabling the feedback port and hooking it up to the application will be enough. (In fact, if the application also supports sign-bit encoders for all its controls, then you probably won't need any feedback at all.) More expensive controllers may provide faders with motors or LEDs on them, however, in which case additional translation rules for the feedback will be needed.
+If done right, MIDI feedback gets rid of controls being out of sync with the application. To these ends, the current state of controls communicated by the host application via the `midi_in2` port will also be recorded in midizap itself, so that subsequent MIDI output for incremental data translations will use the proper values for determining the required relative changes. We refer to this as *automatic feedback*. Many cheaper devices may provide you with sign-bit encoders which don't need any kind of feedback for themselves. In this case the automatic feedback will be all that's needed to keep controller and application in sync, and you don't even have to write any translation rules for the feedback; just enabling the second port and hooking it up to the application will be enough. (In fact, if the application also supports sign-bit encoders for all its controls, then you probably won't need any feedback at all.) More expensive controllers may provide faders with motors or LEDs on them, however, in which case additional translation rules for the feedback will be needed.
 
-**NOTE:** Automatic feedback is enabled automatically whenever you create a second pair of ports using `-o2`. If you're using the second pair for more esoteric purposes, you may want to disable it, which can be done with the `-n` option, or the `NO_FEEDBACK` directive in the configuration file. This prevents the internal bookkeeping required to make incremental data translations work properly with feedback-enabled host applications, so *only* use this option if feedback isn't needed.
+**NOTE:** Automatic feedback is enabled automatically whenever you create a second pair of ports using `-o2`. If you're using the second pair for more esoteric purposes, you may want to disable this feature, which can be done with the `-n` option or the `NO_FEEDBACK` directive in the configuration file. Use this option *only* if feedback isn't needed with your application.
 
 An in-depth discussion of controller feedback is beyond the scope of this manual, but we present a few interesting examples below. Also, the distribution includes a full-blown example of this kind of setup for your perusal, please check examples/APCmini.midizaprc in the sources. It shows how to emulate a Mackie controller with AKAI's APCmini device, so that it readily works with DAW software such as Ardour.
 
@@ -444,7 +452,7 @@ An in-depth discussion of controller feedback is beyond the scope of this manual
 
 Most of the time, MIDI feedback uses just the standard kinds of MIDI messages readily supported by midizap, such as note messages which make buttons light up in different colors, or control change messages which set the positions of motor faders. However, there are some encodings of feedback messages which combine different bits of information in a single message, making them difficult or even impossible to translate using the simple kinds of rules we've seen so far. midizap offers a special variation of data mode to help decoding such messages. We call them *mod translations* (a.k.a.\ "modulus" or "modifier" translations), because they involve operations with integer moduli which enable you to both calculate output from input values in a direct fashion, *and* modify the output messages themselves along the way.
 
-One important task, which we'll use as a running example below, is the decoding of meter (RMS level) data in the Mackie protocol. There, each meter value is represented as a key pressure message whose value consists of a mixer channel index 0..7 in the "high nibble" (bits 4..6) and the corresponding meter value in the "low nibble" (bits 0..3). We will show how to map these values to notes indicating buttons on the AKAI APCmini (please check examples/APCmini.midizaprc in the sources for details about this device). This involves extracting and mapping the meter values, as well as shifting the target note, which is exactly the kind of operation that mod translations are designed to perform. Mod translations aren't limited to this specific use case, however; similar rules will apply to other kinds of "scrambled" MIDI data.
+One important task, which we'll use as a running example below, is the decoding of meter (RMS level) data in the Mackie protocol. There, each meter value is represented as a channel pressure message whose value consists of a mixer channel index 0..7 in the "high nibble" (bits 4..6) and the corresponding meter value in the "low nibble" (bits 0..3). We will show how to map these values to notes indicating buttons on the AKAI APCmini (please check examples/APCmini.midizaprc in the sources for details about this device). This involves extracting and mapping the meter values, as well as shifting the target note, which is exactly the kind of operation that mod translations are designed to perform. Mod translations aren't limited to this specific use case, however; similar rules will apply to other kinds of "scrambled" MIDI data.
 
 In its simplest form, the translation looks as follows:
 

@@ -45,11 +45,10 @@ corresponding off messages.
 .TP
 .B \-n
 No automatic feedback.
-This disables the automatic recording of feedback values from the second
-input port (\f[C]\-o2\f[]).
-Note that automatic feedback is often needed to make controller feedback
-from the application work properly, so this option should \f[I]not\f[]
-be used unless you use the second port for different purposes.
+By default, midizap keeps track of controller feedback from the second
+input port if it is enabled (\f[C]\-o2\f[]).
+This option lets you disable this feature if the second port is being
+used for other purposes.
 See Section \f[I]MIDI Feedback\f[].
 .RS
 .RE
@@ -737,7 +736,8 @@ the following grammar:
 .IP
 .nf
 \f[C]
-token\ \ \ ::=\ "RELEASE"\ |\ "SHIFT"\ |\ keycode\ [\ "/"\ keyflag\ ]\ |\ string
+token\ \ \ ::=\ "RELEASE"\ |\ "SHIFT"\ [\ number\ ]\ |
+\ \ \ \ \ \ \ \ \ \ \ \ keycode\ [\ "/"\ keyflag\ ]\ |\ string
 keycode\ ::=\ "XK_Button_1"\ |\ "XK_Button_2"\ |\ "XK_Button_3"\ |
 \ \ \ \ \ \ \ \ \ \ \ \ "XK_Scroll_Up"\ |\ "XK_Scroll_Down"\ |
 \ \ \ \ \ \ \ \ \ \ \ \ "XK_..."\ (X\ keysyms,\ see\ /usr/include/X11/keysymdef.h)
@@ -1104,8 +1104,9 @@ The special \f[C]SHIFT\f[] token toggles an internal shift state, which
 can be used to generate alternative output for certain MIDI messages.
 Please note that, like the \f[C]CH\f[] token, the \f[C]SHIFT\f[] token
 doesn't generate any output by itself; it merely toggles the internal
-shift bit which can then be queried in other translations to distinguish
-between shifted and unshifted bindings for the same input message.
+shift state which can then be queried in other translations to
+distinguish between shifted and unshifted bindings for the same input
+message.
 .PP
 To these ends, there are two additional prefixes which indicate the
 shift status in which a translation is active.
@@ -1153,8 +1154,24 @@ encoder values:
 \f[]
 .fi
 .PP
-To keep things simple, only one shift status is available in the present
-implementation.
+midizap actually supports up to four different shift states, which can
+be denoted as \f[C]SHIFT1\f[], \&..., \f[C]SHIFT4\f[], with the
+corresponding prefixes being \f[C]1^\f[], \&..., \f[C]4^\f[].
+The \f[C]SHIFT\f[] token and \f[C]^\f[] prefix we've seen above are in
+fact just abbreviations for \f[C]SHIFT1\f[] and \f[C]1^\f[],
+respectively, and the \f[C]?\f[] prefix will match any of the four shift
+states.
+So you may also write, e.g.:
+.IP
+.nf
+\f[C]
+?D8\ SHIFT1\ RELEASE\ SHIFT1
+1^CC48=\ CC16~
+\f[]
+.fi
+.PP
+To keep things simple, only one shift status can be active at any one
+time; if you press more than one such key, the last one wins.
 Also note that when using a shift key in the manner described above, its
 status is \f[I]only\f[] available internally to the midizap program; the
 host application never gets to see it.
@@ -1164,7 +1181,7 @@ those keys on to the application.
 However, \f[C]SHIFT\f[] comes in handy if your controller simply doesn't
 have enough buttons and faders to control all the essential features of
 your target application.
-In this case the internal shift feature makes it possible to double the
+In this case the internal shift state makes it possible to multiply the
 amount of controls available on the device.
 For instance, you can emulate a Mackie controller with both encoders and
 faders on a device which only has a single set of faders, by assigning
@@ -1214,20 +1231,20 @@ application and send it back to the controller.
 also works on the feedback port, passing through all system messages
 from the second input port to the second output port unchanged.)
 .PP
-In most cases, MIDI feedback also gets rid of controls being out of sync
-with the application.
+If done right, MIDI feedback gets rid of controls being out of sync with
+the application.
 To these ends, the current state of controls communicated by the host
 application via the \f[C]midi_in2\f[] port will also be recorded in
 midizap itself, so that subsequent MIDI output for incremental data
 translations will use the proper values for determining the required
 relative changes.
 We refer to this as \f[I]automatic feedback\f[].
-Many cheaper devices will provide you with simple sign\-bit encoders
-which don't need any kind of feedback for themselves.
+Many cheaper devices may provide you with sign\-bit encoders which don't
+need any kind of feedback for themselves.
 In this case the automatic feedback will be all that's needed to keep
 controller and application in sync, and you don't even have to write any
-translation rules for the feedback side; just enabling the feedback port
-and hooking it up to the application will be enough.
+translation rules for the feedback; just enabling the second port and
+hooking it up to the application will be enough.
 (In fact, if the application also supports sign\-bit encoders for all
 its controls, then you probably won't need any feedback at all.) More
 expensive controllers may provide faders with motors or LEDs on them,
@@ -1237,11 +1254,10 @@ will be needed.
 \f[B]NOTE:\f[] Automatic feedback is enabled automatically whenever you
 create a second pair of ports using \f[C]\-o2\f[].
 If you're using the second pair for more esoteric purposes, you may want
-to disable it, which can be done with the \f[C]\-n\f[] option, or the
-\f[C]NO_FEEDBACK\f[] directive in the configuration file.
-This prevents the internal bookkeeping required to make incremental data
-translations work properly with feedback\-enabled host applications, so
-\f[I]only\f[] use this option if feedback isn't needed.
+to disable this feature, which can be done with the \f[C]\-n\f[] option
+or the \f[C]NO_FEEDBACK\f[] directive in the configuration file.
+Use this option \f[I]only\f[] if feedback isn't needed with your
+application.
 .PP
 An in\-depth discussion of controller feedback is beyond the scope of
 this manual, but we present a few interesting examples below.
@@ -1270,8 +1286,8 @@ themselves along the way.
 .PP
 One important task, which we'll use as a running example below, is the
 decoding of meter (RMS level) data in the Mackie protocol.
-There, each meter value is represented as a key pressure message whose
-value consists of a mixer channel index 0..7 in the \[lq]high
+There, each meter value is represented as a channel pressure message
+whose value consists of a mixer channel index 0..7 in the \[lq]high
 nibble\[rq] (bits 4..6) and the corresponding meter value in the
 \[lq]low nibble\[rq] (bits 0..3).
 We will show how to map these values to notes indicating buttons on the
