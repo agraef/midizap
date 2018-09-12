@@ -119,6 +119,6 @@ extern int debug_regex, debug_strokes, debug_keys, debug_midi;
 extern int default_debug_regex, default_debug_strokes, default_debug_keys,
   default_debug_midi;
 extern char *config_file_name;
-extern int jack_num_outputs;
+extern int jack_num_outputs, system_passthrough, direct_feedback;
 extern int midi_octave, shift;
 extern char *jack_client_name;

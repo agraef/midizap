@@ -20,7 +20,8 @@ typedef struct input_event EV;
 Display *display;
 
 JACK_SEQ seq;
-int jack_num_outputs = 0, debug_jack = 0, passthrough = 0;
+int jack_num_outputs = 0, debug_jack = 0;
+int direct_feedback = 1, system_passthrough = 0;
 int shift = 0;
 
 void
@@ -1269,6 +1270,7 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
     end_debug();
     break;
   case 0xb0:
+    if (direct_feedback && portno) ccvalue[chan][msg[1]] = msg[2];
     start_debug();
     if (get_cc_mod(tr, portno, chan, msg[1])) {
       send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0, depth);
@@ -1336,6 +1338,7 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
     end_debug();
     break;
   case 0x90:
+    if (direct_feedback && portno) notevalue[chan][msg[1]] = msg[2];
     start_debug();
     if (get_note_mod(tr, portno, chan, msg[1])) {
       send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0, depth);
@@ -1372,6 +1375,7 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
     end_debug();
     break;
   case 0xa0:
+    if (direct_feedback && portno) kpvalue[chan][msg[1]] = msg[2];
     start_debug();
     if (get_kp_mod(tr, portno, chan, msg[1])) {
       send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0, depth);
@@ -1408,6 +1412,7 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
     end_debug();
     break;
   case 0xd0:
+    if (direct_feedback && portno) cpvalue[chan] = msg[1];
     start_debug();
     if (get_cp_mod(tr, portno, chan)) {
       send_strokes(tr, portno, status, chan, 0, msg[1], 0, 0, depth);
@@ -1445,8 +1450,8 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
     break;
   case 0xe0: {
     int bend = ((msg[2] << 7) | msg[1]) - 8192;
+    if (direct_feedback && portno) pbvalue[chan] = bend+8192;
     start_debug();
-    //fprintf(stderr, "pb %d\n", bend);
     if (get_pb_mod(tr, portno, chan)) {
       send_strokes(tr, portno, status, chan, 0, bend+8192, 0, 0, depth);
       end_debug();
@@ -1489,11 +1494,12 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
 
 void help(char *progname)
 {
-  fprintf(stderr, "Usage: %s [-hks] [-d[rskmj]] [-o[n]] [-j name] [-P[prio]] [-r rcfile]\n", progname);
+  fprintf(stderr, "Usage: %s [-hkns] [-d[rskmj]] [-o[n]] [-j name] [-P[prio]] [-r rcfile]\n", progname);
   fprintf(stderr, "-h print this message\n");
   fprintf(stderr, "-d debug (r = regex, s = strokes, k = keys, m = midi, j = jack; default: all)\n");
   fprintf(stderr, "-j jack client name (default: midizap)\n");
   fprintf(stderr, "-k keep track of key status (ignore double notes)\n");
+  fprintf(stderr, "-n no automatic feedback (-o2)\n");
   fprintf(stderr, "-o set number of MIDI output ports (0-2, default: 1)\n");
   fprintf(stderr, "-P set real-time priority (default: 90)\n");
   fprintf(stderr, "-r config file name (default: MIDIZAP_CONFIG_FILE variable or ~/.midizaprc)\n");
@@ -1574,7 +1580,7 @@ main(int argc, char **argv)
   // Start recording the command line to be passed to Jack session management.
   add_command(argv[0], 0);
 
-  while ((opt = getopt(argc, argv, "hko::d::j:r:P::s")) != -1) {
+  while ((opt = getopt(argc, argv, "hkno::d::j:r:P::s")) != -1) {
     switch (opt) {
     case 'h':
       help(argv[0]);
@@ -1583,6 +1589,10 @@ main(int argc, char **argv)
       // see comment on -k and keydown_tracker above
       keydown_tracker = 1;
       add_command("-k", 1);
+      break;
+    case 'n':
+      direct_feedback = 0;
+      add_command("-n", 1);
       break;
     case 'o':
       jack_num_outputs = 1;
@@ -1664,7 +1674,7 @@ main(int argc, char **argv)
       }
       break;
     case 's':
-      passthrough = 1;
+      system_passthrough = 1;
       add_command("-s", 1);
       break;
     default:
@@ -1692,7 +1702,7 @@ main(int argc, char **argv)
   seq.client_name = jack_client_name;
   seq.n_in = jack_num_outputs>1?jack_num_outputs:1;
   seq.n_out = jack_num_outputs>0?jack_num_outputs:0;
-  seq.passthrough = jack_num_outputs>0?passthrough:0;
+  seq.passthrough = jack_num_outputs>0?system_passthrough:0;
   if (!init_jack(&seq, debug_jack)) {
     exit(1);
   }

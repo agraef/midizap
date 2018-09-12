@@ -1824,19 +1824,27 @@ read_config_file(void)
 	continue;
       }
       if (!strcmp(tok, "DEBUG_REGEX")) {
-	debug_regex = 1;
+	debug_regex = 1; // -dr
 	continue;
       }
       if (!strcmp(tok, "DEBUG_STROKES")) {
-	debug_strokes = 1;
+	debug_strokes = 1; // -ds
 	continue;
       }
       if (!strcmp(tok, "DEBUG_KEYS")) {
-	debug_keys = 1;
+	debug_keys = 1; // -dk
 	continue;
       }
       if (!strcmp(tok, "DEBUG_MIDI")) {
-	debug_midi = 1;
+	debug_midi = 1; // -dm
+	continue;
+      }
+      if (!strcmp(tok, "NO_FEEDBACK")) {
+	direct_feedback = 0; // -n
+	continue;
+      }
+      if (!strcmp(tok, "SYSTEM_PASSTHROUGH")) {
+	system_passthrough = 1; // -s
 	continue;
       }
       if (!strcmp(tok, "JACK_NAME")) {
@@ -1844,7 +1852,7 @@ read_config_file(void)
 	if (!jack_client_name) {
 	  static char buf[100];
 	  strncpy(buf, a, 100); buf[99] = 0; // just in case...
-	  jack_client_name = buf;
+	  jack_client_name = buf; // -j
 	}
 	continue;
       }
@@ -1853,7 +1861,7 @@ read_config_file(void)
 	int k, n;
 	if (!jack_num_outputs) {
 	  if (sscanf(a, "%d%n", &k, &n) == 1 && !a[n] && k>=0 && k<=2) {
-	    jack_num_outputs = k;
+	    jack_num_outputs = k; // -o
 	  } else {
 	    fprintf(stderr, "invalid port number: %s, must be 0, 1 or 2\n", a);
 	  }
