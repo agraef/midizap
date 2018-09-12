@@ -316,8 +316,9 @@ static stroke *find_stroke_data(stroke_data *sd,
 	if (mod) *mod = sd[i].mod;
 	return sd[i].s[index];
       } else if (sd[i].chan > chan ||
-		 (sd[i].chan == chan && sd[i].data > data))
+		 (sd[i].chan == chan && sd[i].data > data)) {
 	return NULL;
+      }
     }
     return NULL;
   } else {
@@ -520,7 +521,9 @@ static int note_octave(int n)
 static char *debug_key(translation *tr, char *name,
 		       int status, int chan, int data, int dir)
 {
-  char *prefix = shift?"^":"", *suffix = "";
+  char prefix[10] = "";
+  if (shift) sprintf(prefix, "%d^", shift);
+  char *suffix = "";
   strcpy(name, "??");
   switch (status) {
   case 0x90: {
@@ -785,7 +788,10 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan,
       nkeys++;
     } else if (s->shift) {
       // toggle shift status
-      shift = !shift;
+      if (shift != s->shift)
+	shift = s->shift;
+      else
+	shift = 0;
     } else if (!s->status) {
       // do nothing (NOP)
       ;

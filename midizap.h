@@ -83,6 +83,9 @@ typedef struct _stroke_data {
   uint8_t mod;
 } stroke_data;
 
+#define N_SHIFTS 4 // number of distinct shift states
+#define N_ST (N_SHIFTS+1)
+
 typedef struct _translation {
   struct _translation *next;
   char *name;
@@ -90,22 +93,24 @@ typedef struct _translation {
   regex_t regex;
   uint8_t portno;
   // these are indexed by shift status
-  stroke_data *note[2];
-  stroke_data *notes[2];
-  stroke_data *pc[2];
-  stroke_data *cc[2];
-  stroke_data *ccs[2];
-  stroke_data *pb[2];
-  stroke_data *pbs[2];
-  stroke_data *kp[2];
-  stroke_data *kps[2];
-  stroke_data *cp[2];
-  stroke_data *cps[2];
+  stroke_data *note[N_ST];
+  stroke_data *notes[N_ST];
+  stroke_data *pc[N_ST];
+  stroke_data *cc[N_ST];
+  stroke_data *ccs[N_ST];
+  stroke_data *pb[N_ST];
+  stroke_data *pbs[N_ST];
+  stroke_data *kp[N_ST];
+  stroke_data *kps[N_ST];
+  stroke_data *cp[N_ST];
+  stroke_data *cps[N_ST];
   // actual and allocated sizes (can be at most 16*128)
-  uint16_t n_note[2], n_notes[2], n_pc[2], n_cc[2], n_ccs[2],
-    n_pb[2], n_pbs[2], n_kp[2], n_kps[2], n_cp[2], n_cps[2];
-  uint16_t a_note[2], a_notes[2], a_pc[2], a_cc[2], a_ccs[2],
-    a_pb[2], a_pbs[2], a_kp[2], a_kps[2], a_cp[2], a_cps[2];
+  uint16_t n_note[N_ST], n_notes[N_ST], n_pc[N_ST],
+    n_cc[N_ST], n_ccs[N_ST], n_pb[N_ST], n_pbs[N_ST],
+    n_kp[N_ST], n_kps[N_ST], n_cp[N_ST], n_cps[N_ST];
+  uint16_t a_note[N_ST], a_notes[N_ST], a_pc[N_ST],
+    a_cc[N_ST], a_ccs[N_ST], a_pb[N_ST], a_pbs[N_ST],
+    a_kp[N_ST], a_kps[N_ST], a_cp[N_ST], a_cps[N_ST];
 } translation;
 
 extern void reload_callback(void);

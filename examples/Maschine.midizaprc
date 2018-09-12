@@ -22,9 +22,9 @@ SYSTEM_PASSTHROUGH # pass through MCP feedback
 
 [MIDI]
 
-# The Mk3's dedicated shift key is used to provide alternative functions
-# to some of the buttons and the faders.
-?F2 SHIFT RELEASE SHIFT
+# We use the Mk3's dedicated SHIFT button as our primary shift key, to provide
+# alternative functions to some of the buttons and the faders.
+?F2  SHIFT RELEASE SHIFT
 
 # transport (assigned to the transport section on the bottom left)
 F#5  A7  # Stop
@@ -69,19 +69,23 @@ A#4  B5  # Control (MOD key)
 B4   C6  # Option  (PERFORM key)
 D3   C#6 # Alt/Cmd (NOTES key)
 
-# big encoder press/left/right/up/down assigned to the zoom/cursor keys
+# big encoder press/left/right/up/down is assigned to the zoom/cursor keys
 D2   C8  # Up
 E2   C#8 # Down
 D#2  D8  # Left
 C#2  D#8 # Right
 C2   E8  # Zoom
 
-# The Mk3 only has one row of dedicated "channel buttons" on the top, which we
-# use for channel select. But we'd also like to have buttons for rec, solo and
-# mute, so we (rather arbitrarily) bind them to the shifted A..H and grid
-# buttons.
+# The Mk3 has one row of dedicated "channel buttons" at the top, right above
+# the display. Since we'd also like to use these for the channel-based
+# rec/solo/mute functions, we combine them with the SELECT, SOLO and MUTE
+# buttons as additional shift keys.
 
-# track select (top row right above the display)
+?F#4 SHIFT2 RELEASE SHIFT2
+?G4  SHIFT3 RELEASE SHIFT3
+?G#4 SHIFT4 RELEASE SHIFT4
+
+# top row, unshifted: track select
 G6  C2
 G#6 C#2
 A6  D2
@@ -91,9 +95,38 @@ C7  F2
 C#7 F#2
 D7  G2
 
-# shifted top row
-# We assign these to the function keys F1..F8 here, but of course you can
-# remap these as needed.
+# SELECT: rec
+2^G6  C0
+2^G#6 C#0
+2^A6  D0
+2^A#6 D#0
+2^B6  E0
+2^C7  F0
+2^C#7 F#0
+2^D7  G0
+
+# SOLO: solo
+3^G6  G#0
+3^G#6 A0
+3^A6  A#0
+3^A#6 B0
+3^B6  C1
+3^C7  C#1
+3^C#7 D1
+3^D7  D#1
+
+# MUTE: mute
+4^G6  E1
+4^G#6 F1
+4^A6  F#1
+4^A#6 G1
+4^B6  G#1
+4^C7  A1
+4^C#7 A#1
+4^D7  B1
+
+# We also assign these to the function keys F1..F8 when shifted. You may want
+# to remap these as needed.
 ^G6  F#4
 ^G#6 G4
 ^A6  G#4
@@ -103,40 +136,10 @@ D7  G2
 ^C#7 C5
 ^D7  C#5
 
-# shifted A..H keys = rec
-^F#2 C0
-^G2  C#0
-^G#2 D0
-^A2  D#0
-^A#2 E0
-^B2  F0
-^C3  F#0
-^C#3 G0
-
-# upper half of grid, shifted = solo
-^C4-10  G#0
-^C#4-10 A0
-^D4-10  A#0
-^D#4-10 B0
-^G#3-10 C1
-^A3-10  C#1
-^A#3-10 D1
-^B3-10  D#1
-
-# lower half of grid, shifted = mute
-^E3-10  E1
-^F3-10  F1
-^F#3-10 F#1
-^G3-10  G1
-^C3-10  G#1
-^C#3-10 A1
-^D3-10  A#1
-^D#3-10 B1
-
-# The unshifted grid buttons are passed through unchanged, so that you can
-# still use them as drum pads (provided that you filter out all MIDI channels
-# except channel 10). Note that we use mod translations here, in order to
-# preserve the velocities.
+# The grid buttons are passed through unchanged, so that you can still use
+# them as drum pads (provided that you filter out all MIDI channels except
+# channel 10). Note that we use mod translations here, in order to preserve
+# the velocities.
 
 C3[]-10  C3-10
 C#3[]-10 C#3-10
@@ -155,10 +158,9 @@ C#4[]-10 C#4-10
 D4[]-10  D4-10
 D#4[]-10 D#4-10
 
-# Map the unshifted A..H buttons to program changes on channel 10 so that you
-# can quickly switch the sounds of your drumkit, drum patterns etc. (This is
-# just an example, you might want to disable these or remap them as you see
-# fit.)
+# Map the A..H buttons to program changes on channel 10 so that you can
+# quickly switch the sounds of your drumkit, drum patterns etc. (This is just
+# an example, you might want to disable these or remap them as you see fit.)
 
 F#2 PC0-10
 G2  PC1-10
