@@ -633,6 +633,7 @@ print_stroke(stroke *s, int mod, int step, int n_steps, int *steps, int val)
       int channel = (s->status & 0x0f) + 1;
       char *suffix = s->swap?"'":s->incr?"~":"";
       if (s->recursive) printf("$");
+      if (s->feedback) printf(s->feedback==2?"^":"!");
       switch (status) {
       case 0x90:
 	if (mod) {
@@ -815,7 +816,7 @@ append_nop(void)
 
 void
 append_midi(int status, int data, int step, int n_steps, int *steps,
-	    int swap, int incr, int recursive)
+	    int swap, int incr, int recursive, int feedback)
 {
   stroke *s = (stroke *)allocate(sizeof(stroke));
 
@@ -828,6 +829,7 @@ append_midi(int status, int data, int step, int n_steps, int *steps,
   s->steps = stepsdup(n_steps, steps);
   s->incr = incr;
   s->recursive = recursive;
+  s->feedback = feedback;
   // if this is a keystroke event, for all messages but program change (which
   // has no "on" and "off" states), mark the event as "dirty" so that the
   // corresponding "off" event gets added later to the "release" strokes
@@ -1588,7 +1590,7 @@ add_release(int all_keys)
 	if (!s->keysym && !s->shift && s->dirty) {
 	  append_midi(s->status, s->data,
 		      s->step, s->n_steps, s->steps,
-		      s->swap, s->incr, s->recursive);
+		      s->swap, s->incr, s->recursive, s->feedback);
 	  s->dirty = 0;
 	}
 	s = s->next;
@@ -1613,7 +1615,7 @@ add_release(int all_keys)
       } else {
 	append_midi(s->status, s->data,
 		    s->step, s->n_steps, s->steps,
-		    s->swap, s->incr, s->recursive);
+		    s->swap, s->incr, s->recursive, s->feedback);
       }
       s = s->next;
     }
@@ -1633,7 +1635,7 @@ add_release(int all_keys)
 	} else {
 	  append_midi(s->status, s->data,
 		      s->step, s->n_steps, s->steps,
-		      s->swap, s->incr, s->recursive);
+		      s->swap, s->incr, s->recursive, s->feedback);
 	}
 	s = s->next;
       }
@@ -1652,7 +1654,7 @@ add_release(int all_keys)
 	  } else {
 	    append_midi(s->status, s->data,
 			s->step, s->n_steps, s->steps,
-			s->swap, s->incr, s->recursive);
+			s->swap, s->incr, s->recursive, s->feedback);
 	  }
 	  s = s->next;
 	}
@@ -1693,9 +1695,13 @@ void
 add_midi(char *tok)
 {
   int status, data, step, n_steps, *steps, incr, dir = 0, mod = 0, swap = 0;
-  int recursive = *tok == '$';
+  int recursive = *tok == '$', fb = *tok == '!', fb2 = *tok == '^';
   char buf[100];
-  if (parse_midi(tok+recursive, buf, 0, mode, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod, &swap)) {
+  if (fb2 && mode != 1) {
+    fprintf(stderr, "shift feedback only allowed in key translations: %s\n", tok);
+    return;
+  }
+  if (parse_midi(tok+recursive+fb+fb2, buf, 0, mode, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod, &swap)) {
     if (status == 0) {
       // 'ch' token; this doesn't actually generate any output, it just sets
       // the default MIDI channel
@@ -1704,7 +1710,7 @@ add_midi(char *tok)
 	fprintf(stderr, "invalid macro call: %s\n", tok);
     } else {
       append_midi(status, data, step, n_steps, steps,
-		  swap, incr!=0, recursive);
+		  swap, incr!=0, recursive, fb2?2:fb);
     }
   } else {
     // inspect the token that was actually recognized (if any) to give some
@@ -1866,7 +1872,7 @@ read_config_file(void)
 	continue;
       }
       if (!strcmp(tok, "NO_FEEDBACK")) {
-	direct_feedback = 0; // -n
+	auto_feedback = 0; // -n
 	continue;
       }
       if (!strcmp(tok, "SYSTEM_PASSTHROUGH")) {

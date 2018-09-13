@@ -24,7 +24,7 @@ SYSTEM_PASSTHROUGH # pass through MCP feedback
 
 # We use the Mk3's dedicated SHIFT button as our primary shift key, to provide
 # alternative functions to some of the buttons and the faders.
-?F2  SHIFT RELEASE SHIFT
+?F2  SHIFT ^F2 RELEASE SHIFT ^F2
 
 # transport (assigned to the transport section on the bottom left)
 F#5  A7  # Stop
@@ -79,11 +79,12 @@ C2   E8  # Zoom
 # The Mk3 has one row of dedicated "channel buttons" at the top, right above
 # the display. Since we'd also like to use these for the channel-based
 # rec/solo/mute functions, we combine them with the SELECT, SOLO and MUTE
-# buttons as additional shift keys.
+# buttons as additional shift keys. These are "Caps Lock"-style keys which
+# stay on until pressed again.
 
-?F#4 SHIFT2 RELEASE SHIFT2
-?G4  SHIFT3 RELEASE SHIFT3
-?G#4 SHIFT4 RELEASE SHIFT4
+?F#4 SHIFT2 ^F#4
+?G4  SHIFT3 ^G4
+?G#4 SHIFT4 ^G#4
 
 # top row, unshifted: track select
 G6  C2

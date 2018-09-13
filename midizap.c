@@ -21,7 +21,7 @@ Display *display;
 
 JACK_SEQ seq;
 int jack_num_outputs = 0, debug_jack = 0;
-int direct_feedback = 1, system_passthrough = 0;
+int auto_feedback = 1, system_passthrough = 0;
 int shift = 0;
 
 void
@@ -61,13 +61,15 @@ send_key(KeySym key, int press)
 }
 
 // cached controller and pitch bend values
-static int16_t notevalue[16][128];
-static int16_t ccvalue[16][128];
-static int16_t kpvalue[16][128];
-static int16_t cpvalue[16];
-static int16_t pbvalue[16] =
-  {8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192,
-   8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192};
+static int16_t notevalue[2][16][128];
+static int16_t ccvalue[2][16][128];
+static int16_t kpvalue[2][16][128];
+static int16_t cpvalue[2][16];
+static int16_t pbvalue[2][16] =
+  {{8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192,
+    8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192},
+   {8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192,
+    8192, 8192, 8192, 8192, 8192, 8192, 8192, 8192}};
 
 static int dataval(int val, int min, int max)
 {
@@ -102,7 +104,8 @@ send_midi(uint8_t portno, int status, int data,
 	  int incr, int index, int dir,
 	  int mod, int mod_step, int mod_n_steps, int *mod_steps,
 	  int val, int swap,
-	  int recursive, int depth)
+	  int recursive, int depth,
+	  uint8_t ret_msg[3])
 {
   if (!jack_num_outputs) return; // MIDI output not enabled
   uint8_t msg[3];
@@ -117,15 +120,15 @@ send_midi(uint8_t portno, int status, int data,
       if (!step) step = 1;
       dir *= step;
       if (dir > 0) {
-	if (notevalue[chan][data] >= 127) return;
-	notevalue[chan][data] += dir;
-	if (notevalue[chan][data] > 127) notevalue[chan][data] = 127;
+	if (notevalue[portno][chan][data] >= 127) return;
+	notevalue[portno][chan][data] += dir;
+	if (notevalue[portno][chan][data] > 127) notevalue[portno][chan][data] = 127;
       } else {
-	if (notevalue[chan][data] == 0) return;
-	notevalue[chan][data] += dir;
-	if (notevalue[chan][data] < 0) notevalue[chan][data] = 0;
+	if (notevalue[portno][chan][data] == 0) return;
+	notevalue[portno][chan][data] += dir;
+	if (notevalue[portno][chan][data] < 0) notevalue[portno][chan][data] = 0;
       }
-      msg[2] = notevalue[chan][data];
+      msg[2] = notevalue[portno][chan][data];
     } else if (mod) {
       int q = swap?val%mod:val/mod, r = swap?val/mod:val%mod;
       int d = msg[1] + datavals(q, mod_step, mod_steps, mod_n_steps);
@@ -155,15 +158,15 @@ send_midi(uint8_t portno, int status, int data,
 	if (!step) step = 1;
 	dir *= step;
 	if (dir > 0) {
-	  if (ccvalue[chan][data] >= 127) return;
-	  ccvalue[chan][data] += dir;
-	  if (ccvalue[chan][data] > 127) ccvalue[chan][data] = 127;
+	  if (ccvalue[portno][chan][data] >= 127) return;
+	  ccvalue[portno][chan][data] += dir;
+	  if (ccvalue[portno][chan][data] > 127) ccvalue[portno][chan][data] = 127;
 	} else {
-	  if (ccvalue[chan][data] == 0) return;
-	  ccvalue[chan][data] += dir;
-	  if (ccvalue[chan][data] < 0) ccvalue[chan][data] = 0;
+	  if (ccvalue[portno][chan][data] == 0) return;
+	  ccvalue[portno][chan][data] += dir;
+	  if (ccvalue[portno][chan][data] < 0) ccvalue[portno][chan][data] = 0;
 	}
-	msg[2] = ccvalue[chan][data];
+	msg[2] = ccvalue[portno][chan][data];
       }
     } else if (mod) {
       int q = swap?val%mod:val/mod, r = swap?val/mod:val%mod;
@@ -186,15 +189,15 @@ send_midi(uint8_t portno, int status, int data,
       if (!step) step = 1;
       dir *= step;
       if (dir > 0) {
-	if (kpvalue[chan][data] >= 127) return;
-	kpvalue[chan][data] += dir;
-	if (kpvalue[chan][data] > 127) kpvalue[chan][data] = 127;
+	if (kpvalue[portno][chan][data] >= 127) return;
+	kpvalue[portno][chan][data] += dir;
+	if (kpvalue[portno][chan][data] > 127) kpvalue[portno][chan][data] = 127;
       } else {
-	if (kpvalue[chan][data] == 0) return;
-	kpvalue[chan][data] += dir;
-	if (kpvalue[chan][data] < 0) kpvalue[chan][data] = 0;
+	if (kpvalue[portno][chan][data] == 0) return;
+	kpvalue[portno][chan][data] += dir;
+	if (kpvalue[portno][chan][data] < 0) kpvalue[portno][chan][data] = 0;
       }
-      msg[2] = kpvalue[chan][data];
+      msg[2] = kpvalue[portno][chan][data];
     } else if (mod) {
       int q = swap?val%mod:val/mod, r = swap?val/mod:val%mod;
       int d = msg[1] + datavals(q, mod_step, mod_steps, mod_n_steps);
@@ -216,15 +219,15 @@ send_midi(uint8_t portno, int status, int data,
       if (!step) step = 1;
       dir *= step;
       if (dir > 0) {
-	if (cpvalue[chan] >= 127) return;
-	cpvalue[chan] += dir;
-	if (cpvalue[chan] > 127) cpvalue[chan] = 127;
+	if (cpvalue[portno][chan] >= 127) return;
+	cpvalue[portno][chan] += dir;
+	if (cpvalue[portno][chan] > 127) cpvalue[portno][chan] = 127;
       } else {
-	if (cpvalue[chan] == 0) return;
-	cpvalue[chan] += dir;
-	if (cpvalue[chan] < 0) cpvalue[chan] = 0;
+	if (cpvalue[portno][chan] == 0) return;
+	cpvalue[portno][chan] += dir;
+	if (cpvalue[portno][chan] < 0) cpvalue[portno][chan] = 0;
       }
-      msg[1] = cpvalue[chan];
+      msg[1] = cpvalue[portno][chan];
     } else if (mod) {
       int v = datavals(swap?val/mod:val%mod, step, steps, n_steps);
       if (v > 127 || v < 0) return;
@@ -243,15 +246,15 @@ send_midi(uint8_t portno, int status, int data,
       if (!step) step = 1;
       dir *= step;
       if (dir > 0) {
-	if (pbvalue[chan] >= 16383) return;
-	pbvalue[chan] += dir;
-	if (pbvalue[chan] > 16383) pbvalue[chan] = 16383;
+	if (pbvalue[portno][chan] >= 16383) return;
+	pbvalue[portno][chan] += dir;
+	if (pbvalue[portno][chan] > 16383) pbvalue[portno][chan] = 16383;
       } else {
-	if (pbvalue[chan] == 0) return;
-	pbvalue[chan] += dir;
-	if (pbvalue[chan] < 0) pbvalue[chan] = 0;
+	if (pbvalue[portno][chan] == 0) return;
+	pbvalue[portno][chan] += dir;
+	if (pbvalue[portno][chan] < 0) pbvalue[portno][chan] = 0;
       }
-      pbval = pbvalue[chan];
+      pbval = pbvalue[portno][chan];
     } else if (mod) {
       int v = datavals(swap?val/mod:val%mod, step, steps, n_steps);
       if (v > 16383 || v < 0) return;
@@ -280,6 +283,7 @@ send_midi(uint8_t portno, int status, int data,
   default:
     return;
   }
+  if (ret_msg) memcpy(ret_msg, msg, 3);
   if (!recursive)
     queue_midi(&seq, msg, portno);
   else
@@ -726,6 +730,29 @@ static void end_debug()
 // maximum recursion depth
 #define MAX_DEPTH 32
 
+// shift feedback
+uint8_t shift_fb[N_SHIFTS][3];
+
+static int toggle_msg(uint8_t msg[3])
+{
+  if (msg[0] < 0x80) return 0;
+  switch (msg[0]&0xf0) {
+  case 0xc0:
+    return 0;
+  case 0xd0:
+    msg[1] = 0;
+    break;
+  case 0xe0:
+    msg[1] = 0x40;
+    msg[2] = 0;
+    break;
+  default:
+    msg[2] = 0;
+    break;
+  }
+  return 1;
+}
+
 void
 send_strokes(translation *tr, uint8_t portno, int status, int chan,
 	     int data, int data2, int index, int dir, int depth)
@@ -788,9 +815,15 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan,
       nkeys++;
     } else if (s->shift) {
       // toggle shift status
-      if (shift != s->shift)
+      if (shift != s->shift) {
+	if (shift) {
+	  // reset current shift feedback
+	  if (toggle_msg(shift_fb[shift-1]))
+	    queue_midi(&seq, shift_fb[shift-1], 1);
+	  memset(shift_fb[shift-1], 0, 3);
+	}
 	shift = s->shift;
-      else
+      } else
 	shift = 0;
     } else if (!s->status) {
       // do nothing (NOP)
@@ -804,10 +837,26 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan,
 	else
 	  fprintf(stderr, "Error: $%s: recursion too deep\n",
 		  debug_key(tr, name, status, chan, data, dir));
+      } else if (s->feedback) {
+	if (!s->recursive && jack_num_outputs > 1) {
+	  if (s->feedback == 1)
+	    // direct feedback, simply flip the port number
+	    send_midi(!portno,
+		      s->status, s->data, s->step, s->n_steps, s->steps,
+		      s->incr, index, dir, mod,
+		      step, n_steps, steps, data2, s->swap, 0, depth, 0);
+	  else if (portno == 0 && !mod && !dir)
+	    // shift feedback, this only works with key translations right
+	    // now, and portno *must* be zero
+	    send_midi(1, s->status, s->data, s->step, s->n_steps, s->steps,
+		      s->incr, !shift, 0, 0,
+		      step, n_steps, steps, data2, s->swap, 0, depth,
+		      shift?shift_fb[shift-1]:0);
+	}
       } else {
 	send_midi(portno, s->status, s->data, s->step, s->n_steps, s->steps,
 		  s->incr, index, dir, mod,
-		  step, n_steps, steps, data2, s->swap, s->recursive, depth);
+		  step, n_steps, steps, data2, s->swap, s->recursive, depth, 0);
       }
     }
     s = s->next;
@@ -1276,7 +1325,7 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
     end_debug();
     break;
   case 0xb0:
-    if (direct_feedback && portno) ccvalue[chan][msg[1]] = msg[2];
+    if (auto_feedback) ccvalue[!portno][chan][msg[1]] = msg[2];
     start_debug();
     if (get_cc_mod(tr, portno, chan, msg[1])) {
       send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0, depth);
@@ -1344,7 +1393,7 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
     end_debug();
     break;
   case 0x90:
-    if (direct_feedback && portno) notevalue[chan][msg[1]] = msg[2];
+    if (auto_feedback) notevalue[!portno][chan][msg[1]] = msg[2];
     start_debug();
     if (get_note_mod(tr, portno, chan, msg[1])) {
       send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0, depth);
@@ -1381,7 +1430,7 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
     end_debug();
     break;
   case 0xa0:
-    if (direct_feedback && portno) kpvalue[chan][msg[1]] = msg[2];
+    if (auto_feedback) kpvalue[!portno][chan][msg[1]] = msg[2];
     start_debug();
     if (get_kp_mod(tr, portno, chan, msg[1])) {
       send_strokes(tr, portno, status, chan, msg[1], msg[2], 0, 0, depth);
@@ -1418,7 +1467,7 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
     end_debug();
     break;
   case 0xd0:
-    if (direct_feedback && portno) cpvalue[chan] = msg[1];
+    if (auto_feedback) cpvalue[!portno][chan] = msg[1];
     start_debug();
     if (get_cp_mod(tr, portno, chan)) {
       send_strokes(tr, portno, status, chan, 0, msg[1], 0, 0, depth);
@@ -1456,7 +1505,7 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
     break;
   case 0xe0: {
     int bend = ((msg[2] << 7) | msg[1]) - 8192;
-    if (direct_feedback && portno) pbvalue[chan] = bend+8192;
+    if (auto_feedback) pbvalue[!portno][chan] = bend+8192;
     start_debug();
     if (get_pb_mod(tr, portno, chan)) {
       send_strokes(tr, portno, status, chan, 0, bend+8192, 0, 0, depth);
@@ -1597,7 +1646,7 @@ main(int argc, char **argv)
       add_command("-k", 1);
       break;
     case 'n':
-      direct_feedback = 0;
+      auto_feedback = 0;
       add_command("-n", 1);
       break;
     case 'o':

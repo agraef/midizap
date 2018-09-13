@@ -65,6 +65,9 @@ typedef struct _stroke {
   // the recursive bit indicates a MIDI message which is to be translated
   // recursively
   uint8_t recursive;
+  // the feedback bit indicates a MIDI message which is to be sent back to
+  // device or application (flipping the output port)
+  uint8_t feedback;
   // the dirty bit indicates a MIDI event for which a release event still
   // needs to be generated in key events
   uint8_t dirty;
@@ -124,6 +127,6 @@ extern int debug_regex, debug_strokes, debug_keys, debug_midi;
 extern int default_debug_regex, default_debug_strokes, default_debug_keys,
   default_debug_midi;
 extern char *config_file_name;
-extern int jack_num_outputs, system_passthrough, direct_feedback;
+extern int jack_num_outputs, system_passthrough, auto_feedback;
 extern int midi_octave, shift;
 extern char *jack_client_name;
