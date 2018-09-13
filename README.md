@@ -23,7 +23,7 @@ midizap [-hkns] [-d[rskmj]] [-j *name*] [-o[*n*]] [-P[*prio*]] [-r *rcfile*]
 :   Keep track of key (on/off) status of MIDI notes and control switches. This isn't generally recommended, but may occasionally be useful to deal with quirky controllers sending note- or control-ons without corresponding off messages.
 
 -n
-:   No automatic feedback. By default, midizap keeps track of controller feedback from the second input port if it is enabled (`-o2`). This option lets you disable this feature if the second port is being used for other purposes. See Section *MIDI Feedback*.
+:   No automatic feedback. By default, midizap keeps track of controller feedback from the second input port if it is enabled (`-o2`). This option lets you disable this feature if the second port is being used for other purposes. See Section *Automatic Feedback*.
 
 -o[*n*]
 :   Enable MIDI output and set the number of output ports *n* (1 by default). Use *n* = 2 for a second pair of MIDI ports, e.g., for controller feedback, or *n* = 0 to disable MIDI output. This overrides the corresponding directive in the configuration file. See Section *Jack-Related Options*.
@@ -182,7 +182,7 @@ Lines beginning with a `[`*name*`]` header are also special. Each such line intr
 
 To find a set of eligible translations, midizap matches class and title of the window with the keyboard focus against each section, in the order in which they are listed in the configuration file. For each section, midizap first tries to match the window class (the `WM_CLASS` property; this usually provides the better clues for identifying an application), then the window title (the `WM_NAME` property). The first section which matches determines the translations to be used for that window. An empty *regex* for the last class will always match, allowing default translations. If a translation cannot be found in the matched section, it will be loaded from the default section if possible. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the given *name* is only used for debugging output and diagnostics, and needn't be unique.
 
-The translations define what output should be produced for the given MIDI input. Each translation must be on a line by itself. The left-hand side (first token) of the translation denotes the MIDI message to be translated. The corresponding right-hand side (the rest of the line) is a sequence of zero or more tokens, separated by whitespace, indicating either MIDI messages or X11 keyboard and mouse events to be output. The output sequence may be empty, or just the special token `NOP` (which doesn't produce any output), to indicate that the translation outputs nothing at all; this suppresses the default translation for this input. Translation classes may be empty as well (i.e., not provide any translations), in which case *only* the default translations are active, even if a later non-default section matches the same window.
+The translations define what output should be produced for the given MIDI input. Each translation must be on a line by itself. The left-hand side (first token) of the translation denotes the MIDI message to be translated. The corresponding right-hand side (the rest of the line) is a sequence of zero or more tokens, separated by whitespace, indicating MIDI and X11 keyboard and mouse events to be output. The output sequence may be empty, or just the special token `NOP` (which doesn't produce any output), to indicate that the translation outputs nothing at all; this suppresses the default translation for this input. Translation classes may be empty as well (i.e., not provide any translations), in which case *only* the default translations are active, even if a later non-default section matches the same window.
 
 Example:
 
@@ -213,7 +213,7 @@ other ::= "CH" | "PB" | "PC" | "CC" | "CP" | "KP:" note
 flag  ::= "-" | "+" | "=" | "<" | ">" | "~"
 ~~~
 
-Case is ignored here, so `CC`, `cc` or even `Cc` are considered to be exactly the same token by the parser, although by convention we usually write them in uppercase. Numbers are always integers in decimal. The meaning of the `msg` number depends on the context (octave number for notes and key pressure, controller or program number in the range 0..127 for other messages, MIDI channel number in the range 1..16 for the special `CH` token). This can optionally be followed by a number in brackets, denoting a nonzero step size. Also optionally, a suffix with a third number (after the dash) denotes the MIDI channel in the range 1..16; otherwise the default MIDI channel is used (which is always 1 on the left-hand side, but can be set on the right-hand side with the `CH` token). The optional "increment" flag at the end of a token indicates a "data" translation which responds to incremental (up/down) value changes rather than key presses, cf. *Key and Data Input* below.
+Case is ignored here, so `CC`, `cc` or even `Cc` are considered to be exactly the same token by the parser, although by convention we usually write them in uppercase. Numbers are always integers in decimal. The meaning of the `msg` number depends on the context (octave number for notes and key pressure, controller or program number in the range 0..127 for other messages, MIDI channel number in the range 1..16 for the special `CH` token). This can optionally be followed by a number in brackets, denoting a nonzero step size. Also optionally, a suffix with a third number (after the dash) denotes the MIDI channel in the range 1..16; otherwise the default MIDI channel is used (which is always 1 on the left-hand side, but can be set on the right-hand side with the `CH` token). The optional "increment" flag at the end of a token indicates a "data" translation which responds to incremental (up/down) value changes rather than key presses, cf.\ *Key and Data Translations* below.
 
 ## Octave Numbering
 
@@ -227,9 +227,9 @@ MIDI_OCTAVE -1 # ASA pitches (middle C is C4)
 
 Note that this transposes *all* existing notes in translations following the directive, so if you add this option to an existing configuration, you probably have to edit the note messages in it accordingly.
 
-## Key and Data Input
+## Key and Data Translations
 
-Translations come in two flavors, "key translations" and "data translations", which differ in the way the extra data payload of the input message, called the *parameter value* (or just *value* for short), is processed. The parameter value depends on the type of MIDI message. Program changes (`PC`) have no value at all. For notes, as well as key and channel pressure messages (`CP`, `KP`), it is a velocity value; for control changes (`CC`), a controller value; and for pitch bend messages (`PB`), a pitch bend value. The latter is a 14 bit value composed of the two data bytes in the message, which is considered as a signed quantity in the range -8192..8191, where 0 denotes the center value. In all other cases, the parameter value consists of a single data byte, which denotes an unsigned 7 bit quantity in the range 0..127.
+Translations come in two flavors or "modes", *key translations* and *data translations*, which differ in the way the extra data payload of the input message, called the *parameter value* (or just *value* for short), is processed. The parameter value depends on the type of MIDI message. Program changes (`PC`) have no value at all. For notes, as well as key and channel pressure messages (`CP`, `KP`), it is a velocity value; for control changes (`CC`), a controller value; and for pitch bend messages (`PB`), a pitch bend value. The latter is a 14 bit value composed of the two data bytes in the message, which is considered as a signed quantity in the range -8192..8191, where 0 denotes the center value. In all other cases, the parameter value consists of a single data byte, which denotes an unsigned 7 bit quantity in the range 0..127.
 
 Note that since translations must be determined uniquely in each translation class, you can't have both key *and* data translations for the same input in the same section; it's either one or the other.
 
@@ -241,11 +241,11 @@ Note that since translations must be determined uniquely in each translation cla
 
 *Data mode* is available for all messages with a parameter value, i.e., anything but `PC`. In this mode, the actual value of the message is processed rather than just the on/off state. Data mode is indicated with a special suffix on the message token which denotes a step size and/or the direction of the value change which the rule should apply to: increment (`+`), decrement (`-`), or both (`=`). The two parts are both optional, but at least one of them must be present (otherwise the rule is interpreted as a key translation).
 
-In the following, we concentrate on "standard" data mode messages having an increment suffix. In this case, the optional step size in brackets indicates the amount of change required to trigger the translation, so its effect is to downscale the amount of change in the input value. (The variant without an increment suffix is more complicated and mostly intended for rather specialized uses, so we'll have a look at it later in the *Advanced Features* section.)
+In the following, we concentrate on *incremental* data mode messages, i.e., the kind which has an increment suffix. In this case, the optional step size in brackets indicates the amount of change required to trigger the translation, so its effect is to downscale the amount of change in the input value. The variant without an increment suffix is more complicated and mostly intended for more specialized uses, so we'll have a look at it later in the *Mod Translations* section.
 
 Data mode usually tracks changes in the *absolute* value of a control. However, for `CC` messages there's also an alternative mode for so-called *incremental* controllers, or *encoders* for short, which can found on some DAW controllers. These usually take the form of jog wheels or rotary encoders which can be turned endlessly in either direction. Encoders emit a special *sign bit* value indicating a *relative* change, where a value < 64 usually denotes an increment (representing clockwise rotation), and a value > 64 a decrement (counter-clockwise rotation). The actual amount of change is in the lower 6 bits of the value. In the message syntax, these kinds of controls are indicated by using the suffixes `<`, `>` and `~` in lieu of `-`, `+` and `=`, respectively. These flags are only permitted with `CC` messages.
 
-## Keyboard and Mouse Translations
+## Keyboard and Mouse Events
 
 Keyboard and mouse output consists of X key codes with optional up/down indicators, or strings of printable characters enclosed in double quotes. The syntax of these items, as well as the special `RELEASE` and `SHIFT` tokens which will be discussed later, are described by the following grammar:
 
@@ -271,7 +271,7 @@ F5 "V" XK_Left XK_Page_Up "v"
 G5 XK_Alt_L/D "v" XK_Alt_L/U "x" RELEASE "q"
 ~~~
 
-Translations are handled differently depending on the input mode (cf. *Key and Data Input* above). In *key mode*, there are separate press and release sequences. The former is invoked when the input key goes "down" (i.e., when the "on" status is received), the latter when the input key goes "up" again ("off" status). More precisely, at the end of the press sequence, all down keys marked by `/D` will be released, and the last key not marked by `/D`, `/U`, or `/H` will remain pressed. The release sequence will begin by releasing the last held key. If keys are to be pressed as part of the release sequence, then any keys marked with `/D` will be repressed before continuing the sequence. Keycodes marked with `/H` remain held between the press and release sequences. For instance, let's take a look at one of the more conspicuous translations in the example above:
+Translations are handled differently depending on the input mode (cf.\ *Key and Data Translations* above). In *key mode*, there are separate press and release sequences. The former is invoked when the input key goes "down" (i.e., when the "on" status is received), the latter when the input key goes "up" again ("off" status). More precisely, at the end of the press sequence, all down keys marked by `/D` will be released, and the last key not marked by `/D`, `/U`, or `/H` will remain pressed. The release sequence will begin by releasing the last held key. If keys are to be pressed as part of the release sequence, then any keys marked with `/D` will be repressed before continuing the sequence. Keycodes marked with `/H` remain held between the press and release sequences. For instance, let's take a look at one of the more conspicuous translations in the example above:
 
 ~~~
 G5 XK_Alt_L/D "v" XK_Alt_L/U "x" RELEASE "q"
@@ -295,7 +295,7 @@ CC60< XK_Left
 CC60> XK_Right
 ~~~
 
-The corresponding "bidirectional" translations, which are indicated with the `=` and `~` flags, are mostly used with MIDI translations; the same goes for the special `SHIFT` token. Thus we'll discuss these in later sections, see *MIDI Translations* and *Shift State* below.
+The corresponding "bidirectional" translations, which are indicated with the `=` and `~` flags, are mostly used with MIDI output; the same goes for the special `SHIFT` token. Thus we'll discuss these in later sections, see *MIDI Events* and *Shift State* below.
 
 In data mode, input messages can also have a *step size* associated with them, which has the effect of downscaling changes in the parameter value. The default step size is 1 (no scaling). To change it, the desired step size is written in brackets immediately after the message token and before the increment flag. A step size *k* indicates that the translation is executed whenever the input value has changed by *k* units. For instance, to slow down the cursor movement in the example above by a factor of 4:
 
@@ -313,7 +313,7 @@ CC60[4]> XK_Right
 
 Note that since there's no persistent absolute controller state in this case, this simply scales down the actual increment value in the message itself.
 
-## MIDI Translations
+## MIDI Events
 
 Most of the notation for MIDI messages on the left-hand side of a translation rule also carry over to the output side. The only real difference is that the increment flags `+-=<>` aren't permitted here, as they are only used to determine the input mode (key or data) of the entire translation. The `~` flag *is* allowed, however, to indicate output in bit-sign encoder format in data translations, see below. Step sizes are permitted as well on the output side, in *both* key and data translations. Their meaning depends on the kind of translation, however. In key translations, they denote the (nonzero) value to be used for the "on" state in the press sequence; in data translations, they indicate the amount of change for each unit input change (which has the effect of *upscaling* the value change).
 
@@ -342,7 +342,7 @@ D2 PB[8191]  # bend up
 
 Rules similar to the ones above may be useful if your MIDI keyboard doesn't have a hold pedal or pitch bend wheel, as they let you set aside some keys to emulate those functions.
 
-Let's now have a look at data mode. There are two additional flags `=` and `~` for data translations which are most useful with MIDI translations, which is why we deferred their discussion until now. In pure MIDI translations not involving any key or mouse output, the increment and decrement sequences are usually identical, in which case the `=` suffix can be used to indicate that the output is to be used for *both* increments and decrements. For instance, to map the modulation wheel (`CC1`) to the volume controller (`CC7`):
+Let's now have a look at data mode. There are two additional flags `=` and `~` for data translations which are most useful with MIDI output, which is why we deferred their discussion until now. In pure MIDI translations not involving any key or mouse output, the increment and decrement sequences are usually identical, in which case the `=` suffix can be used to indicate that the output is to be used for *both* increments and decrements. For instance, to map the modulation wheel (`CC1`) to the volume controller (`CC7`):
 
 ~~~
 CC1= CC7
@@ -394,11 +394,11 @@ CC1[3]= CC1[2]
 
 The above translation will only be triggered when the input value changes by 3 units, and the change in the output value will then be doubled again, so that the net effect is to scale the input value by 2/3. (Note that for most ratios this will only give a rough approximation; the method works best if the input and output step sizes are reasonably small.)
 
-**NOTE:** All data translations we've seen so far handle *incremental* value changes only. In order to be able to detect these changes and, in the case of MIDI output, change the output values accordingly, midizap has to keep track of all the current parameter values of all messages on all MIDI channels, for both input and output. This is easy enough, but midizap usually has no way of knowing the *actual* state of your controllers and MIDI applications, so when the program starts up, it simply assumes all these values to be zero. This means that midizap's "shadow" values of controllers, pitch bends etc. may initially well be out of sync with your input devices and applications, and you may have to wiggle a control in order to "calibrate" it.
+**NOTE:** All data translations we've seen so far handle *incremental* value changes only. In order to be able to detect these changes and, in the case of MIDI output, change the output values accordingly, midizap has to keep track of all the current parameter values of all messages on all MIDI channels, for both input and output. This is easy enough, but midizap usually has no way of knowing the *actual* state of your controllers and MIDI applications, so when the program starts up, it simply assumes all these values to be zero. This means that midizap's "shadow" values of controllers, pitch bends etc.\ may initially well be out of sync with your input devices and applications, and you may have to wiggle a control in order to "calibrate" it.
 
 This becomes most apparent when using negative step sizes, as in the translation `CC1= CC1[-1]` from above. If you start increasing that control initially, midizap still thinks that the `CC1` output controller is at value 0, so the change will not have any visible effect until you've moved the control up a bit and then start pulling it back down again. In fact, to get the full range of output values in this case, you will first have to move the control all the way up and then down again to calibrate it.
 
-However, it is possible to get rid of these defects by making use of controller *feedback*, if both your controller and the host application have that feature. See *MIDI Feedback* in the *Advanced Features* section below for details.
+However, it is possible to get rid of these defects by making use of controller *feedback*, if both your controller and the host application have that feature. See *Automatic Feedback* in the *MIDI Feedback* section below for details.
 
 ## Shift State
 
@@ -423,32 +423,80 @@ Having set up the translation for the shift key itself, we can now indicate that
 ^CC48= CC16~    # translate to encoder when shifted
 ~~~
 
-midizap actually supports up to four different shift states, which can be denoted as `SHIFT1`, ..., `SHIFT4`, with the corresponding prefixes being `1^`, ..., `4^`. The `SHIFT` token and `^` prefix we've seen above are in fact just abbreviations for `SHIFT1` and `1^`, respectively, and the `?` prefix will match any of the four shift states. So you may also write, e.g.:
+midizap actually supports up to four different shift states, which are denoted `SHIFT1`, ..., `SHIFT4`, with the corresponding prefixes being `1^`, ..., `4^`. The `?` prefix will match any of the four shift states. The `SHIFT` token and `^` prefix we've seen above are in fact just abbreviations for `SHIFT1` and `1^`, respectively. So our example above is equivalent to:
 
 ~~~
 ?D8 SHIFT1 RELEASE SHIFT1
+CC48= PB[128]
 1^CC48= CC16~
+~~~
+
+We might add another shift key and assign it to yet another controller:
+
+~~~
+?F7 SHIFT2 RELEASE SHIFT2
+2^CC48= CC24
 ~~~
 
 To keep things simple, only one shift status can be active at any one time; if you press more than one such key, the last one wins. Also note that when using a shift key in the manner described above, its status is *only* available internally to the midizap program; the host application never gets to see it. If your host software does its own handling of shift keys (as most Mackie-compatible DAWs do), it's usually more convenient to simply pass those keys on to the application. However, `SHIFT` comes in handy if your controller simply doesn't have enough buttons and faders to control all the essential features of your target application. In this case the internal shift state makes it possible to multiply the amount of controls available on the device. For instance, you can emulate a Mackie controller with both encoders and faders on a device which only has a single set of faders, by assigning the shifted faders to the encoders, as shown above.
 
-# Advanced Features
+# MIDI Feedback
 
-This section covers functionality which is used less often than the basic features discussed in previous sections, but helps solve some of the issues arising in more advanced uses cases. We start out with a brief account on *MIDI feedback*, which is needed to properly implement bidirectional communication with some controllers. This often involves inputs which cannot be handled with the simple kinds of translations we've seen so far, so we introduce a more versatile kind of data translation, the so-called *mod translations*, to deal with these. While mod translations have been designed to help with MIDI feedback, they also have their uses in "ordinary" mapping tasks. We discuss some of these use cases, and also introduce a simple macro facility based on mod translations which comes in handy if basic programming capabilities are needed.
-
-## MIDI Feedback
-
-Some MIDI controllers need a more elaborate setup than what we've seen so far, because they have motor faders, LEDs, etc. requiring feedback from the application. To accommodate these, you can use the `-o2` option of midizap, or the `JACK_PORTS 2` directive in the midizaprc file, to create a second pair of MIDI input and output ports, named `midi_in2` and `midi_out2`. Use of this option also activates a second MIDI default section in the midizaprc file, labeled `[MIDI2]`, which is used exclusively for translating MIDI input from the second input port and sending the resulting MIDI output to the second output port. Typically, the translations in the `[MIDI2]` section will be the inverse of those in the `[MIDI]` section, or whatever it takes to translate the MIDI feedback from the application back to MIDI data which the controller understands.
+Some MIDI controllers need a more elaborate setup than what we've seen so far, because they have motor faders, LEDs, etc., requiring feedback from the application. To accommodate these, you can use the `-o2` option of midizap, or the `JACK_PORTS 2` directive in the midizaprc file, to create a second pair of MIDI input and output ports, named `midi_in2` and `midi_out2`. Use of this option also activates a second MIDI default section in the midizaprc file, labeled `[MIDI2]`, which is used exclusively for translating MIDI input from the second input port and sending the resulting MIDI output to the second output port. Typically, the translations in the `[MIDI2]` section will be the inverse of those in the `[MIDI]` section, or whatever it takes to translate the MIDI feedback from the application back to MIDI data which the controller understands.
 
 You then wire up midizap's `midi_in` and `midi_out` ports to controller and application as before, but in addition you also connect the application back to midizap's `midi_in2` port, and the `midi_out2` port to the controller. This reverse path is what is needed to translate the feedback from the application and send it back to the controller. (The `-s` option a.k.a.\ `SYSTEM_PASSTHROUGH` directive also works on the feedback port, passing through all system messages from the second input port to the second output port unchanged.)
 
-If done right, MIDI feedback gets rid of controls being out of sync with the application. To these ends, the current state of controls communicated by the host application via the `midi_in2` port will also be recorded in midizap itself, so that subsequent MIDI output for incremental data translations will use the proper values for determining the required relative changes. We refer to this as *automatic feedback*. Many cheaper devices may provide you with sign-bit encoders which don't need any kind of feedback for themselves. In this case the automatic feedback will be all that's needed to keep controller and application in sync, and you don't even have to write any translation rules for the feedback; just enabling the second port and hooking it up to the application will be enough. (In fact, if the application also supports sign-bit encoders for all its controls, then you probably won't need any feedback at all.) More expensive controllers may provide faders with motors or LEDs on them, however, in which case additional translation rules for the feedback will be needed.
+The distribution includes a full-blown example of this kind of setup for your perusal, please check examples/APCmini.midizaprc in the sources. It shows how to emulate a Mackie controller with AKAI's APCmini device, so that it readily works with DAW software such as Ardour.
+
+## Automatic Feedback
+
+If done right, MIDI feedback will usually eliminate the problem of controls being out of sync with the application. midizap has some built-in logic to help with this. Specifically, the current state of controls communicated by the host application via the `midi_in2` port will be recorded, so that subsequent MIDI output for incremental data translations will use the proper values for determining the required relative changes. (The same goes for the reverse path, recording the values from `midi_in` so that data translations feeding back to the controller will work correctly.)
+
+We refer to this as *automatic feedback*. Some devices may provide you with sign-bit encoders which don't need any kind of feedback for themselves. In this case the automatic feedback will be all that's needed to keep controller and application in sync, and you don't even have to write any translation rules for the feedback; just enabling the second port and hooking it up to the application will be enough. Other controllers may provide faders with motors or LEDs on them, however, in which case additional translation rules for the feedback will be needed.
 
 **NOTE:** Automatic feedback is enabled automatically whenever you create a second pair of ports using `-o2`. If you're using the second pair for more esoteric purposes, you may want to disable this feature, which can be done with the `-n` option or the `NO_FEEDBACK` directive in the configuration file. Use this option *only* if feedback isn't needed with your application.
 
-An in-depth discussion of controller feedback is beyond the scope of this manual, but we present a few interesting examples below. Also, the distribution includes a full-blown example of this kind of setup for your perusal, please check examples/APCmini.midizaprc in the sources. It shows how to emulate a Mackie controller with AKAI's APCmini device, so that it readily works with DAW software such as Ardour.
+## Direct Feedback
 
-## Mod Translations
+Translations can also provide the required feedback themselves if the application doesn't do it. To these ends, any MIDI message on the right-hand side of a translation can be prefixed with the `!` character. This outputs the message as usual, but flips the output ports, so that the message will go to the *second* port in a forward translation, and vice versa for feedback translations in the `[MIDI2]` section.
+
+We call this *direct feedback*. For instance, suppose that on our MIDI controller we have a fader taking the form of a touchstrip `CC1` that has some LEDs for conveying its current value. We might like to translate that message to a `CC7` message for the application, while also providing feedback to the controller. The following translation will do this:
+
+~~~
+CC1= CC7 !CC1
+~~~
+
+Now, whenever you touch that fader, the corresponding value will be sent as `CC7` to the application, while the same value is sent back as `CC1` to the controller (which presumably will light the appropriate LEDs on the fader).
+
+Another example are internal shift buttons (cf.\ *Shift State* above). The host application never gets to see these, so chances are that we'll have to provide suitable feedback ourselves in order to light the buttons. E.g., the following should usually turn on the LED of the button when pressed, and turn it off again when released:
+
+~~~
+?D8 SHIFT !D8 RELEASE SHIFT !D8
+~~~
+
+This will work for simple cases involving only a single shift key whose state always matches the button state. However, for more complicated setups possibly involving multiple shift keys, it's better to use the `^` prefix instead:
+
+~~~
+?D8 SHIFT ^D8 RELEASE SHIFT ^D8
+~~~
+
+This variation of direct feedback is intended for shift keys only, and it *only* works with key translations. It also operates under the following two assumptions:
+
+- Feedback messages come *after* the corresponding `SHIFT` token in the translation, so that midizap knows which shift state the message belongs to.
+
+- The shift keys can be turned off by sending them a zero parameter value.
+
+Under these conditions it is possible to employ the machinery built into midizap which makes handling direct feedback for shift keys much easier. In particular, midizap ensures that the feedback message reflects the *shift* (rather than the button) state, which is needed to make "Caps Lock"-style shift keys like the following work correctly:
+
+~~~
+?D8 SHIFT ^D8
+~~~
+
+This turns the key on when pushed first, and toggles it off again when pushed a second time. Note that you can't get this behavior with the basic direct feedback facility, since there's no way to keep track of the required status information across different translations. Moreover, midizap also maintains the current status of all shift keys and automatically turns them off when switching from one shift status to another, so that the proper key will be lit even if you use multiple shift keys in your configuration.
+
+midizap still has a few more tricks up its sleeves which are useful when dealing with controller feedback, but they require the use of a special kind of data translation, the mod translations. These are a separate topic in their own right, so we'll introduce them in the next section.
+
+# Mod Translations
 
 Most of the time, MIDI feedback uses just the standard kinds of MIDI messages readily supported by midizap, such as note messages which make buttons light up in different colors, or control change messages which set the positions of motor faders. However, there are some encodings of feedback messages which combine different bits of information in a single message, making them difficult or even impossible to translate using the simple kinds of rules we've seen so far. midizap offers a special variation of data mode to help decoding such messages. We call them *mod translations* (a.k.a.\ "modulus" or "modifier" translations), because they involve operations with integer moduli which enable you to both calculate output from input values in a direct fashion, *and* modify the output messages themselves along the way.
 
@@ -481,7 +529,7 @@ There are three new elements in the syntax, an empty modulus bracket `[]`, the "
 
 - *Value lists*, denoted as lists of numbers separated by commas and enclosed in curly braces, provide a way to describe *discrete mappings* of input to output values. To these ends, the input value is used as an index into the list to give the corresponding output value, and the last value in the list will be used for any index which runs past the end of the list. There are also some convenient shortcuts which let you construct these lists more easily: repetition *a*`:`*b* (denoting *b* consecutive *a*'s) and enumeration *a*`-`*b* (denoting *a*`,`*a*±1`,`...`,`*b*, which ramps either up or down depending on whether *a*<=*b* or *a*>*b*, respectively).
 
-These are often used in concert. While we will introduce value lists in a moment, we won't actually use the default modulus or transposition in this section. But they're very convenient in some situations, and we'll get back to them in the following sections.
+These are often used in concert. While we will introduce value lists in a moment, we won't actually use the default modulus or transposition in our running example. But they're very convenient in some situations, and we'll get back to them in the following subsections.
 
 **NOTE:** In the context of mod translations, pitch bend values are interpreted as *unsigned* quantities in the range 0..16383 (with 8192 denoting the center value), which corresponds to the way they are actually encoded in MIDI. This makes the modular arithmetic work consistently for all types of MIDI messages, and also makes it easier to convert between pitch bends and other types of parameter values in mod translations. Normally you shouldn't have to worry about this, but the change in representation needs to be taken into account when transforming pitch bend values with value lists.
  
@@ -503,7 +551,7 @@ Using the shorthand for repetitions, this can be written more succinctly (which 
 CP[16] C0{0,1:8,5:3,3}
 ~~~
 
-Thus 0 will be mapped to 0 (off), 1..8 to 1 (green), 9..11 to 5 (yellow), and 12 or more to 3 (red).
+Thus 0 will be mapped to 0 (off), 1..8 to 1 (green), 9..11 to 5 (yellow), and 12 or more to 3 (red). (These values are in line with the MCP feedback spit out by Ardour, and what little technical documentation about the Mackie protocol is available on the web. YMMV, though, so you may have to experiment to make this rule work with your DAW.)
 
 The quotient here is the mixer channel index in the high-nibble of the `CP` message, which will be used as an offset for the `C0` note on the right, so the above rule shows the meters as a single row of colored buttons at the bottom of the 8x8 grid on the APCmini (first value on `C0`, second value on `C#0`, etc.). To get a different layout, you can also scale the *offset* value, by adding a second step size to the left-hand side:
 
@@ -551,7 +599,7 @@ You also need to use a mod translation if your binding involves discrete value l
 CC1[] CC1{0,1,1,2,3,5,8,13,21,34,55,89}
 ~~~
 
-Value lists offer some conveniences to facilitate their use, *repetitions* (which we've already discussed in the previous section) and *enumerations*. Enumerations are used to denote an ascending or descending range of values. E.g., to reverse the values of a controller you may write:
+Value lists offer some conveniences to facilitate their use, *repetitions* (which we've already discussed above) and *enumerations*. Enumerations are used to denote an ascending or descending range of values. E.g., to reverse the values of a controller you may write:
 
 ~~~
 CC1[] CC1{127-0}
@@ -591,7 +639,7 @@ This outputs the note with the same number as the controller value, `C0` for val
 CC1[] C0'
 ~~~
 
-Note that the remainder, which becomes the velocity of the output note, will always be zero here, so the above translation turns all notes off. To get a nonzero velocity, you specify it in a value list:
+Note that the input value, which becomes the velocity of the output note, will always be zero here, so the above translation turns all notes off. To get a nonzero velocity, you specify it in a value list:
 
 ~~~
 CC2[] C0{127}'
@@ -613,7 +661,7 @@ Extracting the *high* nibble is just as easy (this is another case where the tra
 CC1[16]{0} CC2'
 ~~~
 
-Note that this works because the output mapping `{0}` (which forces the offset to 0) is in fact applied *after* the transposition. You can also output *both* the low and high nibbles at the same time that way:
+Note that this works because the output mapping `{0}` (which forces the offset to 0) is in fact applied *after* the transposition. Thus the quotient becomes the value of the `CC2` message, while the remainder is canceled out and becomes a zero offset. You can also output *both* the low and high nibbles at the same time that way:
 
 ~~~
 CC1[16]{0} CC1 CC2'
@@ -698,9 +746,11 @@ There probably are some. Please submit bug reports and pull requests at the midi
 
 The names of some of the debugging options are rather idiosyncratic. midizap inherited them from Eric Messick's ShuttlePRO program, and we decided to keep them for backward compatibility.
 
-midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now. So there's no native Mac or Windows support, and that's not going to change until someone who's in the know about Mac and Windows equivalents for the X11 XTest extension, comes along and ports it over.
-
 midizap tries to keep things simple, which implies that it has its limitations. In particular, midizap lacks support for translating system messages and some more interesting ways of mapping, filtering and recombining MIDI data right now. There are other, more powerful utilities which do these things, but they are also more complicated and usually require programming skills. Fortunately, midizap often does the job reasonably well for simple mapping tasks (and even some rather complicated ones, such as the APCmini Mackie emulation included in the distribution). But if things start getting fiddly then you should consider using a more comprehensive tool like [Pd][] instead.
+
+In trying to keep with the simplicity of Eric Messick's original as much as possible, most of the configuration file language is fairly straightforward. But there are some bolted on parts of the syntax (in particular, mod translations and macros) which look rather cryptic. Only use them if you must. :)
+
+midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now. Native Mac or Windows support certainly seems possible, but it's not going to happen until someone who's in the know about suitable Mac and Windows replacements for the X11 XTest extension, comes along and ports it over.
 
 # See Also
 

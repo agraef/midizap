@@ -49,7 +49,7 @@ By default, midizap keeps track of controller feedback from the second
 input port if it is enabled (\f[C]\-o2\f[]).
 This option lets you disable this feature if the second port is being
 used for other purposes.
-See Section \f[I]MIDI Feedback\f[].
+See Section \f[I]Automatic Feedback\f[].
 .RS
 .RE
 .TP
@@ -519,8 +519,8 @@ Each translation must be on a line by itself.
 The left\-hand side (first token) of the translation denotes the MIDI
 message to be translated.
 The corresponding right\-hand side (the rest of the line) is a sequence
-of zero or more tokens, separated by whitespace, indicating either MIDI
-messages or X11 keyboard and mouse events to be output.
+of zero or more tokens, separated by whitespace, indicating MIDI and X11
+keyboard and mouse events to be output.
 The output sequence may be empty, or just the special token \f[C]NOP\f[]
 (which doesn't produce any output), to indicate that the translation
 outputs nothing at all; this suppresses the default translation for this
@@ -613,8 +613,8 @@ is used (which is always 1 on the left\-hand side, but can be set on the
 right\-hand side with the \f[C]CH\f[] token).
 The optional \[lq]increment\[rq] flag at the end of a token indicates a
 \[lq]data\[rq] translation which responds to incremental (up/down) value
-changes rather than key presses, cf.
-\f[I]Key and Data Input\f[] below.
+changes rather than key presses, cf.\ \f[I]Key and Data Translations\f[]
+below.
 .SS Octave Numbering
 .PP
 A note on the octave numbers in MIDI note designations is in order here.
@@ -650,12 +650,12 @@ Note that this transposes \f[I]all\f[] existing notes in translations
 following the directive, so if you add this option to an existing
 configuration, you probably have to edit the note messages in it
 accordingly.
-.SS Key and Data Input
+.SS Key and Data Translations
 .PP
-Translations come in two flavors, \[lq]key translations\[rq] and
-\[lq]data translations\[rq], which differ in the way the extra data
-payload of the input message, called the \f[I]parameter value\f[] (or
-just \f[I]value\f[] for short), is processed.
+Translations come in two flavors or \[lq]modes\[rq], \f[I]key
+translations\f[] and \f[I]data translations\f[], which differ in the way
+the extra data payload of the input message, called the \f[I]parameter
+value\f[] (or just \f[I]value\f[] for short), is processed.
 The parameter value depends on the type of MIDI message.
 Program changes (\f[C]PC\f[]) have no value at all.
 For notes, as well as key and channel pressure messages (\f[C]CP\f[],
@@ -700,14 +700,14 @@ or both (\f[C]=\f[]).
 The two parts are both optional, but at least one of them must be
 present (otherwise the rule is interpreted as a key translation).
 .PP
-In the following, we concentrate on \[lq]standard\[rq] data mode
-messages having an increment suffix.
+In the following, we concentrate on \f[I]incremental\f[] data mode
+messages, i.e., the kind which has an increment suffix.
 In this case, the optional step size in brackets indicates the amount of
 change required to trigger the translation, so its effect is to
 downscale the amount of change in the input value.
-(The variant without an increment suffix is more complicated and mostly
-intended for rather specialized uses, so we'll have a look at it later
-in the \f[I]Advanced Features\f[] section.)
+The variant without an increment suffix is more complicated and mostly
+intended for more specialized uses, so we'll have a look at it later in
+the \f[I]Mod Translations\f[] section.
 .PP
 Data mode usually tracks changes in the \f[I]absolute\f[] value of a
 control.
@@ -725,7 +725,7 @@ In the message syntax, these kinds of controls are indicated by using
 the suffixes \f[C]<\f[], \f[C]>\f[] and \f[C]~\f[] in lieu of
 \f[C]\-\f[], \f[C]+\f[] and \f[C]=\f[], respectively.
 These flags are only permitted with \f[C]CC\f[] messages.
-.SS Keyboard and Mouse Translations
+.SS Keyboard and Mouse Events
 .PP
 Keyboard and mouse output consists of X key codes with optional up/down
 indicators, or strings of printable characters enclosed in double
@@ -778,8 +778,8 @@ G5\ XK_Alt_L/D\ "v"\ XK_Alt_L/U\ "x"\ RELEASE\ "q"
 \f[]
 .fi
 .PP
-Translations are handled differently depending on the input mode (cf.
-\f[I]Key and Data Input\f[] above).
+Translations are handled differently depending on the input mode
+(cf.\ \f[I]Key and Data Translations\f[] above).
 In \f[I]key mode\f[], there are separate press and release sequences.
 The former is invoked when the input key goes \[lq]down\[rq] (i.e., when
 the \[lq]on\[rq] status is received), the latter when the input key goes
@@ -863,9 +863,9 @@ CC60>\ XK_Right
 .PP
 The corresponding \[lq]bidirectional\[rq] translations, which are
 indicated with the \f[C]=\f[] and \f[C]~\f[] flags, are mostly used with
-MIDI translations; the same goes for the special \f[C]SHIFT\f[] token.
-Thus we'll discuss these in later sections, see \f[I]MIDI
-Translations\f[] and \f[I]Shift State\f[] below.
+MIDI output; the same goes for the special \f[C]SHIFT\f[] token.
+Thus we'll discuss these in later sections, see \f[I]MIDI Events\f[] and
+\f[I]Shift State\f[] below.
 .PP
 In data mode, input messages can also have a \f[I]step size\f[]
 associated with them, which has the effect of downscaling changes in the
@@ -897,7 +897,7 @@ CC60[4]>\ XK_Right
 Note that since there's no persistent absolute controller state in this
 case, this simply scales down the actual increment value in the message
 itself.
-.SS MIDI Translations
+.SS MIDI Events
 .PP
 Most of the notation for MIDI messages on the left\-hand side of a
 translation rule also carry over to the output side.
@@ -975,8 +975,8 @@ some keys to emulate those functions.
 .PP
 Let's now have a look at data mode.
 There are two additional flags \f[C]=\f[] and \f[C]~\f[] for data
-translations which are most useful with MIDI translations, which is why
-we deferred their discussion until now.
+translations which are most useful with MIDI output, which is why we
+deferred their discussion until now.
 In pure MIDI translations not involving any key or mouse output, the
 increment and decrement sequences are usually identical, in which case
 the \f[C]=\f[] suffix can be used to indicate that the output is to be
@@ -1078,9 +1078,8 @@ This is easy enough, but midizap usually has no way of knowing the
 \f[I]actual\f[] state of your controllers and MIDI applications, so when
 the program starts up, it simply assumes all these values to be zero.
 This means that midizap's \[lq]shadow\[rq] values of controllers, pitch
-bends etc.
-may initially well be out of sync with your input devices and
-applications, and you may have to wiggle a control in order to
+bends etc.\ may initially well be out of sync with your input devices
+and applications, and you may have to wiggle a control in order to
 \[lq]calibrate\[rq] it.
 .PP
 This becomes most apparent when using negative step sizes, as in the
@@ -1096,7 +1095,7 @@ calibrate it.
 However, it is possible to get rid of these defects by making use of
 controller \f[I]feedback\f[], if both your controller and the host
 application have that feature.
-See \f[I]MIDI Feedback\f[] in the \f[I]Advanced Features\f[] section
+See \f[I]Automatic Feedback\f[] in the \f[I]MIDI Feedback\f[] section
 below for details.
 .SS Shift State
 .PP
@@ -1154,19 +1153,29 @@ encoder values:
 \f[]
 .fi
 .PP
-midizap actually supports up to four different shift states, which can
-be denoted as \f[C]SHIFT1\f[], \&..., \f[C]SHIFT4\f[], with the
-corresponding prefixes being \f[C]1^\f[], \&..., \f[C]4^\f[].
+midizap actually supports up to four different shift states, which are
+denoted \f[C]SHIFT1\f[], \&..., \f[C]SHIFT4\f[], with the corresponding
+prefixes being \f[C]1^\f[], \&..., \f[C]4^\f[].
+The \f[C]?\f[] prefix will match any of the four shift states.
 The \f[C]SHIFT\f[] token and \f[C]^\f[] prefix we've seen above are in
 fact just abbreviations for \f[C]SHIFT1\f[] and \f[C]1^\f[],
-respectively, and the \f[C]?\f[] prefix will match any of the four shift
-states.
-So you may also write, e.g.:
+respectively.
+So our example above is equivalent to:
 .IP
 .nf
 \f[C]
 ?D8\ SHIFT1\ RELEASE\ SHIFT1
+CC48=\ PB[128]
 1^CC48=\ CC16~
+\f[]
+.fi
+.PP
+We might add another shift key and assign it to yet another controller:
+.IP
+.nf
+\f[C]
+?F7\ SHIFT2\ RELEASE\ SHIFT2
+2^CC48=\ CC24
 \f[]
 .fi
 .PP
@@ -1186,28 +1195,11 @@ amount of controls available on the device.
 For instance, you can emulate a Mackie controller with both encoders and
 faders on a device which only has a single set of faders, by assigning
 the shifted faders to the encoders, as shown above.
-.SH Advanced Features
-.PP
-This section covers functionality which is used less often than the
-basic features discussed in previous sections, but helps solve some of
-the issues arising in more advanced uses cases.
-We start out with a brief account on \f[I]MIDI feedback\f[], which is
-needed to properly implement bidirectional communication with some
-controllers.
-This often involves inputs which cannot be handled with the simple kinds
-of translations we've seen so far, so we introduce a more versatile kind
-of data translation, the so\-called \f[I]mod translations\f[], to deal
-with these.
-While mod translations have been designed to help with MIDI feedback,
-they also have their uses in \[lq]ordinary\[rq] mapping tasks.
-We discuss some of these use cases, and also introduce a simple macro
-facility based on mod translations which comes in handy if basic
-programming capabilities are needed.
-.SS MIDI Feedback
+.SH MIDI Feedback
 .PP
 Some MIDI controllers need a more elaborate setup than what we've seen
-so far, because they have motor faders, LEDs, etc.
-requiring feedback from the application.
+so far, because they have motor faders, LEDs, etc., requiring feedback
+from the application.
 To accommodate these, you can use the \f[C]\-o2\f[] option of midizap,
 or the \f[C]JACK_PORTS\ 2\f[] directive in the midizaprc file, to create
 a second pair of MIDI input and output ports, named \f[C]midi_in2\f[]
@@ -1231,23 +1223,32 @@ application and send it back to the controller.
 also works on the feedback port, passing through all system messages
 from the second input port to the second output port unchanged.)
 .PP
-If done right, MIDI feedback gets rid of controls being out of sync with
-the application.
-To these ends, the current state of controls communicated by the host
-application via the \f[C]midi_in2\f[] port will also be recorded in
-midizap itself, so that subsequent MIDI output for incremental data
-translations will use the proper values for determining the required
-relative changes.
+The distribution includes a full\-blown example of this kind of setup
+for your perusal, please check examples/APCmini.midizaprc in the
+sources.
+It shows how to emulate a Mackie controller with AKAI's APCmini device,
+so that it readily works with DAW software such as Ardour.
+.SS Automatic Feedback
+.PP
+If done right, MIDI feedback will usually eliminate the problem of
+controls being out of sync with the application.
+midizap has some built\-in logic to help with this.
+Specifically, the current state of controls communicated by the host
+application via the \f[C]midi_in2\f[] port will be recorded, so that
+subsequent MIDI output for incremental data translations will use the
+proper values for determining the required relative changes.
+(The same goes for the reverse path, recording the values from
+\f[C]midi_in\f[] so that data translations feeding back to the
+controller will work correctly.)
+.PP
 We refer to this as \f[I]automatic feedback\f[].
-Many cheaper devices may provide you with sign\-bit encoders which don't
-need any kind of feedback for themselves.
+Some devices may provide you with sign\-bit encoders which don't need
+any kind of feedback for themselves.
 In this case the automatic feedback will be all that's needed to keep
 controller and application in sync, and you don't even have to write any
 translation rules for the feedback; just enabling the second port and
 hooking it up to the application will be enough.
-(In fact, if the application also supports sign\-bit encoders for all
-its controls, then you probably won't need any feedback at all.) More
-expensive controllers may provide faders with motors or LEDs on them,
+Other controllers may provide faders with motors or LEDs on them,
 however, in which case additional translation rules for the feedback
 will be needed.
 .PP
@@ -1258,15 +1259,99 @@ to disable this feature, which can be done with the \f[C]\-n\f[] option
 or the \f[C]NO_FEEDBACK\f[] directive in the configuration file.
 Use this option \f[I]only\f[] if feedback isn't needed with your
 application.
+.SS Direct Feedback
 .PP
-An in\-depth discussion of controller feedback is beyond the scope of
-this manual, but we present a few interesting examples below.
-Also, the distribution includes a full\-blown example of this kind of
-setup for your perusal, please check examples/APCmini.midizaprc in the
-sources.
-It shows how to emulate a Mackie controller with AKAI's APCmini device,
-so that it readily works with DAW software such as Ardour.
-.SS Mod Translations
+Translations can also provide the required feedback themselves if the
+application doesn't do it.
+To these ends, any MIDI message on the right\-hand side of a translation
+can be prefixed with the \f[C]!\f[] character.
+This outputs the message as usual, but flips the output ports, so that
+the message will go to the \f[I]second\f[] port in a forward
+translation, and vice versa for feedback translations in the
+\f[C][MIDI2]\f[] section.
+.PP
+We call this \f[I]direct feedback\f[].
+For instance, suppose that on our MIDI controller we have a fader taking
+the form of a touchstrip \f[C]CC1\f[] that has some LEDs for conveying
+its current value.
+We might like to translate that message to a \f[C]CC7\f[] message for
+the application, while also providing feedback to the controller.
+The following translation will do this:
+.IP
+.nf
+\f[C]
+CC1=\ CC7\ !CC1
+\f[]
+.fi
+.PP
+Now, whenever you touch that fader, the corresponding value will be sent
+as \f[C]CC7\f[] to the application, while the same value is sent back as
+\f[C]CC1\f[] to the controller (which presumably will light the
+appropriate LEDs on the fader).
+.PP
+Another example are internal shift buttons (cf.\ \f[I]Shift State\f[]
+above).
+The host application never gets to see these, so chances are that we'll
+have to provide suitable feedback ourselves in order to light the
+buttons.
+E.g., the following should usually turn on the LED of the button when
+pressed, and turn it off again when released:
+.IP
+.nf
+\f[C]
+?D8\ SHIFT\ !D8\ RELEASE\ SHIFT\ !D8
+\f[]
+.fi
+.PP
+This will work for simple cases involving only a single shift key whose
+state always matches the button state.
+However, for more complicated setups possibly involving multiple shift
+keys, it's better to use the \f[C]^\f[] prefix instead:
+.IP
+.nf
+\f[C]
+?D8\ SHIFT\ ^D8\ RELEASE\ SHIFT\ ^D8
+\f[]
+.fi
+.PP
+This variation of direct feedback is intended for shift keys only, and
+it \f[I]only\f[] works with key translations.
+It also operates under the following two assumptions:
+.IP \[bu] 2
+Feedback messages come \f[I]after\f[] the corresponding \f[C]SHIFT\f[]
+token in the translation, so that midizap knows which shift state the
+message belongs to.
+.IP \[bu] 2
+The shift keys can be turned off by sending them a zero parameter value.
+.PP
+Under these conditions it is possible to employ the machinery built into
+midizap which makes handling direct feedback for shift keys much easier.
+In particular, midizap ensures that the feedback message reflects the
+\f[I]shift\f[] (rather than the button) state, which is needed to make
+\[lq]Caps Lock\[rq]\-style shift keys like the following work correctly:
+.IP
+.nf
+\f[C]
+?D8\ SHIFT\ ^D8
+\f[]
+.fi
+.PP
+This turns the key on when pushed first, and toggles it off again when
+pushed a second time.
+Note that you can't get this behavior with the basic direct feedback
+facility, since there's no way to keep track of the required status
+information across different translations.
+Moreover, midizap also maintains the current status of all shift keys
+and automatically turns them off when switching from one shift status to
+another, so that the proper key will be lit even if you use multiple
+shift keys in your configuration.
+.PP
+midizap still has a few more tricks up its sleeves which are useful when
+dealing with controller feedback, but they require the use of a special
+kind of data translation, the mod translations.
+These are a separate topic in their own right, so we'll introduce them
+in the next section.
+.SH Mod Translations
 .PP
 Most of the time, MIDI feedback uses just the standard kinds of MIDI
 messages readily supported by midizap, such as note messages which make
@@ -1383,9 +1468,9 @@ which ramps either up or down depending on whether
 .PP
 These are often used in concert.
 While we will introduce value lists in a moment, we won't actually use
-the default modulus or transposition in this section.
+the default modulus or transposition in our running example.
 But they're very convenient in some situations, and we'll get back to
-them in the following sections.
+them in the following subsections.
 .PP
 \f[B]NOTE:\f[] In the context of mod translations, pitch bend values are
 interpreted as \f[I]unsigned\f[] quantities in the range 0..16383 (with
@@ -1434,6 +1519,11 @@ CP[16]\ C0{0,1:8,5:3,3}
 .PP
 Thus 0 will be mapped to 0 (off), 1..8 to 1 (green), 9..11 to 5
 (yellow), and 12 or more to 3 (red).
+(These values are in line with the MCP feedback spit out by Ardour, and
+what little technical documentation about the Mackie protocol is
+available on the web.
+YMMV, though, so you may have to experiment to make this rule work with
+your DAW.)
 .PP
 The quotient here is the mixer channel index in the high\-nibble of the
 \f[C]CP\f[] message, which will be used as an offset for the \f[C]C0\f[]
@@ -1550,8 +1640,8 @@ CC1[]\ CC1{0,1,1,2,3,5,8,13,21,34,55,89}
 .fi
 .PP
 Value lists offer some conveniences to facilitate their use,
-\f[I]repetitions\f[] (which we've already discussed in the previous
-section) and \f[I]enumerations\f[].
+\f[I]repetitions\f[] (which we've already discussed above) and
+\f[I]enumerations\f[].
 Enumerations are used to denote an ascending or descending range of
 values.
 E.g., to reverse the values of a controller you may write:
@@ -1636,8 +1726,9 @@ CC1[]\ C0\[aq]
 \f[]
 .fi
 .PP
-Note that the remainder, which becomes the velocity of the output note,
-will always be zero here, so the above translation turns all notes off.
+Note that the input value, which becomes the velocity of the output
+note, will always be zero here, so the above translation turns all notes
+off.
 To get a nonzero velocity, you specify it in a value list:
 .IP
 .nf
@@ -1673,6 +1764,8 @@ CC1[16]{0}\ CC2\[aq]
 Note that this works because the output mapping \f[C]{0}\f[] (which
 forces the offset to 0) is in fact applied \f[I]after\f[] the
 transposition.
+Thus the quotient becomes the value of the \f[C]CC2\f[] message, while
+the remainder is canceled out and becomes a zero offset.
 You can also output \f[I]both\f[] the low and high nibbles at the same
 time that way:
 .IP
@@ -1860,13 +1953,6 @@ The names of some of the debugging options are rather idiosyncratic.
 midizap inherited them from Eric Messick's ShuttlePRO program, and we
 decided to keep them for backward compatibility.
 .PP
-midizap has only been tested on Linux so far, and its keyboard and mouse
-support is tailored to X11, i.e., it's pretty much tied to Unix/X11
-systems right now.
-So there's no native Mac or Windows support, and that's not going to
-change until someone who's in the know about Mac and Windows equivalents
-for the X11 XTest extension, comes along and ports it over.
-.PP
 midizap tries to keep things simple, which implies that it has its
 limitations.
 In particular, midizap lacks support for translating system messages and
@@ -1879,6 +1965,22 @@ mapping tasks (and even some rather complicated ones, such as the
 APCmini Mackie emulation included in the distribution).
 But if things start getting fiddly then you should consider using a more
 comprehensive tool like Pd (http://puredata.info/) instead.
+.PP
+In trying to keep with the simplicity of Eric Messick's original as much
+as possible, most of the configuration file language is fairly
+straightforward.
+But there are some bolted on parts of the syntax (in particular, mod
+translations and macros) which look rather cryptic.
+Only use them if you must.
+:)
+.PP
+midizap has only been tested on Linux so far, and its keyboard and mouse
+support is tailored to X11, i.e., it's pretty much tied to Unix/X11
+systems right now.
+Native Mac or Windows support certainly seems possible, but it's not
+going to happen until someone who's in the know about suitable Mac and
+Windows replacements for the X11 XTest extension, comes along and ports
+it over.
 .SH See Also
 .PP
 midizap is based on a fork (https://github.com/agraef/ShuttlePRO) of
