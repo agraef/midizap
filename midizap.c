@@ -1505,7 +1505,7 @@ void help(char *progname)
   fprintf(stderr, "-d debug (r = regex, s = strokes, k = keys, m = midi, j = jack; default: all)\n");
   fprintf(stderr, "-j jack client name (default: midizap)\n");
   fprintf(stderr, "-k keep track of key status (ignore double notes)\n");
-  fprintf(stderr, "-n no automatic feedback (-o2)\n");
+  fprintf(stderr, "-n no automatic feedback from the second port (-o2)\n");
   fprintf(stderr, "-o set number of MIDI output ports (0-2, default: 1)\n");
   fprintf(stderr, "-P set real-time priority (default: 90)\n");
   fprintf(stderr, "-r config file name (default: MIDIZAP_CONFIG_FILE variable or ~/.midizaprc)\n");
