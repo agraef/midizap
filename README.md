@@ -180,7 +180,19 @@ The `#` character at the beginning of a line and after whitespace is special; it
 
 Lines beginning with a `[`*name*`]` header are also special. Each such line introduces a translation class *name*, which may be followed by a basic regular expression *regex* (see the regex(7) manual page) to be matched against window class and title. Note that *everything* following the `[`*name*`]` header on the same line is taken verbatim; the *regex* part is the entire rest of the line, ignoring leading and trailing whitespace, but including embedded whitespace and `#` characters (so you can't place a comment on such lines).
 
-To find a set of eligible translations, midizap matches class and title of the window with the keyboard focus against each section, in the order in which they are listed in the configuration file. For each section, midizap first tries to match the window class (the `WM_CLASS` property; this usually provides the better clues for identifying an application), then the window title (the `WM_NAME` property). The first section which matches determines the translations to be used for that window. An empty *regex* for the last class will always match, allowing default translations. If a translation cannot be found in the matched section, it will be loaded from the default section if possible. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the given *name* is only used for debugging output and diagnostics, and needn't be unique.
+This means that when you're writing a configuration for a new application, you'll have to determine its window class and title, so that you can figure out a regular expression to use in the corresponding section header. The easiest way to do this is to run midizap with the `-dr` option, click on the window, and wiggle any control on your device. You'll get a message like the following, telling you both the title and the class name of the window (as well as the name of the translation class if the window is already recognized):
+
+~~~
+translation: Default for mysession - Ardour (class ardour_ardour)
+~~~
+
+Here, the class name is "ardour_ardour" and the window title "mysession - Ardour". Either can be used for the regular expression, but the class name usually provides the more specific clues for identifying an application. So we might write:
+
+~~~
+[Ardour] ^ardour_ardour$
+~~~
+
+To find a set of eligible translations, midizap matches class and title of the window with the keyboard focus against each section, in the order in which they are listed in the configuration file. For each section, midizap first tries to match the window class (the `WM_CLASS` property), then the window title (the `WM_NAME` property). The first section which matches determines the translations to be used for that window. An empty *regex* for the last class will always match, allowing default translations. If a translation cannot be found in the matched section, it will be loaded from the default section if possible. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the given *name* is only used for debugging output and diagnostics, and needn't be unique.
 
 The translations define what output should be produced for the given MIDI input. Each translation must be on a line by itself. The left-hand side (first token) of the translation denotes the MIDI message to be translated. The corresponding right-hand side (the rest of the line) is a sequence of zero or more tokens, separated by whitespace, indicating MIDI and X11 keyboard and mouse events to be output. The output sequence may be empty, or just the special token `NOP` (which doesn't produce any output), to indicate that the translation outputs nothing at all; this suppresses the default translation for this input. Translation classes may be empty as well (i.e., not provide any translations), in which case *only* the default translations are active, even if a later non-default section matches the same window.
 
@@ -402,43 +414,54 @@ However, it is possible to get rid of these defects by making use of controller 
 
 ## Shift State
 
-The special `SHIFT` token toggles an internal shift state, which can be used to generate alternative output for certain MIDI messages. Please note that, like the `CH` token, the `SHIFT` token doesn't generate any output by itself; it merely toggles the internal shift state which can then be queried in other translations to distinguish between shifted and unshifted bindings for the same input message.
+Like the `CH` token, the special `SHIFT` token doesn't generate any output by itself; it merely toggles an internal shift state which can then be tested by other translations to generate alternative output sequences. The `^` prefix denotes a rule which is active only in shifted state, while unprefixed rules are active in *both* shifted and unshifted state. Also, a prefixed rule *always* overrides an unprefixed one (no matter in which order they appear in the configuration file), so if you specify both, the former will be used in shifted, the latter in unshifted state. That is, unprefixed rules act as defaults which can be overridden by prefixed ones.
 
-To these ends, there are two additional prefixes which indicate the shift status in which a translation is active. Unprefixed translations are active only in unshifted state. The `^` prefix denotes a translation which is active only in shifted state, while the `?` prefix indicates a translation which is active in *both* shifted and unshifted state. Many DAW controllers have some designated shift keys which can be used for this purpose, but the following will actually work with any key-style MIDI message. E.g., to bind the shift key on an AKAI APCmini controller (`D8`):
-
-~~~
-?D8 SHIFT
-~~~
-
-Note the `?` prefix indicating that this translation is active in both unshifted and shifted state, so it is used to turn shift state both on and off, giving a "Caps Lock"-style of toggle key. If you'd rather have an ordinary shift key which turns on shift state when pressed and immediately turns it off when released again, you can do that as follows:
+Many DAW controllers have some designated shift keys which can be used for this purpose, but the following will actually work with any key-style MIDI message. E.g., to bind the shift key on an AKAI APCmini controller (`D8`):
 
 ~~~
-?D8 SHIFT RELEASE SHIFT
+D8 SHIFT
 ~~~
 
-Having set up the translation for the shift key itself, we can now indicate that a translation should be valid only in shifted state with the `^` prefix. This makes it possible to assign, depending on the shift state, different functions to buttons and faders. Here's a typical example which maps a control change to either Mackie-style fader values encoded as pitch bends, or incremental encoder values:
+This rule doesn't have a prefix, so it is used to turn shift state both on and off, giving a "Caps Lock"-style of toggle key. If you'd rather have an ordinary shift key which turns on shift state when pressed and immediately turns it off when released again, you can do that as follows:
 
 ~~~
- CC48= PB[128]  # translate to pitch bend when unshifted
-^CC48= CC16~    # translate to encoder when shifted
+D8 SHIFT RELEASE SHIFT
 ~~~
 
-midizap actually supports up to four different shift states, which are denoted `SHIFT1`, ..., `SHIFT4`, with the corresponding prefixes being `1^`, ..., `4^`. The `?` prefix will match any of the four shift states. The `SHIFT` token and `^` prefix we've seen above are in fact just abbreviations for `SHIFT1` and `1^`, respectively. So our example above is equivalent to:
+Note that in either case `SHIFT` works as a toggle, which turns shift status on when it is currently off, and turns it off again when it is on.
+
+Having set up the translation for the shift key itself, we can now assign, depending on the shift state, different functions to buttons and faders. Here's a typical example which maps a control change to either Mackie-style fader values encoded as pitch bends, or incremental encoder values:
 
 ~~~
-?D8 SHIFT1 RELEASE SHIFT1
+ CC48= PB[128]  # default: translate to pitch bend
+^CC48= CC16~    # shifted: translate to encoder
+~~~
+
+It's also possible to explicitly denote a rule which is active *only* in unshifted state. Unshifted state is specified with the `0^` (zero-caret) prefix, so you can write:
+
+~~~
+0^CC56= PB[128]-9 # unshifted: translate to pitch bend
+~~~
+
+The syntax is a bit awkward, but the case arises rarely (usually, you'll just write an unprefixed rule instead).
+
+midizap actually supports up to four different shift states, which are denoted `SHIFT1`, ..., `SHIFT4`, with the corresponding prefixes being `1^`, ..., `4^`. Unprefixed rules are enabled by default in all of these. The `SHIFT` token and `^` prefix we've seen above are in fact just shortcuts for `SHIFT1` and `1^`, respectively. So our first example above is equivalent to:
+
+~~~
+D8 SHIFT1 RELEASE SHIFT1
 CC48= PB[128]
 1^CC48= CC16~
 ~~~
 
-We might add another shift key and assign it to yet another controller:
+We might add another shift key and use it to assign yet another function to the same input message:
 
 ~~~
-?F7 SHIFT2 RELEASE SHIFT2
-2^CC48= CC24
+F7 SHIFT2 RELEASE SHIFT2
+2^CC48- XK_Left
+2^CC48+ XK_Right
 ~~~
 
-To keep things simple, only one shift status can be active at any one time; if you press more than one such key, the last one wins. Also note that when using a shift key in the manner described above, its status is *only* available internally to the midizap program; the host application never gets to see it. If your host software does its own handling of shift keys (as most Mackie-compatible DAWs do), it's usually more convenient to simply pass those keys on to the application. However, `SHIFT` comes in handy if your controller simply doesn't have enough buttons and faders to control all the essential features of your target application. In this case the internal shift state makes it possible to multiply the amount of controls available on the device. For instance, you can emulate a Mackie controller with both encoders and faders on a device which only has a single set of faders, by assigning the shifted faders to the encoders, as shown above.
+To keep things simple, only one shift status can be active at any one time; if you press more than one such key, the last one wins. Also note that when using a shift key in the manner described above, its status is *only* available internally to the midizap program; the host application never gets to see it. If your host software does its own handling of shift keys (as most Mackie-compatible DAWs do), it's usually more convenient to simply pass those keys on to the application. However, `SHIFT` comes in handy if your controller simply doesn't have enough buttons and faders to control all the essential features of your target application. In this case the internal shift state makes it possible to multiply the amount of controls available on the device. For instance, you can emulate a Mackie controller with both encoders and faders on a device which only has a single set of faders, by assigning the shifted faders to the encoders, as shown in the first example above.
 
 # MIDI Feedback
 
@@ -471,28 +494,28 @@ Now, whenever you touch that fader, the corresponding value will be sent as `CC7
 Another example are internal shift buttons (cf.\ *Shift State* above). The host application never gets to see these, so chances are that we'll have to provide suitable feedback ourselves in order to light the buttons. E.g., the following should usually turn on the LED of the button when pressed, and turn it off again when released:
 
 ~~~
-?D8 SHIFT !D8 RELEASE SHIFT !D8
+D8 SHIFT !D8 RELEASE SHIFT !D8
 ~~~
 
 This will work for simple cases involving only a single shift key whose state always matches the button state. However, for more complicated setups possibly involving multiple shift keys, it's better to use the `^` prefix instead:
 
 ~~~
-?D8 SHIFT ^D8 RELEASE SHIFT ^D8
+D8 SHIFT ^D8 RELEASE SHIFT ^D8
 ~~~
 
-This variation of direct feedback is intended for shift keys only, and it *only* works with key translations. It also operates under the following two assumptions:
+This variation of direct feedback is tailored to shift keys, and it *only* works with key translations. It also operates under the following two assumptions:
 
 - Feedback messages come *after* the corresponding `SHIFT` token in the translation, so that midizap knows which shift state the message belongs to.
 
 - The shift keys can be turned off by sending them a zero parameter value.
 
-Under these conditions it is possible to employ the machinery built into midizap which makes handling direct feedback for shift keys much easier. In particular, midizap ensures that the feedback message reflects the *shift* (rather than the button) state, which is needed to make "Caps Lock"-style shift keys like the following work correctly:
+Under these conditions it is possible to employ the machinery built into midizap which makes handling direct feedback for shift keys much easier. In particular, midizap ensures that the feedback message reflects the *shift* (rather than the button) state, which is needed to make "Caps Lock"-style toggle keys like the following work correctly:
 
 ~~~
-?D8 SHIFT ^D8
+D8 SHIFT ^D8
 ~~~
 
-This turns the key on when pushed first, and toggles it off again when pushed a second time. Note that you can't get this behavior with the basic direct feedback facility, since there's no way to keep track of the required status information across different translations. Moreover, midizap also maintains the current status of all shift keys and automatically turns them off when switching from one shift status to another, so that the proper key will be lit even if you use multiple shift keys in your configuration.
+This turns the key on when pushed, and toggles it off again when pushed a second time. Note that you can't get this behavior with the basic direct feedback facility, since there's no way to keep track of the required status information across different translations. Moreover, midizap also maintains the current status of all shift keys and automatically turns them off when switching from one shift status to another, so that the proper key will be lit even if you use multiple shift keys in your configuration.
 
 midizap still has a few more tricks up its sleeves which are useful when dealing with controller feedback, but they require the use of a special kind of data translation, the mod translations. These are a separate topic in their own right, so we'll introduce them in the next section.
 
