@@ -490,34 +490,6 @@ ignoring leading and trailing whitespace, but including embedded
 whitespace and \f[C]#\f[] characters (so you can't place a comment on
 such lines).
 .PP
-This means that when you're writing a configuration for a new
-application, you'll have to determine its window class and title, so
-that you can figure out a regular expression to use in the corresponding
-section header.
-The easiest way to do this is to run midizap with the \f[C]\-dr\f[]
-option, click on the window, and wiggle any control on your device.
-You'll get a message like the following, telling you both the title and
-the class name of the window (as well as the name of the translation
-class if the window is already recognized):
-.IP
-.nf
-\f[C]
-translation:\ Default\ for\ mysession\ \-\ Ardour\ (class\ ardour_ardour)
-\f[]
-.fi
-.PP
-Here, the class name is \[lq]ardour_ardour\[rq] and the window title
-\[lq]mysession \- Ardour\[rq].
-Either can be used for the regular expression, but the class name
-usually provides the more specific clues for identifying an application.
-So we might write:
-.IP
-.nf
-\f[C]
-[Ardour]\ ^ardour_ardour$
-\f[]
-.fi
-.PP
 To find a set of eligible translations, midizap matches class and title
 of the window with the keyboard focus against each section, in the order
 in which they are listed in the configuration file.
@@ -540,8 +512,38 @@ All other sections, including the main default section, can be named any
 way you like; the given \f[I]name\f[] is only used for debugging output
 and diagnostics, and needn't be unique.
 .PP
-The translations define what output should be produced for the given
-MIDI input.
+This means that when you start writing a section for a new application,
+the first thing you'll have to do is determine its window class and
+title, so that you can figure out a regular expression to use in the
+corresponding section header.
+The easiest way to do this is to run midizap with the \f[C]\-dr\f[]
+option.
+Make sure that your controller is hooked up to midizap, click on the
+window and wiggle any control on your device.
+You'll get a message like the following, telling you both the title and
+the class name of the window (as well as the name of the translation
+class if the window is already recognized):
+.IP
+.nf
+\f[C]
+translation:\ Default\ for\ mysession\ \-\ Ardour\ (class\ ardour_ardour)
+\f[]
+.fi
+.PP
+Here, the class name is \[lq]ardour_ardour\[rq] and the window title
+\[lq]mysession \- Ardour\[rq].
+Either can be used for the regular expression, but the class name
+usually provides the more specific clues for identifying an application.
+So we might write:
+.IP
+.nf
+\f[C]
+[Ardour]\ ^ardour_ardour$
+\f[]
+.fi
+.PP
+The header is followed by a list of translations which define what
+output should be produced for the given MIDI input.
 Each translation must be on a line by itself.
 The left\-hand side (first token) of the translation denotes the MIDI
 message to be translated.
@@ -555,6 +557,16 @@ input.
 Translation classes may be empty as well (i.e., not provide any
 translations), in which case \f[I]only\f[] the default translations are
 active, even if a later non\-default section matches the same window.
+.PP
+\f[B]NOTE:\f[] Translations may be listed in any order, but they
+\f[I]must be determined uniquely\f[], i.e., each input message may be
+bound to at most one output sequence in each translation class.
+Otherwise, the parser will print an error message, and the extra
+translations will be ignored.
+This restriction makes it easier to detect inconsistencies, and it also
+ensures that midizap's operation is completely \f[I]deterministic\f[].
+That is, for each input sequence on a given window the program will
+always generate exactly the same output sequence.
 .PP
 Example:
 .IP
@@ -575,16 +587,6 @@ keys as well as some frequently used shell commands, in a section named
 their class names.
 The bindings in this translation class will let you operate the shell
 from your MIDI keyboard when the keyboard focus is on a terminal window.
-.PP
-\f[B]NOTE:\f[] Translations may be listed in any order, but they
-\f[I]must be determined uniquely\f[], i.e., each input message may be
-bound to at most one output sequence in each translation class.
-Otherwise, the parser will print an error message, and the extra
-translations will be ignored.
-This restriction makes it easier to detect inconsistencies, and it also
-ensures that midizap's operation is completely \f[I]deterministic\f[].
-That is, for each input sequence on a given window the program will
-always generate exactly the same output sequence.
 .SS MIDI Message Notation
 .PP
 There's no real standard for symbolic designations of MIDI messages, but
@@ -1096,7 +1098,7 @@ the method works best if the input and output step sizes are reasonably
 small.)
 .PP
 \f[B]NOTE:\f[] All data translations we've seen so far handle
-\f[I]incremental\f[] value changes only.
+\f[I]incremental\f[] value changes.
 In order to be able to detect these changes and, in the case of MIDI
 output, change the output values accordingly, midizap has to keep track
 of all the current parameter values of all messages on all MIDI
@@ -1108,22 +1110,18 @@ This means that midizap's \[lq]shadow\[rq] values of controllers, pitch
 bends etc.\ may initially well be out of sync with your input devices
 and applications, and you may have to wiggle a control in order to
 \[lq]calibrate\[rq] it.
-.PP
-This becomes most apparent when using negative step sizes, as in the
+(This becomes most apparent when using negative step sizes, as in the
 translation \f[C]CC1=\ CC1[\-1]\f[] from above.
-If you start increasing that control initially, midizap still thinks
-that the \f[C]CC1\f[] output controller is at value 0, so the change
-will not have any visible effect until you've moved the control up a bit
-and then start pulling it back down again.
-In fact, to get the full range of output values in this case, you will
-first have to move the control all the way up and then down again to
-calibrate it.
-.PP
-However, it is possible to get rid of these defects by making use of
-controller \f[I]feedback\f[], if both your controller and the host
-application have that feature.
-See \f[I]Automatic Feedback\f[] in the \f[I]MIDI Feedback\f[] section
-below for details.
+In this case, you will first have to move the control all the way up and
+then down again to get it working properly.) There are some ways to
+alleviate these issues, however.
+In particular, midizap can utilize controller feedback from the
+application, please check the \f[I]MIDI Feedback\f[] section below for
+details.
+Also, encoders need no calibration as they represent incremental changes
+anyway, and there's an alternative form of data translation, to be
+discussed in Section \f[I]Mod Translations\f[], which always works with
+absolute values and thus needs no calibration either.
 .SS Shift State
 .PP
 Like the \f[C]CH\f[] token, the special \f[C]SHIFT\f[] token doesn't
@@ -1196,8 +1194,8 @@ The syntax is a bit awkward, but the case arises rarely (usually, you'll
 just write an unprefixed rule instead).
 .PP
 midizap actually supports up to four different shift states, which are
-denoted \f[C]SHIFT1\f[], \&..., \f[C]SHIFT4\f[], with the corresponding
-prefixes being \f[C]1^\f[], \&..., \f[C]4^\f[].
+denoted \f[C]SHIFT1\f[] to \f[C]SHIFT4\f[], with the corresponding
+prefixes being \f[C]1^\f[] to \f[C]4^\f[].
 Unprefixed rules are enabled by default in all of these.
 The \f[C]SHIFT\f[] token and \f[C]^\f[] prefix we've seen above are in
 fact just shortcuts for \f[C]SHIFT1\f[] and \f[C]1^\f[], respectively.
@@ -1222,22 +1220,29 @@ F7\ SHIFT2\ RELEASE\ SHIFT2
 \f[]
 .fi
 .PP
-To keep things simple, only one shift status can be active at any one
-time; if you press more than one such key, the last one wins.
-Also note that when using a shift key in the manner described above, its
-status is \f[I]only\f[] available internally to the midizap program; the
-host application never gets to see it.
-If your host software does its own handling of shift keys (as most
-Mackie\-compatible DAWs do), it's usually more convenient to simply pass
-those keys on to the application.
-However, \f[C]SHIFT\f[] comes in handy if your controller simply doesn't
-have enough buttons and faders to control all the essential features of
-your target application.
-In this case the internal shift state makes it possible to multiply the
+Another way to look at this is that translations are organized in
+\f[I]layers\f[].
+Layer 0 contains the unshifted translations, layer 1 to 4 the
+translations prefixed with the corresponding shift level.
+Unprefixed translations are available in all of these layers, unless
+they are overriden by translations specifically assigned to one of the
+layers.
+To keep things simple, only one layer can be active at any one time; if
+you press more than one shift key without releasing them, the last one
+wins.
+.PP
+Also note that the status of internal shift keys is \f[I]only\f[]
+available to the midizap program; the host application never gets to see
+them.
+If your host software does its own handling of shift keys, it's usually
+more convenient to simply pass those keys on to the application.
+However, \f[C]SHIFT\f[] comes in handy if your controller doesn't have
+enough buttons and faders, since it makes it possible to multiply the
 amount of controls available on the device.
 For instance, you can emulate a Mackie controller with both encoders and
-faders on a device which only has a single set of faders, by assigning
-the shifted faders to the encoders, as shown in the first example above.
+faders on a device which only has a single set of faders, simply by
+assigning the shifted faders to the encoders, as shown in the first
+example above.
 .SH MIDI Feedback
 .PP
 Some MIDI controllers need a more elaborate setup than what we've seen
@@ -1304,14 +1309,13 @@ Use this option \f[I]only\f[] if feedback isn't needed with your
 application.
 .SS Direct Feedback
 .PP
-Translations can also provide the required feedback themselves if the
-application doesn't do it.
+Translations can also provide feedback themselves.
 To these ends, any MIDI message on the right\-hand side of a translation
 can be prefixed with the \f[C]!\f[] character.
 This outputs the message as usual, but flips the output ports, so that
-the message will go to the \f[I]second\f[] port in a forward
-translation, and vice versa for feedback translations in the
-\f[C][MIDI2]\f[] section.
+the message will go to port 2 in a forward translation destined for port
+1, and vice versa to port 1 in a feedback translation (in the
+\f[C][MIDI2]\f[] section) destined for port 2.
 .PP
 We call this \f[I]direct feedback\f[].
 For instance, suppose that on our MIDI controller we have a fader taking
@@ -1440,9 +1444,10 @@ CP[16]\ C0
 In contrast to standard data translations, there's no increment flag
 here, so the translation does \f[I]not\f[] indicate an incremental
 change of the input value.
-Instead, the step size on the left\-hand side is actually treated as a
-\f[I]modulus\f[], in order to decompose the input value into two
-separate quantities, \f[I]quotient\f[] and \f[I]remainder\f[].
+Instead, mod translations always work with \f[I]absolute\f[] values, and
+the step size on the left\-hand side is treated as a \f[I]modulus\f[] to
+decompose the input value into two separate quantities,
+\f[I]quotient\f[] and \f[I]remainder\f[].
 Only the latter becomes the value of the output message, while the
 former is used as an \f[I]offset\f[] to modify the output message.
 (Note that \f[C]CP\f[] and \f[C]PB\f[] messages don't have a modifiable
@@ -1466,10 +1471,11 @@ On the APCmini, this message will light up the second button in the
 bottom row of the 8x8 grid in yellow.
 .PP
 This transformation is surprisingly versatile, and there are some
-variations of the syntax which make it even more flexible.
-The extended MIDI syntax being used here is described by the following
-grammar rules (please also refer to Section \f[I]MIDI Message
-Notation\f[] for the rest of the MIDI syntax):
+extensions of the MIDI syntax which make it even more flexible.
+These extensions are only available in mod translations.
+They are described by the following grammar rules (please also refer to
+Section \f[I]MIDI Message Notation\f[] for the rest of the grammar rules
+for the MIDI syntax):
 .IP
 .nf
 \f[C]
@@ -1483,7 +1489,7 @@ flag\ \ ::=\ "\[aq]"
 There are three new elements in the syntax, an empty modulus bracket
 \f[C][]\f[], the \[lq]transposition\[rq] flag \f[C]\[aq]\f[], and lists
 of numbers enclosed in curly braces.
-These have the following meaning:
+They have the following meaning:
 .IP \[bu] 2
 The \f[I]empty modulus\f[] bracket, denoted \f[C][]\f[] on the
 left\-hand side of a mod translation, indicates a default modulus large
@@ -1499,9 +1505,9 @@ the value of the output message.
 \f[I]Value lists\f[], denoted as lists of numbers separated by commas
 and enclosed in curly braces, provide a way to describe \f[I]discrete
 mappings\f[] of input to output values.
-To these ends, the input value is used as an index into the list to give
-the corresponding output value, and the last value in the list will be
-used for any index which runs past the end of the list.
+The input value is used as an index into the list to give the
+corresponding output value, and the last value in the list will be used
+for any index which runs past the end of the list.
 There are also some convenient shortcuts which let you construct these
 lists more easily: repetition \f[I]a\f[]\f[C]:\f[]\f[I]b\f[] (denoting
 \f[I]b\f[] consecutive \f[I]a\f[]'s) and enumeration
@@ -1511,18 +1517,16 @@ which ramps either up or down depending on whether
 \f[I]a\f[]<=\f[I]b\f[] or \f[I]a\f[]>\f[I]b\f[], respectively).
 .PP
 These are often used in concert.
-While we will introduce value lists in a moment, we won't actually use
-the default modulus or transposition in our running example.
-But they're very convenient in some situations, and we'll get back to
-them in the following subsections.
+We will introduce value lists in a moment, and cover the use of default
+modulus and transposition in subsequent subsections.
 .PP
 \f[B]NOTE:\f[] In the context of mod translations, pitch bend values are
 interpreted as \f[I]unsigned\f[] quantities in the range 0..16383 (with
 8192 denoting the center value), which corresponds to the way they are
 actually encoded in MIDI.
-This makes the modular arithmetic work consistently for all types of
-MIDI messages, and also makes it easier to convert between pitch bends
-and other types of parameter values in mod translations.
+This makes the modular arithmetic work consistently across all types of
+MIDI messages, and also facilitates conversions between the different
+types of absolute parameter values.
 Normally you shouldn't have to worry about this, but the change in
 representation needs to be taken into account when transforming pitch
 bend values with value lists.
@@ -1538,13 +1542,11 @@ CP[16]\ C0[2]
 \f[]
 .fi
 .PP
-But this won't do us much good here, because the required
-transformations to calculate the colors (i.e., velocities) from
-\f[I]r\f[] are more complicated, so we specify them as value lists
+More complicated transformations can be specified as value lists
 instead.
-The APCmini uses the velocities 0, 1, 3 and 5 to denote \[lq]off\[rq]
-and the colors green, red and yellow, respectively, so we can map the
-meter values to different colors, e.g., as follows:
+E.g., the APCmini uses the velocities 0, 1, 3 and 5 to denote
+\[lq]off\[rq] and the colors green, red and yellow, respectively, so we
+can map the meter values to different colors as follows:
 .IP
 .nf
 \f[C]
@@ -1563,11 +1565,11 @@ CP[16]\ C0{0,1:8,5:3,3}
 .PP
 Thus 0 will be mapped to 0 (off), 1..8 to 1 (green), 9..11 to 5
 (yellow), and 12 or more to 3 (red).
-(These values are in line with the MCP feedback spit out by Ardour, and
-what little technical documentation about the Mackie protocol is
-available on the web.
-YMMV, though, so you may have to experiment to make this rule work with
-your DAW.)
+(These values appear to be in line with the MCP feedback spit out by
+Ardour, and what little technical documentation about the Mackie
+protocol is available on the web.
+Your mileage may vary, though, so you may have to experiment with these
+values to make this rule work with your DAW.)
 .PP
 The quotient here is the mixer channel index in the high\-nibble of the
 \f[C]CP\f[] message, which will be used as an offset for the \f[C]C0\f[]
@@ -1611,8 +1613,8 @@ CP[16]\ C0{0,1}\ G#0{0:8,5}\ E1{0:11,3}
 Note that each of the output notes will be offset by the same amount, so
 that the green, yellow and red buttons will always be lined up
 vertically in this example.
-(The APCmini.midizaprc example actually uses a similar scheme mapping
-the meter values to the 5x8 button grid on the top.)
+(The APCmini.midizaprc example actually uses a very similar scheme
+mapping the meter values to the five topmost button rows.)
 .PP
 Another example from the Mackie protocol is time feedback.
 The following rule (also from the APCmini.midizaprc example) decodes the
@@ -1631,7 +1633,7 @@ CC69[]\ F7{0:49,1,0}\ E7{0:50,1,0}\ Eb7{0:51,1,0}\ D7{0:52,1,0}
 .PP
 Also note the use of an empty modulus bracket on the left\-hand side,
 which means that we always have a zero offset here and thus the output
-notes aren't modified.
+notes aren't modified in this example.
 .SS Basic Mod Translations
 .PP
 While mod translations are often employed for MIDI feedback, they can
@@ -1661,12 +1663,15 @@ value becomes the velocity of the note.
 Note that this is different from both the key translation
 \f[C]CC1\ C5\f[] (which only preserves the \[lq]on\[rq]/\[lq]off\[rq]
 status but looses the actual parameter value) and the incremental data
-translation \f[C]CC1=\ C5\f[] (which executes the translation in a
-step\-wise fashion for each unit change).
-In contrast, a mod translation always maps messages in a single step.
-While key and incremental data translations are typically used in
-conjunction with key and mouse output, for pure MIDI bindings like the
-one above a basic mod translation is often preferable.
+translation \f[C]CC1=\ C5\f[] (which usually preserves the value, but
+executes the translation in a step\-wise fashion).
+A mod translation always maps messages in a single step, which
+reproduces leaps in the input values on the output side (and, as a side
+effect, also reduces the amount of data traffic compared to incremental
+data translations).
+While key and incremental data translations are tailored to key and
+mouse output, for pure MIDI bindings like the one above a basic mod
+translation is often preferable.
 .PP
 You also need to use a mod translation if your binding involves discrete
 value lists, because these are not available in other kinds of
@@ -1770,9 +1775,8 @@ CC1[]\ C0\[aq]
 \f[]
 .fi
 .PP
-Note that the input value, which becomes the velocity of the output
-note, will always be zero here, so the above translation turns all notes
-off.
+Note that the quotient, which becomes the velocity of the output note,
+will always be zero here, so the above translation turns all notes off.
 To get a nonzero velocity, you specify it in a value list:
 .IP
 .nf
@@ -1780,9 +1784,6 @@ To get a nonzero velocity, you specify it in a value list:
 CC2[]\ C0{127}\[aq]
 \f[]
 .fi
-.PP
-Again, you can also write this as a mod translation
-\f[C]CC2[1]\ C0{127}\f[] with unit modulus if you prefer.
 .SS Extracting Sub\-Values
 .PP
 Another important idiom is the following, which extracts the low nibble

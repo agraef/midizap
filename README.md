@@ -180,7 +180,9 @@ The `#` character at the beginning of a line and after whitespace is special; it
 
 Lines beginning with a `[`*name*`]` header are also special. Each such line introduces a translation class *name*, which may be followed by a basic regular expression *regex* (see the regex(7) manual page) to be matched against window class and title. Note that *everything* following the `[`*name*`]` header on the same line is taken verbatim; the *regex* part is the entire rest of the line, ignoring leading and trailing whitespace, but including embedded whitespace and `#` characters (so you can't place a comment on such lines).
 
-This means that when you're writing a configuration for a new application, you'll have to determine its window class and title, so that you can figure out a regular expression to use in the corresponding section header. The easiest way to do this is to run midizap with the `-dr` option, click on the window, and wiggle any control on your device. You'll get a message like the following, telling you both the title and the class name of the window (as well as the name of the translation class if the window is already recognized):
+To find a set of eligible translations, midizap matches class and title of the window with the keyboard focus against each section, in the order in which they are listed in the configuration file. For each section, midizap first tries to match the window class (the `WM_CLASS` property), then the window title (the `WM_NAME` property). The first section which matches determines the translations to be used for that window. An empty *regex* for the last class will always match, allowing default translations. If a translation cannot be found in the matched section, it will be loaded from the default section if possible. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the given *name* is only used for debugging output and diagnostics, and needn't be unique.
+
+This means that when you start writing a section for a new application, the first thing you'll have to do is determine its window class and title, so that you can figure out a regular expression to use in the corresponding section header. The easiest way to do this is to run midizap with the `-dr` option. Make sure that your controller is hooked up to midizap, click on the window and wiggle any control on your device. You'll get a message like the following, telling you both the title and the class name of the window (as well as the name of the translation class if the window is already recognized):
 
 ~~~
 translation: Default for mysession - Ardour (class ardour_ardour)
@@ -192,9 +194,9 @@ Here, the class name is "ardour_ardour" and the window title "mysession - Ardour
 [Ardour] ^ardour_ardour$
 ~~~
 
-To find a set of eligible translations, midizap matches class and title of the window with the keyboard focus against each section, in the order in which they are listed in the configuration file. For each section, midizap first tries to match the window class (the `WM_CLASS` property), then the window title (the `WM_NAME` property). The first section which matches determines the translations to be used for that window. An empty *regex* for the last class will always match, allowing default translations. If a translation cannot be found in the matched section, it will be loaded from the default section if possible. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the given *name* is only used for debugging output and diagnostics, and needn't be unique.
+The header is followed by a list of translations which define what output should be produced for the given MIDI input. Each translation must be on a line by itself. The left-hand side (first token) of the translation denotes the MIDI message to be translated. The corresponding right-hand side (the rest of the line) is a sequence of zero or more tokens, separated by whitespace, indicating MIDI and X11 keyboard and mouse events to be output. The output sequence may be empty, or just the special token `NOP` (which doesn't produce any output), to indicate that the translation outputs nothing at all; this suppresses the default translation for this input. Translation classes may be empty as well (i.e., not provide any translations), in which case *only* the default translations are active, even if a later non-default section matches the same window.
 
-The translations define what output should be produced for the given MIDI input. Each translation must be on a line by itself. The left-hand side (first token) of the translation denotes the MIDI message to be translated. The corresponding right-hand side (the rest of the line) is a sequence of zero or more tokens, separated by whitespace, indicating MIDI and X11 keyboard and mouse events to be output. The output sequence may be empty, or just the special token `NOP` (which doesn't produce any output), to indicate that the translation outputs nothing at all; this suppresses the default translation for this input. Translation classes may be empty as well (i.e., not provide any translations), in which case *only* the default translations are active, even if a later non-default section matches the same window.
+**NOTE:** Translations may be listed in any order, but they *must be determined uniquely*, i.e., each input message may be bound to at most one output sequence in each translation class. Otherwise, the parser will print an error message, and the extra translations will be ignored. This restriction makes it easier to detect inconsistencies, and it also ensures that midizap's operation is completely *deterministic*. That is, for each input sequence on a given window the program will always generate exactly the same output sequence.
 
 Example:
 
@@ -208,8 +210,6 @@ Example:
 ~~~
 
 This binds a few keys in the middle octave to the Up, Down and Return keys as well as some frequently used shell commands, in a section named `Terminal` which matches some common types of terminal windows by their class names. The bindings in this translation class will let you operate the shell from your MIDI keyboard when the keyboard focus is on a terminal window.
-
-**NOTE:** Translations may be listed in any order, but they *must be determined uniquely*, i.e., each input message may be bound to at most one output sequence in each translation class. Otherwise, the parser will print an error message, and the extra translations will be ignored. This restriction makes it easier to detect inconsistencies, and it also ensures that midizap's operation is completely *deterministic*. That is, for each input sequence on a given window the program will always generate exactly the same output sequence.
 
 ## MIDI Message Notation
  
@@ -406,11 +406,7 @@ CC1[3]= CC1[2]
 
 The above translation will only be triggered when the input value changes by 3 units, and the change in the output value will then be doubled again, so that the net effect is to scale the input value by 2/3. (Note that for most ratios this will only give a rough approximation; the method works best if the input and output step sizes are reasonably small.)
 
-**NOTE:** All data translations we've seen so far handle *incremental* value changes only. In order to be able to detect these changes and, in the case of MIDI output, change the output values accordingly, midizap has to keep track of all the current parameter values of all messages on all MIDI channels, for both input and output. This is easy enough, but midizap usually has no way of knowing the *actual* state of your controllers and MIDI applications, so when the program starts up, it simply assumes all these values to be zero. This means that midizap's "shadow" values of controllers, pitch bends etc.\ may initially well be out of sync with your input devices and applications, and you may have to wiggle a control in order to "calibrate" it.
-
-This becomes most apparent when using negative step sizes, as in the translation `CC1= CC1[-1]` from above. If you start increasing that control initially, midizap still thinks that the `CC1` output controller is at value 0, so the change will not have any visible effect until you've moved the control up a bit and then start pulling it back down again. In fact, to get the full range of output values in this case, you will first have to move the control all the way up and then down again to calibrate it.
-
-However, it is possible to get rid of these defects by making use of controller *feedback*, if both your controller and the host application have that feature. See *Automatic Feedback* in the *MIDI Feedback* section below for details.
+**NOTE:** All data translations we've seen so far handle *incremental* value changes. In order to be able to detect these changes and, in the case of MIDI output, change the output values accordingly, midizap has to keep track of all the current parameter values of all messages on all MIDI channels, for both input and output. This is easy enough, but midizap usually has no way of knowing the *actual* state of your controllers and MIDI applications, so when the program starts up, it simply assumes all these values to be zero. This means that midizap's "shadow" values of controllers, pitch bends etc.\ may initially well be out of sync with your input devices and applications, and you may have to wiggle a control in order to "calibrate" it. (This becomes most apparent when using negative step sizes, as in the translation `CC1= CC1[-1]` from above. In this case, you will first have to move the control all the way up and then down again to get it working properly.) There are some ways to alleviate these issues, however. In particular, midizap can utilize controller feedback from the application, please check the *MIDI Feedback* section below for details. Also, encoders need no calibration as they represent incremental changes anyway, and there's an alternative form of data translation, to be discussed in Section *Mod Translations*, which always works with absolute values and thus needs no calibration either.
 
 ## Shift State
 
@@ -445,7 +441,7 @@ It's also possible to explicitly denote a rule which is active *only* in unshift
 
 The syntax is a bit awkward, but the case arises rarely (usually, you'll just write an unprefixed rule instead).
 
-midizap actually supports up to four different shift states, which are denoted `SHIFT1`, ..., `SHIFT4`, with the corresponding prefixes being `1^`, ..., `4^`. Unprefixed rules are enabled by default in all of these. The `SHIFT` token and `^` prefix we've seen above are in fact just shortcuts for `SHIFT1` and `1^`, respectively. So our first example above is equivalent to:
+midizap actually supports up to four different shift states, which are denoted `SHIFT1` to `SHIFT4`, with the corresponding prefixes being `1^` to `4^`. Unprefixed rules are enabled by default in all of these. The `SHIFT` token and `^` prefix we've seen above are in fact just shortcuts for `SHIFT1` and `1^`, respectively. So our first example above is equivalent to:
 
 ~~~
 D8 SHIFT1 RELEASE SHIFT1
@@ -461,7 +457,9 @@ F7 SHIFT2 RELEASE SHIFT2
 2^CC48+ XK_Right
 ~~~
 
-To keep things simple, only one shift status can be active at any one time; if you press more than one such key, the last one wins. Also note that when using a shift key in the manner described above, its status is *only* available internally to the midizap program; the host application never gets to see it. If your host software does its own handling of shift keys (as most Mackie-compatible DAWs do), it's usually more convenient to simply pass those keys on to the application. However, `SHIFT` comes in handy if your controller simply doesn't have enough buttons and faders to control all the essential features of your target application. In this case the internal shift state makes it possible to multiply the amount of controls available on the device. For instance, you can emulate a Mackie controller with both encoders and faders on a device which only has a single set of faders, by assigning the shifted faders to the encoders, as shown in the first example above.
+Another way to look at this is that translations are organized in *layers*. Layer 0 contains the unshifted translations, layer 1 to 4 the translations prefixed with the corresponding shift level. Unprefixed translations are available in all of these layers, unless they are overriden by translations specifically assigned to one of the layers. To keep things simple, only one layer can be active at any one time; if you press more than one shift key without releasing them, the last one wins.
+
+Also note that the status of internal shift keys is *only* available to the midizap program; the host application never gets to see them. If your host software does its own handling of shift keys, it's usually more convenient to simply pass those keys on to the application. However, `SHIFT` comes in handy if your controller doesn't have enough buttons and faders, since it makes it possible to multiply the amount of controls available on the device. For instance, you can emulate a Mackie controller with both encoders and faders on a device which only has a single set of faders, simply by assigning the shifted faders to the encoders, as shown in the first example above.
 
 # MIDI Feedback
 
@@ -481,7 +479,7 @@ We refer to this as *automatic feedback*. Some devices may provide you with sign
 
 ## Direct Feedback
 
-Translations can also provide the required feedback themselves if the application doesn't do it. To these ends, any MIDI message on the right-hand side of a translation can be prefixed with the `!` character. This outputs the message as usual, but flips the output ports, so that the message will go to the *second* port in a forward translation, and vice versa for feedback translations in the `[MIDI2]` section.
+Translations can also provide feedback themselves. To these ends, any MIDI message on the right-hand side of a translation can be prefixed with the `!` character. This outputs the message as usual, but flips the output ports, so that the message will go to port 2 in a forward translation destined for port 1, and vice versa to port 1 in a feedback translation (in the `[MIDI2]` section) destined for port 2.
 
 We call this *direct feedback*. For instance, suppose that on our MIDI controller we have a fader taking the form of a touchstrip `CC1` that has some LEDs for conveying its current value. We might like to translate that message to a `CC7` message for the application, while also providing feedback to the controller. The following translation will do this:
 
@@ -531,11 +529,11 @@ In its simplest form, the translation looks as follows:
 CP[16] C0
 ~~~
 
-In contrast to standard data translations, there's no increment flag here, so the translation does *not* indicate an incremental change of the input value. Instead, the step size on the left-hand side is actually treated as a *modulus*, in order to decompose the input value into two separate quantities, *quotient* and *remainder*. Only the latter becomes the value of the output message, while the former is used as an *offset* to modify the output message. (Note that `CP` and `PB` messages don't have a modifiable offset, so if you use these on the output side of a mod translation, the offset part of the input value will be ignored. `PC` messages, on the other hand, lack the parameter value, so in this case the remainder value will be disregarded instead.)
+In contrast to standard data translations, there's no increment flag here, so the translation does *not* indicate an incremental change of the input value. Instead, mod translations always work with *absolute* values, and the step size on the left-hand side is treated as a *modulus* to decompose the input value into two separate quantities, *quotient* and *remainder*. Only the latter becomes the value of the output message, while the former is used as an *offset* to modify the output message. (Note that `CP` and `PB` messages don't have a modifiable offset, so if you use these on the output side of a mod translation, the offset part of the input value will be ignored. `PC` messages, on the other hand, lack the parameter value, so in this case the remainder value will be disregarded instead.)
 
 In order to describe more precisely how this works, let's assume an input value *v* and a modulus *k*. We divide *v* by *k*, yielding the quotient (offset) *q* = *v* div *k* and the remainder (value) *r* =  *v* mod *k*. E.g., with *k* = 16 and *v* = 21, you'll get *q* = 1 and *r* = 5 (21 divided by 16 yields 1 with a remainder of 5). The calculated offset *q* is then applied to the note itself, and the remainder *r* becomes the velocity of that note. So in the example above the output would be the note `C#0` (`C0` offset by 1) with a velocity of 5. On the APCmini, this message will light up the second button in the bottom row of the 8x8 grid in yellow.
 
-This transformation is surprisingly versatile, and there are some variations of the syntax which make it even more flexible. The extended MIDI syntax being used here is described by the following grammar rules (please also refer to Section *MIDI Message Notation* for the rest of the MIDI syntax):
+This transformation is surprisingly versatile, and there are some extensions of the MIDI syntax which make it even more flexible. These extensions are only available in mod translations. They are described by the following grammar rules (please also refer to Section *MIDI Message Notation* for the rest of the grammar rules for the MIDI syntax):
 
 ~~~
 token ::= msg [ steps ] [ "-" number] [ flag ]
@@ -544,17 +542,17 @@ list  ::= number { "," number | ":" number | "-" number }
 flag  ::= "'"
 ~~~
 
-There are three new elements in the syntax, an empty modulus bracket `[]`, the "transposition" flag `'`, and lists of numbers enclosed in curly braces. These have the following meaning:
+There are three new elements in the syntax, an empty modulus bracket `[]`, the "transposition" flag `'`, and lists of numbers enclosed in curly braces. They have the following meaning:
 
 - The *empty modulus* bracket, denoted `[]` on the left-hand side of a mod translation, indicates a default modulus large enough (16384 for `PB`, 128 for other messages) so that the offset *q* always becomes zero and the translation passes on the entire input value as is.
 
 - *Transposition*, denoted with the `'` (apostrophe) suffix on an output message, reverses the roles of *q* and *r*, so that the remainder becomes the offset and the quotient the value of the output message.
 
-- *Value lists*, denoted as lists of numbers separated by commas and enclosed in curly braces, provide a way to describe *discrete mappings* of input to output values. To these ends, the input value is used as an index into the list to give the corresponding output value, and the last value in the list will be used for any index which runs past the end of the list. There are also some convenient shortcuts which let you construct these lists more easily: repetition *a*`:`*b* (denoting *b* consecutive *a*'s) and enumeration *a*`-`*b* (denoting *a*`,`*a*±1`,`...`,`*b*, which ramps either up or down depending on whether *a*<=*b* or *a*>*b*, respectively).
+- *Value lists*, denoted as lists of numbers separated by commas and enclosed in curly braces, provide a way to describe *discrete mappings* of input to output values. The input value is used as an index into the list to give the corresponding output value, and the last value in the list will be used for any index which runs past the end of the list. There are also some convenient shortcuts which let you construct these lists more easily: repetition *a*`:`*b* (denoting *b* consecutive *a*'s) and enumeration *a*`-`*b* (denoting *a*`,`*a*±1`,`...`,`*b*, which ramps either up or down depending on whether *a*<=*b* or *a*>*b*, respectively).
 
-These are often used in concert. While we will introduce value lists in a moment, we won't actually use the default modulus or transposition in our running example. But they're very convenient in some situations, and we'll get back to them in the following subsections.
+These are often used in concert. We will introduce value lists in a moment, and cover the use of default modulus and transposition in subsequent subsections.
 
-**NOTE:** In the context of mod translations, pitch bend values are interpreted as *unsigned* quantities in the range 0..16383 (with 8192 denoting the center value), which corresponds to the way they are actually encoded in MIDI. This makes the modular arithmetic work consistently for all types of MIDI messages, and also makes it easier to convert between pitch bends and other types of parameter values in mod translations. Normally you shouldn't have to worry about this, but the change in representation needs to be taken into account when transforming pitch bend values with value lists.
+**NOTE:** In the context of mod translations, pitch bend values are interpreted as *unsigned* quantities in the range 0..16383 (with 8192 denoting the center value), which corresponds to the way they are actually encoded in MIDI. This makes the modular arithmetic work consistently across all types of MIDI messages, and also facilitates conversions between the different types of absolute parameter values. Normally you shouldn't have to worry about this, but the change in representation needs to be taken into account when transforming pitch bend values with value lists.
  
 Let's return to our example. As usual in data translations, you can also specify a step size on the right-hand side to upscale the output value (which is the remainder *r* here):
 
@@ -562,7 +560,7 @@ Let's return to our example. As usual in data translations, you can also specify
 CP[16] C0[2]
 ~~~
 
-But this won't do us much good here, because the required transformations to calculate the colors (i.e., velocities) from *r* are more complicated, so we specify them as value lists instead. The APCmini uses the velocities 0, 1, 3 and 5 to denote "off" and the colors green, red and yellow, respectively, so we can map the meter values to different colors, e.g., as follows:
+More complicated transformations can be specified as value lists instead. E.g., the APCmini uses the velocities 0, 1, 3 and 5 to denote "off" and the colors green, red and yellow, respectively, so we can map the meter values to different colors as follows:
 
 ~~~
 CP[16] C0{0,1,1,1,1,1,1,1,1,5,5,5,3}
@@ -574,7 +572,7 @@ Using the shorthand for repetitions, this can be written more succinctly (which 
 CP[16] C0{0,1:8,5:3,3}
 ~~~
 
-Thus 0 will be mapped to 0 (off), 1..8 to 1 (green), 9..11 to 5 (yellow), and 12 or more to 3 (red). (These values are in line with the MCP feedback spit out by Ardour, and what little technical documentation about the Mackie protocol is available on the web. YMMV, though, so you may have to experiment to make this rule work with your DAW.)
+Thus 0 will be mapped to 0 (off), 1..8 to 1 (green), 9..11 to 5 (yellow), and 12 or more to 3 (red). (These values appear to be in line with the MCP feedback spit out by Ardour, and what little technical documentation about the Mackie protocol is available on the web. Your mileage may vary, though, so you may have to experiment with these values to make this rule work with your DAW.)
 
 The quotient here is the mixer channel index in the high-nibble of the `CP` message, which will be used as an offset for the `C0` note on the right, so the above rule shows the meters as a single row of colored buttons at the bottom of the 8x8 grid on the APCmini (first value on `C0`, second value on `C#0`, etc.). To get a different layout, you can also scale the *offset* value, by adding a second step size to the left-hand side:
 
@@ -594,7 +592,7 @@ You might also output several notes at once, in order to display a horizontal or
 CP[16] C0{0,1} G#0{0:8,5} E1{0:11,3}
 ~~~
 
-Note that each of the output notes will be offset by the same amount, so that the green, yellow and red buttons will always be lined up vertically in this example. (The APCmini.midizaprc example actually uses a similar scheme mapping the meter values to the 5x8 button grid on the top.)
+Note that each of the output notes will be offset by the same amount, so that the green, yellow and red buttons will always be lined up vertically in this example. (The APCmini.midizaprc example actually uses a very similar scheme mapping the meter values to the five topmost button rows.)
 
 Another example from the Mackie protocol is time feedback. The following rule (also from the APCmini.midizaprc example) decodes the least significant digit of the beat number in the time display (`CC69`) to count off time on some of the scene launch buttons of the APCmini. Note that the digits are actually encoded in ASCII, hence the copious amount of initial zeros in the value lists below with which we skip over all the non-digit characters at the beginning of the ASCII table.
 
@@ -602,7 +600,7 @@ Another example from the Mackie protocol is time feedback. The following rule (a
 CC69[] F7{0:49,1,0} E7{0:50,1,0} Eb7{0:51,1,0} D7{0:52,1,0}
 ~~~
 
-Also note the use of an empty modulus bracket on the left-hand side, which means that we always have a zero offset here and thus the output notes aren't modified.
+Also note the use of an empty modulus bracket on the left-hand side, which means that we always have a zero offset here and thus the output notes aren't modified in this example.
 
 ## Basic Mod Translations
 
@@ -614,7 +612,7 @@ For more basic uses we often want to simply pass on (and possibly transform) the
 CC1[] C5
 ~~~
 
-This translates the `CC1` (modulation wheel) controller to  a `C5` (middle C) note message in such a way that the controller value becomes the velocity of the note. Note that this is different from both the key translation `CC1 C5` (which only preserves the "on"/"off" status but looses the actual parameter value) and the incremental data translation `CC1= C5` (which executes the translation in a step-wise fashion for each unit change). In contrast, a mod translation always maps messages in a single step. While key and incremental data translations are typically used in conjunction with key and mouse output, for pure MIDI bindings like the one above a basic mod translation is often preferable.
+This translates the `CC1` (modulation wheel) controller to  a `C5` (middle C) note message in such a way that the controller value becomes the velocity of the note. Note that this is different from both the key translation `CC1 C5` (which only preserves the "on"/"off" status but looses the actual parameter value) and the incremental data translation `CC1= C5` (which usually preserves the value, but executes the translation in a step-wise fashion). A mod translation always maps messages in a single step, which reproduces leaps in the input values on the output side (and, as a side effect, also reduces the amount of data traffic compared to incremental data translations). While key and incremental data translations are tailored to key and mouse output, for pure MIDI bindings like the one above a basic mod translation is often preferable.
 
 You also need to use a mod translation if your binding involves discrete value lists, because these are not available in other kinds of translations. Value lists can represent *any* discrete mapping from input to output values, and thus offer much more flexibility than simple step sizes. For instance, here's how to map controller values to the first few Fibonacci numbers:
 
@@ -662,13 +660,11 @@ This outputs the note with the same number as the controller value, `C0` for val
 CC1[] C0'
 ~~~
 
-Note that the input value, which becomes the velocity of the output note, will always be zero here, so the above translation turns all notes off. To get a nonzero velocity, you specify it in a value list:
+Note that the quotient, which becomes the velocity of the output note, will always be zero here, so the above translation turns all notes off. To get a nonzero velocity, you specify it in a value list:
 
 ~~~
 CC2[] C0{127}'
 ~~~
-
-Again, you can also write this as a mod translation `CC2[1] C0{127}` with unit modulus if you prefer.
 
 ## Extracting Sub-Values
 
