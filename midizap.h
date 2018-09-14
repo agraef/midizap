@@ -84,6 +84,8 @@ typedef struct _stroke_data {
   uint8_t is_incr;
   // modulus
   uint8_t mod;
+  // anyshift flag (default rule)
+  uint8_t anyshift;
 } stroke_data;
 
 #define N_SHIFTS 4 // number of distinct shift states

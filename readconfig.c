@@ -255,18 +255,20 @@ static int *stepsdup(int n_steps, int *steps)
 static stroke **find_stroke_data(stroke_data **sd,
 				 int chan, int data, int index,
 				 int step, int n_steps, int *steps,
-				 int incr, int mod,
+				 int incr, int mod, int anyshift,
 				 uint16_t *n, uint16_t *a)
 {
   uint16_t i;
   for (i = 0; i < *n; i++) {
     if ((*sd)[i].chan == chan && (*sd)[i].data == data) {
       // existing entry
+      if ((*sd)[i].s[index]) return 0;
       (*sd)[i].step[index] = step;
       (*sd)[i].n_steps[index] = n_steps;
       (*sd)[i].steps[index] = stepsdup(n_steps, steps);
       (*sd)[i].is_incr = incr;
       (*sd)[i].mod = mod;
+      (*sd)[i].anyshift = anyshift;
       return &(*sd)[i].s[index];
     }
   }
@@ -284,6 +286,7 @@ static stroke **find_stroke_data(stroke_data **sd,
   (*sd)[*n].steps[index] = stepsdup(n_steps, steps);
   (*sd)[*n].is_incr = incr;
   (*sd)[*n].mod = mod;
+  (*sd)[*n].anyshift = anyshift;
   return &(*sd)[(*n)++].s[index];
 }
 
@@ -301,125 +304,140 @@ static int check_stroke_data(stroke_data *sd,
 
 static stroke **find_note(translation *tr, int shift,
 			  int chan, int data, int index, int mod,
-			  int step, int n_steps, int *steps)
+			  int step, int n_steps, int *steps,
+			  int anyshift)
 {
   if (check_stroke_data(tr->notes[shift], chan, data, tr->n_notes[shift]))
     return 0;
   else
     return find_stroke_data(&tr->note[shift], chan, data, index,
-			    step, n_steps, steps, 0, mod,
+			    step, n_steps, steps, 0, mod, anyshift,
 			    &tr->n_note[shift], &tr->a_note[shift]);
 }
 
 static stroke **find_notes(translation *tr, int shift,
-			 int chan, int data, int index, int step)
+			   int chan, int data, int index, int step,
+			   int anyshift)
 {
   if (check_stroke_data(tr->note[shift], chan, data, tr->n_note[shift]))
     return 0;
   else
-    return find_stroke_data(&tr->notes[shift], chan, data, index, step,
-			    0, 0, 0, 0,
+    return find_stroke_data(&tr->notes[shift], chan, data, index,
+			    step, 0, 0, 0, 0, anyshift,
 			    &tr->n_notes[shift], &tr->a_notes[shift]);
 }
 
 static stroke **find_pc(translation *tr, int shift,
-			int chan, int data, int index)
+			int chan, int data, int index,
+			int anyshift)
 {
-  return find_stroke_data(&tr->pc[shift], chan, data, index, 0, 0, 0, 0, 0,
+  return find_stroke_data(&tr->pc[shift], chan, data, index,
+			  0, 0, 0, 0, 0, anyshift,
 			  &tr->n_pc[shift], &tr->a_pc[shift]);
 }
 
 static stroke **find_cc(translation *tr, int shift,
 			int chan, int data, int index, int mod,
-			int step, int n_steps, int *steps)
+			int step, int n_steps, int *steps,
+			int anyshift)
 {
   if (check_stroke_data(tr->ccs[shift], chan, data, tr->n_ccs[shift]))
     return 0;
   else
     return find_stroke_data(&tr->cc[shift], chan, data, index,
-			    step, n_steps, steps, 0, mod,
+			    step, n_steps, steps, 0, mod, anyshift,
 			    &tr->n_cc[shift], &tr->a_cc[shift]);
 }
 
 static stroke **find_ccs(translation *tr, int shift,
-			 int chan, int data, int index, int step, int incr)
+			 int chan, int data, int index, int step, int incr,
+			 int anyshift)
 {
   if (check_stroke_data(tr->cc[shift], chan, data, tr->n_cc[shift]))
     return 0;
   else
-    return find_stroke_data(&tr->ccs[shift], chan, data, index, step, 0, 0,
-			    incr, 0,
+    return find_stroke_data(&tr->ccs[shift], chan, data, index,
+			    step, 0, 0, incr, 0, anyshift,
 			    &tr->n_ccs[shift], &tr->a_ccs[shift]);
 }
 
 static stroke **find_kp(translation *tr, int shift,
 			int chan, int data, int index, int mod,
-			int step, int n_steps, int *steps)
+			int step, int n_steps, int *steps,
+			int anyshift)
 {
   if (check_stroke_data(tr->kps[shift], chan, data, tr->n_kps[shift]))
     return 0;
   else
     return find_stroke_data(&tr->kp[shift], chan, data, index,
-			    step, n_steps, steps, 0, mod,
+			    step, n_steps, steps, 0, mod, anyshift,
 			    &tr->n_kp[shift], &tr->a_kp[shift]);
 }
 
 static stroke **find_kps(translation *tr, int shift,
-			 int chan, int data, int index, int step)
+			 int chan, int data, int index, int step,
+			 int anyshift)
 {
   if (check_stroke_data(tr->kp[shift], chan, data, tr->n_kp[shift]))
     return 0;
   else
     return find_stroke_data(&tr->kps[shift], chan, data, index, step,
-			    0, 0, 0, 0,
+			    0, 0, 0, 0, anyshift,
 			    &tr->n_kps[shift], &tr->a_kps[shift]);
 }
 
 static stroke **find_cp(translation *tr, int shift,
 			int chan, int index, int mod,
-			int step, int n_steps, int *steps)
+			int step, int n_steps, int *steps,
+			int anyshift)
 {
   if (check_stroke_data(tr->cps[shift], chan, 0, tr->n_cps[shift]))
     return 0;
   else
     return find_stroke_data(&tr->cp[shift], chan, 0, index,
-			    step, n_steps, steps, 0, mod,
+			    step, n_steps, steps, 0, mod, anyshift,
 			    &tr->n_cp[shift], &tr->a_cp[shift]);
 }
 
 static stroke **find_cps(translation *tr, int shift,
-			 int chan, int index, int step)
+			 int chan, int index, int step,
+			 int anyshift)
 {
   if (check_stroke_data(tr->cp[shift], chan, 0, tr->n_cp[shift]))
     return 0;
   else
     return find_stroke_data(&tr->cps[shift], chan, 0, index, step,
-			    0, 0, 0, 0,
+			    0, 0, 0, 0, anyshift,
 			    &tr->n_cps[shift], &tr->a_cps[shift]);
 }
 
 static stroke **find_pb(translation *tr, int shift,
 			int chan, int index, int mod,
-			int step, int n_steps, int *steps)
+			int step, int n_steps, int *steps,
+			int anyshift)
 {
   if (check_stroke_data(tr->pbs[shift], chan, 0, tr->n_pbs[shift]))
     return 0;
   else
     return find_stroke_data(&tr->pb[shift], chan, 0, index,
-			    step, n_steps, steps, 0, mod,
+			    step, n_steps, steps, 0, mod, anyshift,
 			    &tr->n_pb[shift], &tr->a_pb[shift]);
 }
 
 static stroke **find_pbs(translation *tr, int shift,
-			 int chan, int index, int step)
+			 int chan, int index, int step,
+			 int anyshift)
 {
   if (check_stroke_data(tr->pb[shift], chan, 0, tr->n_pb[shift]))
     return 0;
   else
     return find_stroke_data(&tr->pbs[shift], chan, 0, index, step,
-			    0, 0, 0, 0,
+			    0, 0, 0, 0, anyshift,
 			    &tr->n_pbs[shift], &tr->a_pbs[shift]);
 }
+
+static void dup_stroke_data(stroke_data **sd, uint16_t *n, uint16_t *a,
+			    stroke_data *sd1, uint16_t n1);
 
 void
 finish_translation_section(translation *tr)
@@ -427,13 +445,42 @@ finish_translation_section(translation *tr)
   int k;
 
   if (tr) {
+    for (k=1; k<N_SHIFTS+1; k++) {
+      dup_stroke_data(&tr->pc[k], &tr->n_pc[k], &tr->a_pc[k],
+		      tr->pc[0], tr->n_pc[0]);
+      dup_stroke_data(&tr->note[k], &tr->n_note[k], &tr->a_note[k],
+		      tr->note[0], tr->n_note[0]);
+      dup_stroke_data(&tr->notes[k], &tr->n_notes[k], &tr->a_notes[k],
+		      tr->notes[0], tr->n_notes[0]);
+      dup_stroke_data(&tr->cc[k], &tr->n_cc[k], &tr->a_cc[k],
+		      tr->cc[0], tr->n_cc[0]);
+      dup_stroke_data(&tr->ccs[k], &tr->n_ccs[k], &tr->a_ccs[k],
+		      tr->ccs[0], tr->n_ccs[0]);
+      dup_stroke_data(&tr->pb[k], &tr->n_pb[k], &tr->a_pb[k],
+		      tr->pb[0], tr->n_pb[0]);
+      dup_stroke_data(&tr->pbs[k], &tr->n_pbs[k], &tr->a_pbs[k],
+		      tr->pbs[0], tr->n_pbs[0]);
+      dup_stroke_data(&tr->kp[k], &tr->n_kp[k], &tr->a_kp[k],
+		      tr->kp[0], tr->n_kp[0]);
+      dup_stroke_data(&tr->kps[k], &tr->n_kps[k], &tr->a_kps[k],
+		      tr->kps[0], tr->n_kps[0]);
+      dup_stroke_data(&tr->cp[k], &tr->n_cp[k], &tr->a_cp[k],
+		      tr->cp[0], tr->n_cp[0]);
+      dup_stroke_data(&tr->cps[k], &tr->n_cps[k], &tr->a_cps[k],
+		      tr->cps[0], tr->n_cps[0]);
+    }
     for (k=0; k<N_SHIFTS+1; k++) {
       finish_stroke_data(&tr->pc[k], &tr->n_pc[k], &tr->a_pc[k]);
       finish_stroke_data(&tr->note[k], &tr->n_note[k], &tr->a_note[k]);
+      finish_stroke_data(&tr->notes[k], &tr->n_notes[k], &tr->a_notes[k]);
       finish_stroke_data(&tr->cc[k], &tr->n_cc[k], &tr->a_cc[k]);
       finish_stroke_data(&tr->ccs[k], &tr->n_ccs[k], &tr->a_ccs[k]);
       finish_stroke_data(&tr->pb[k], &tr->n_pb[k], &tr->a_pb[k]);
       finish_stroke_data(&tr->pbs[k], &tr->n_pbs[k], &tr->a_pbs[k]);
+      finish_stroke_data(&tr->kp[k], &tr->n_kp[k], &tr->a_kp[k]);
+      finish_stroke_data(&tr->kps[k], &tr->n_kps[k], &tr->a_kps[k]);
+      finish_stroke_data(&tr->cp[k], &tr->n_cp[k], &tr->a_cp[k]);
+      finish_stroke_data(&tr->cps[k], &tr->n_cps[k], &tr->a_cps[k]);
     }
   }
 }
@@ -753,9 +800,7 @@ stroke **first_stroke;
 stroke *last_stroke;
 stroke **press_first_stroke;
 stroke **release_first_stroke;
-stroke **alt_press_stroke[N_SHIFTS];
-stroke **alt_release_stroke[N_SHIFTS];
-int is_keystroke, is_bidirectional, is_anyshift, is_midi, is_nop, mode;
+int is_keystroke, is_bidirectional, is_midi, is_nop, mode;
 char *current_translation;
 char *key_name;
 int first_release_stroke; // is this the first stroke of a release?
@@ -1273,17 +1318,47 @@ static int chk(stroke **s)
   return !s || *s;
 }
 
-static int chks(stroke **s[N_SHIFTS])
+static void dup_stroke_data(stroke_data **sd, uint16_t *n, uint16_t *a,
+			    stroke_data *sd1, uint16_t n1)
 {
-  for (int i = 0; i < N_SHIFTS; i++)
-    if (chk(s[i])) return 1;
-  return 0;
+  for (int i = 0; i < n1; i++) {
+    if (sd1[i].anyshift) {
+      for (int index = 0; index < 2; index++) {
+	stroke **t =
+	  find_stroke_data(sd, sd1[i].chan, sd1[i].data, index,
+			   sd1[i].step[index],
+			   sd1[i].n_steps[index], sd1[i].steps[index],
+			   sd1[i].is_incr, sd1[i].mod, 0,
+			   n, a);
+	// only add a default translation if we don't have one already
+	if (!chk(t)) {
+	  stroke *s = sd1[i].s[index];
+	  first_stroke = t;
+	  is_keystroke = 0;
+	  while (s) {
+	    if (s->keysym) {
+	      append_stroke(s->keysym, s->press);
+	    } else if (s->shift) {
+	      append_shift(s->shift);
+	    } else if (!s->status) {
+	      append_nop();
+	    } else {
+	      append_midi(s->status, s->data,
+			  s->step, s->n_steps, s->steps,
+			  s->swap, s->incr, s->recursive, s->feedback);
+	    }
+	    s = s->next;
+	  }
+	}
+      }
+    }
+  }
 }
 
 int
 start_translation(translation *tr, char *which_key)
 {
-  int status, data, step, n_steps, *steps, incr, dir, mod, swap;
+  int status, data, step, n_steps, *steps, incr, dir, mod, swap, anyshift;
   char buf[100];
 
   //printf("start_translation(%s)\n", which_key);
@@ -1294,7 +1369,7 @@ start_translation(translation *tr, char *which_key)
   }
   current_translation = tr->name;
   key_name = which_key;
-  is_keystroke = is_bidirectional = is_midi = is_nop = is_anyshift = 0;
+  is_keystroke = is_bidirectional = is_midi = is_nop = anyshift = 0;
   first_release_stroke = 0;
   regular_key_down = 0;
   modifier_count = 0;
@@ -1308,7 +1383,7 @@ start_translation(translation *tr, char *which_key)
     }
   } else if (*which_key == '^') {
     offs = k = 1;
-  } else if ((is_anyshift = *which_key == '?')) {
+  } else if ((anyshift = *which_key == '?')) {
     offs = 1; k = 0;
   }
   if (parse_midi(which_key+offs, buf, 1, 0, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod, &swap)) {
@@ -1322,33 +1397,24 @@ start_translation(translation *tr, char *which_key)
 	  fprintf(stderr, "zero or negative step size not permitted here: [%s]%s\n", current_translation, which_key);
 	  return 1;
 	}
-	first_stroke = find_notes(tr, k, chan, data, dir>0, step);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_notes(tr, i+1, chan, data, dir>0, step);
-	}
+	first_stroke = find_notes(tr, k, chan, data, dir>0, step,
+				  anyshift);
 	if (!dir) {
 	  is_bidirectional = 1;
-	  release_first_stroke = find_notes(tr, k, chan, data, 1, step);
-	  if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	    alt_release_stroke[i] = find_notes(tr, i+1, chan, data, 1, step);
-	  }
+	  release_first_stroke = find_notes(tr, k, chan, data, 1, step,
+					    anyshift);
 	}
       } else if (mod) {
 	// note mod
 	first_stroke = find_note(tr, k, chan, data, 0, mod,
-				 step, n_steps, steps);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_note(tr, i+1, chan, data, 0, mod,
-					  step, n_steps, steps);
-	}
+				 step, n_steps, steps,
+				 anyshift);
       } else {
 	// note on/off
-	first_stroke = find_note(tr, k, chan, data, 0, 0, 0, 0, 0);
-	release_first_stroke = find_note(tr, k, chan, data, 1, 0, 0, 0, 0);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_note(tr, i+1, chan, data, 0, 0, 0, 0, 0);
-	  alt_release_stroke[i] = find_note(tr, i+1, chan, data, 1, 0, 0, 0, 0);
-	}
+	first_stroke = find_note(tr, k, chan, data, 0, 0, 0, 0, 0,
+				 anyshift);
+	release_first_stroke = find_note(tr, k, chan, data, 1, 0, 0, 0, 0,
+					 anyshift);
 	is_keystroke = 1;
       }
       break;
@@ -1358,12 +1424,10 @@ start_translation(translation *tr, char *which_key)
       // this message has no off state. Thus, when we receive a pc, it's
       // supposed to be treated as a "press" sequence immediately followed by
       // the corresponding "release" sequence.
-      first_stroke = find_pc(tr, k, chan, data, 0);
-      release_first_stroke = find_pc(tr, k, chan, data, 1);
-      if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	alt_press_stroke[i] = find_pc(tr, i+1, chan, data, 0);
-	alt_release_stroke[i] = find_pc(tr, i+1, chan, data, 1);
-      }
+      first_stroke = find_pc(tr, k, chan, data, 0,
+			     anyshift);
+      release_first_stroke = find_pc(tr, k, chan, data, 1,
+				     anyshift);
       is_keystroke = 1;
       break;
     case 0xb0:
@@ -1373,10 +1437,8 @@ start_translation(translation *tr, char *which_key)
 	  fprintf(stderr, "zero or negative step size not permitted here: [%s]%s\n", current_translation, which_key);
 	  return 1;
 	}
-	first_stroke = find_ccs(tr, k, chan, data, dir>0, step, incr>1);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_ccs(tr, i+1, chan, data, dir>0, step, incr>1);
-	}
+	first_stroke = find_ccs(tr, k, chan, data, dir>0, step, incr>1,
+				anyshift);
 	if (!dir) {
 	  // This is a bidirectional translation (=, ~). We first fill in the
 	  // "down" part (pointed to by first_stroke). When finishing off the
@@ -1386,27 +1448,20 @@ start_translation(translation *tr, char *which_key)
 	  // translation, here to remember the "up" part of the translation,
 	  // so that we can fill in that part later.
 	  is_bidirectional = 1;
-	  release_first_stroke = find_ccs(tr, k, chan, data, 1, step, incr>1);
-	  if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	    alt_release_stroke[i] = find_ccs(tr, i+1, chan, data, 1, step, incr>1);
-	  }
+	  release_first_stroke = find_ccs(tr, k, chan, data, 1, step, incr>1,
+					  anyshift);
 	}
       } else if (mod) {
 	// cc mod
 	first_stroke = find_cc(tr, k, chan, data, 0, mod,
-			       step, n_steps, steps);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_cc(tr, i+1, chan, data, 0, mod,
-				     step, n_steps, steps);
-	}
+			       step, n_steps, steps,
+			       anyshift);
       } else {
 	// cc on/off
-	first_stroke = find_cc(tr, k, chan, data, 0, 0, 0, 0, 0);
-	release_first_stroke = find_cc(tr, k, chan, data, 1, 0, 0, 0, 0);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_cc(tr, i+1, chan, data, 0, 0, 0, 0, 0);
-	  alt_release_stroke[i] = find_cc(tr, i+1, chan, data, 1, 0, 0, 0, 0);
-	}
+	first_stroke = find_cc(tr, k, chan, data, 0, 0, 0, 0, 0,
+			       anyshift);
+	release_first_stroke = find_cc(tr, k, chan, data, 1, 0, 0, 0, 0,
+				       anyshift);
 	is_keystroke = 1;
       }
       break;
@@ -1417,33 +1472,24 @@ start_translation(translation *tr, char *which_key)
 	  fprintf(stderr, "zero or negative step size not permitted here: [%s]%s\n", current_translation, which_key);
 	  return 1;
 	}
-	first_stroke = find_kps(tr, k, chan, data, dir>0, step);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_kps(tr, i+1, chan, data, dir>0, step);
-	}
+	first_stroke = find_kps(tr, k, chan, data, dir>0, step,
+				anyshift);
 	if (!dir) {
 	  is_bidirectional = 1;
-	  release_first_stroke = find_kps(tr, k, chan, data, 1, step);
-	  if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	    alt_release_stroke[i] = find_kps(tr, i+1, chan, data, 1, step);
-	  }
+	  release_first_stroke = find_kps(tr, k, chan, data, 1, step,
+					  anyshift);
 	}
       } else if (mod) {
 	// kp mod
 	first_stroke = find_kp(tr, k, chan, data, 0, mod,
-			       step, n_steps, steps);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_kp(tr, i+1, chan, data, 0, mod,
-					step, n_steps, steps);
-	}
+			       step, n_steps, steps,
+			       anyshift);
       } else {
 	// kp on/off
-	first_stroke = find_kp(tr, k, chan, data, 0, 0, 0, 0, 0);
-	release_first_stroke = find_kp(tr, k, chan, data, 1, 0, 0, 0, 0);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_kp(tr, i+1, chan, data, 0, 0, 0, 0, 0);
-	  alt_release_stroke[i] = find_kp(tr, i+1, chan, data, 1, 0, 0, 0, 0);
-	}
+	first_stroke = find_kp(tr, k, chan, data, 0, 0, 0, 0, 0,
+			       anyshift);
+	release_first_stroke = find_kp(tr, k, chan, data, 1, 0, 0, 0, 0,
+				       anyshift);
 	is_keystroke = 1;
       }
       break;
@@ -1454,33 +1500,24 @@ start_translation(translation *tr, char *which_key)
 	  fprintf(stderr, "zero or negative step size not permitted here: [%s]%s\n", current_translation, which_key);
 	  return 1;
 	}
-	first_stroke = find_cps(tr, k, chan, dir>0, step);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_cps(tr, i+1, chan, dir>0, step);
-	}
+	first_stroke = find_cps(tr, k, chan, dir>0, step,
+				anyshift);
 	if (!dir) {
 	  is_bidirectional = 1;
-	  release_first_stroke = find_cps(tr, k, chan, 1, step);
-	  if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	    alt_release_stroke[i] = find_cps(tr, i+1, chan, 1, step);
-	  }
+	  release_first_stroke = find_cps(tr, k, chan, 1, step,
+					  anyshift);
 	}
       } else if (mod) {
 	// cp mod
 	first_stroke = find_cp(tr, k, chan, 0, mod,
-			       step, n_steps, steps);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_cp(tr, i+1, chan, 0, mod,
-				     step, n_steps, steps);
-	}
+			       step, n_steps, steps,
+			       anyshift);
       } else {
 	// cp on/off
-	first_stroke = find_cp(tr, k, chan, 0, 0, 0, 0, 0);
-	release_first_stroke = find_cp(tr, k, chan, 1, 0, 0, 0, 0);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_cp(tr, i+1, chan, 0, 0, 0, 0, 0);
-	  alt_release_stroke[i] = find_cp(tr, i+1, chan, 1, 0, 0, 0, 0);
-	}
+	first_stroke = find_cp(tr, k, chan, 0, 0, 0, 0, 0,
+			       anyshift);
+	release_first_stroke = find_cp(tr, k, chan, 1, 0, 0, 0, 0,
+				       anyshift);
 	is_keystroke = 1;
       }
       break;
@@ -1491,33 +1528,24 @@ start_translation(translation *tr, char *which_key)
 	  fprintf(stderr, "zero or negative step size not permitted here: [%s]%s\n", current_translation, which_key);
 	  return 1;
 	}
-	first_stroke = find_pbs(tr, k, chan, dir>0, step);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_pbs(tr, i+1, chan, dir>0, step);
-	}
+	first_stroke = find_pbs(tr, k, chan, dir>0, step,
+				anyshift);
 	if (!dir) {
 	  is_bidirectional = 1;
-	  release_first_stroke = find_pbs(tr, k, chan, 1, step);
-	  if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	    alt_release_stroke[i] = find_pbs(tr, i+1, chan, 1, step);
-	  }
+	  release_first_stroke = find_pbs(tr, k, chan, 1, step,
+					  anyshift);
 	}
       } else if (mod) {
 	// pb mod
 	first_stroke = find_pb(tr, k, chan, 0, mod,
-			       step, n_steps, steps);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_pb(tr, i+1, chan, 0, mod,
-					step, n_steps, steps);
-	}
+			       step, n_steps, steps,
+			       anyshift);
       } else {
 	// pb on/off
-	first_stroke = find_pb(tr, k, chan, 0, 0, 0, 0, 0);
-	release_first_stroke = find_pb(tr, k, chan, 1, 0, 0, 0, 0);
-	if (is_anyshift) for (int i = 0; i < N_SHIFTS; i++) {
-	  alt_press_stroke[i] = find_pb(tr, i+1, chan, 0, 0, 0, 0, 0);
-	  alt_release_stroke[i] = find_pb(tr, i+1, chan, 1, 0, 0, 0, 0);
-	}
+	first_stroke = find_pb(tr, k, chan, 0, 0, 0, 0, 0,
+			       anyshift);
+	release_first_stroke = find_pb(tr, k, chan, 1, 0, 0, 0, 0,
+				       anyshift);
 	is_keystroke = 1;
       }
       break;
@@ -1531,10 +1559,7 @@ start_translation(translation *tr, char *which_key)
     return 1;
   }
   if (chk(first_stroke) ||
-      (is_bidirectional && chk(release_first_stroke)) ||
-      (is_anyshift &&
-       (chks(alt_press_stroke) ||
-	(is_bidirectional && chks(alt_release_stroke))))) {
+      (is_bidirectional && chk(release_first_stroke))) {
     fprintf(stderr, "already defined: [%s]%s\n", current_translation, which_key);
     return 1;
   }
@@ -1618,47 +1643,6 @@ add_release(int all_keys)
 		    s->swap, s->incr, s->recursive, s->feedback);
       }
       s = s->next;
-    }
-  }
-  if (all_keys && is_anyshift) {
-    // create a duplicate for any-shift translations (?)
-    for (int i = 0; i < N_SHIFTS; i++) {
-      stroke *s = *press_first_stroke;
-      first_stroke = alt_press_stroke[i];
-      while (s) {
-	if (s->keysym) {
-	  append_stroke(s->keysym, s->press);
-	} else if (s->shift) {
-	  append_shift(s->shift);
-	} else if (!s->status) {
-	  append_nop();
-	} else {
-	  append_midi(s->status, s->data,
-		      s->step, s->n_steps, s->steps,
-		      s->swap, s->incr, s->recursive, s->feedback);
-	}
-	s = s->next;
-      }
-    }
-    if (is_keystroke || is_bidirectional) {
-      for (int i = 0; i < N_SHIFTS; i++) {
-	stroke *s = *release_first_stroke;
-	first_stroke = alt_release_stroke[i];
-	while (s) {
-	  if (s->keysym) {
-	    append_stroke(s->keysym, s->press);
-	  } else if (s->shift) {
-	    append_shift(s->shift);
-	  } else if (!s->status) {
-	    append_nop();
-	  } else {
-	    append_midi(s->status, s->data,
-			s->step, s->n_steps, s->steps,
-			s->swap, s->incr, s->recursive, s->feedback);
-	  }
-	  s = s->next;
-	}
-      }
     }
   }
 }
