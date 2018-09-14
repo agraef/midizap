@@ -1377,14 +1377,14 @@ start_translation(translation *tr, char *which_key)
   int k = 0, offs = 0;
   if (isdigit(which_key[0]) && which_key[1] == '^') {
     offs = 2; k = which_key[0]-'0';
-    if (k<1 || k>N_SHIFTS) {
+    if (k<0 || k>N_SHIFTS) {
       fprintf(stderr, "invalid shift key: [%s]%s\n", current_translation, which_key);
       return 1;
     }
   } else if (*which_key == '^') {
     offs = k = 1;
-  } else if ((anyshift = *which_key == '?')) {
-    offs = 1; k = 0;
+  } else {
+    anyshift = 1;
   }
   if (parse_midi(which_key+offs, buf, 1, 0, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod, &swap)) {
     int chan = status & 0x0f;

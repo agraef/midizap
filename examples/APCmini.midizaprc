@@ -44,7 +44,7 @@ JACK_PORTS 2
 
 # The APCmini's dedicated shift key is used to provide alternative functions
 # to some of the buttons and the faders.
-?D8 SHIFT RELEASE SHIFT
+D8 SHIFT RELEASE SHIFT
 
 # transport (assigned to the topmost 5 "scene launch" buttons on the right)
 A#6 A7  # Stop
@@ -140,7 +140,7 @@ CC53[] PB[129]-6
 CC54[] PB[129]-7
 CC55[] PB[129]-8
 # master fader
-?CC56[] PB[129]-9
+CC56[] PB[129]-9
 
 # faders become encoders when shifted (CC16..CC23, incremental mode)
 ^CC48= CC16~
@@ -187,7 +187,7 @@ G#7 D7
 # 1 yellow and 1 red LED seems to work reasonably well, but you might want to
 # adjust the colors and the mapping of the meter values to your liking.
 
-?CP[16] C2{0,1} G#2{0:3,1} E3{0:6,1} C4{0:9,5} G#4{0:12,3}
+CP[16] C2{0,1} G#2{0:3,1} E3{0:6,1} C4{0:9,5} G#4{0:12,3}
 
 # NOTE: We only report the values as we receive them here, there's no
 # automatic decay of the meters like with real Mackie hardware.  Thus we
@@ -195,7 +195,7 @@ G#7 D7
 # does *not* do that automatically.)  NB: We use CC0 as a macro here,
 # hopefully this won't occur as real feedback?
 
-?CC0[1] $CP{0} $CP{16} $CP{32} $CP{48} $CP{64} $CP{80} $CP{96} $CP{112}
+CC0[1] $CP{0} $CP{16} $CP{32} $CP{48} $CP{64} $CP{80} $CP{96} $CP{112}
 
 # This decodes the least significant digit in the time display (CC69) to count
 # off time on the 4 bottommost scene launch buttons.  Note that the digits are
@@ -203,7 +203,7 @@ G#7 D7
 # lists below to skip over all the non-digit characters at the beginning of
 # the ASCII table.
 
-?CC69[] F7{0:49,1,0} E7{0:50,1,0} Eb7{0:51,1,0} D7{0:52,1,0}
+CC69[] F7{0:49,1,0} E7{0:50,1,0} Eb7{0:51,1,0} D7{0:52,1,0}
 
 # no feedback for faders (faders aren't motorized)
 
@@ -211,42 +211,42 @@ G#7 D7
 # mode, so that the (shifted) bank/channel left/right keys work as expected.
 
 # rec: color = red (vel. 3)
-?C0  C0[3]
-?C#0 C#0[3]
-?D0  D0[3]
-?D#0 D#0[3]
-?E0  E0[3]
-?F0  F0[3]
-?F#0 F#0[3]
-?G0  G0[3]
+C0  C0[3]
+C#0 C#0[3]
+D0  D0[3]
+D#0 D#0[3]
+E0  E0[3]
+F0  F0[3]
+F#0 F#0[3]
+G0  G0[3]
 
 # solo: color = green (vel. 1)
-?G#0 G#0[1]
-?A0  A0[1]
-?A#0 A#0[1]
-?B0  B0[1]
-?C1  C1[1]
-?C#1 C#1[1]
-?D1  D1[1]
-?D#1 D#1[1]
+G#0 G#0[1]
+A0  A0[1]
+A#0 A#0[1]
+B0  B0[1]
+C1  C1[1]
+C#1 C#1[1]
+D1  D1[1]
+D#1 D#1[1]
 
 # mute: color = yellow (vel. 5)
-?E1  E1[5]
-?F1  F1[5]
-?F#1 F#1[5]
-?G1  G1[5]
-?G#1 G#1[5]
-?A1  A1[5]
-?A#1 A#1[5]
-?B1  B1[5]
+E1  E1[5]
+F1  F1[5]
+F#1 F#1[5]
+G1  G1[5]
+G#1 G#1[5]
+A1  A1[5]
+A#1 A#1[5]
+B1  B1[5]
 
 # select (will light up in red)
 # NOTE: Ardour apparently doesn't update these when changing banks.
-?C2  E5
-?C#2 F5
-?D2  F#5
-?D#2 G5
-?E2  G#5
-?F2  A5
-?F#2 A#5
-?G2  B5
+C2  E5
+C#2 F5
+D2  F#5
+D#2 G5
+E2  G#5
+F2  A5
+F#2 A#5
+G2  B5
