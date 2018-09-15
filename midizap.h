@@ -62,6 +62,11 @@ typedef struct _stroke {
   // the swap bit indicates that 1st and 2nd data byte are to be swapped in
   // mod translations
   uint8_t swap;
+  // the change bit indicates that the message should only be output if its
+  // value has changed since the last time
+  uint8_t change;
+  // cached values for the change bit
+  int d, v;
   // the recursive bit indicates a MIDI message which is to be translated
   // recursively
   uint8_t recursive;
@@ -83,7 +88,7 @@ typedef struct _stroke_data {
   // incr flag (CC only)
   uint8_t is_incr;
   // modulus
-  uint8_t mod;
+  uint16_t mod;
   // anyshift flag (default rule)
   uint8_t anyshift;
 } stroke_data;

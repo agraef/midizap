@@ -99,15 +99,14 @@ void
 handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive);
 
 void
-send_midi(uint8_t portno, int status, int data,
-	  int step, int n_steps, int *steps,
-	  int incr, int index, int dir,
+send_midi(uint8_t portno, stroke *s, int index, int dir,
 	  int mod, int mod_step, int mod_n_steps, int *mod_steps,
-	  int val, int swap,
-	  int recursive, int depth,
-	  uint8_t ret_msg[3])
+	  int val, int depth, uint8_t ret_msg[3])
 {
-  if (!jack_num_outputs) return; // MIDI output not enabled
+  int status = s->status, data = s->data, swap = s->swap,
+    recursive = s->recursive;
+  int step = s->step, n_steps = s->n_steps, *steps = s->steps;
+  if (!recursive && !jack_num_outputs) return; // MIDI output not enabled
   uint8_t msg[3];
   int chan = status & 0x0f;
   msg[0] = status;
@@ -135,6 +134,10 @@ send_midi(uint8_t portno, int status, int data,
       int v = datavals(r, step, steps, n_steps);
       if (d > 127 || d < 0) return;
       if (v > 127 || v < 0) return;
+      if (s->change) {
+	if (s->change > 1 && s->d == d && s->v == v) return; // unchanged value
+	s->d = d; s->v = v; s->change = 2; // >1 => initialized
+      }
       msg[1] = d;
       msg[2] = v;
     } else if (!index) {
@@ -145,7 +148,7 @@ send_midi(uint8_t portno, int status, int data,
     break;
   case 0xb0:
     if (dir) {
-      if (incr) {
+      if (s->incr) {
 	// incremental controller, simply spit out a relative sign bit value
 	if (!step) step = 1;
 	dir *= step;
@@ -169,11 +172,16 @@ send_midi(uint8_t portno, int status, int data,
 	msg[2] = ccvalue[portno][chan][data];
       }
     } else if (mod) {
+      int m = (data>=128)*128;
       int q = swap?val%mod:val/mod, r = swap?val/mod:val%mod;
       int d = msg[1] + datavals(q, mod_step, mod_steps, mod_n_steps);
       int v = datavals(r, step, steps, n_steps);
-      if (d > 127 || d < 0) return;
+      if (d-m > 127 || d-m < 0) return;
       if (v > 127 || v < 0) return;
+      if (s->change) {
+	if (s->change > 1 && s->d == d && s->v == v) return; // unchanged value
+	s->d = d; s->v = v; s->change = 2; // >1 => initialized
+      }
       msg[1] = d;
       msg[2] = v;
     } else if (!index) {
@@ -204,6 +212,10 @@ send_midi(uint8_t portno, int status, int data,
       int v = datavals(r, step, steps, n_steps);
       if (d > 127 || d < 0) return;
       if (v > 127 || v < 0) return;
+      if (s->change) {
+	if (s->change > 1 && s->d == d && s->v == v) return; // unchanged value
+	s->d = d; s->v = v; s->change = 2; // >1 => initialized
+      }
       msg[1] = d;
       msg[2] = v;
     } else if (!index) {
@@ -231,6 +243,10 @@ send_midi(uint8_t portno, int status, int data,
     } else if (mod) {
       int v = datavals(swap?val/mod:val%mod, step, steps, n_steps);
       if (v > 127 || v < 0) return;
+      if (s->change) {
+	if (s->change > 1 && s->v == v) return; // unchanged value
+        s->v = v; s->change = 2; // >1 => initialized
+      }
       msg[1] = v;
     } else if (!index) {
       msg[1] = dataval(step, 0, 127);
@@ -258,6 +274,10 @@ send_midi(uint8_t portno, int status, int data,
     } else if (mod) {
       int v = datavals(swap?val/mod:val%mod, step, steps, n_steps);
       if (v > 16383 || v < 0) return;
+      if (s->change) {
+	if (s->change > 1 && s->v == v) return; // unchanged value
+        s->v = v; s->change = 2; // >1 => initialized
+      }
       pbval = v;
     } else if (!index) {
       pbval = 8192+dataval(step, -8192, 8191);
@@ -276,6 +296,10 @@ send_midi(uint8_t portno, int status, int data,
     if (mod) {
       int d = msg[1] + datavals(swap?val%mod:val/mod, mod_step, mod_steps, mod_n_steps);
       if (d > 127 || d < 0) return;
+      if (s->change) {
+	if (s->change > 1 && s->d == d) return; // unchanged value
+	s->d = d; s->change = 2; // >1 => initialized
+      }
       msg[1] = d;
     }
     // just send the message
@@ -284,10 +308,17 @@ send_midi(uint8_t portno, int status, int data,
     return;
   }
   if (ret_msg) memcpy(ret_msg, msg, 3);
-  if (!recursive)
-    queue_midi(&seq, msg, portno);
-  else
+  if (recursive) {
+    // As these values may be mutated, we need to save and restore them, in
+    // case a macro calls itself recursively.
+    uint8_t change = s->change;
+    int d = s->d, v = s->v;
+    s->change = change>0;
     handle_event(msg, portno, depth+1, recursive);
+    s->change = change;
+    s->d = d; s->v = v;
+  } else
+    queue_midi(&seq, msg, portno);
 }
 
 static int stroke_data_cmp(const void *a, const void *b)
@@ -615,21 +646,24 @@ static char *debug_key(translation *tr, char *name,
       suffix = (dir<0)?"-":"+";
     else
       suffix = "";
+    // check for pseudo CC messages denoting a macro
+    char *tok = data>=128?"M":"CC";
+    data %= 128;
     if (dir && step != 1)
-      sprintf(name, "%sCC%d[%d]-%d%s", prefix, data, step, chan+1, suffix);
+      sprintf(name, "%s%s%d[%d]-%d%s", prefix, tok, data, step, chan+1, suffix);
     else if (!dir && mod)
       if (step != 1)
-	sprintf(name, "%sCC%d[%d][%d]-%d%s", prefix, data, mod, step, chan+1, suffix);
+	sprintf(name, "%s%s%d[%d][%d]-%d%s", prefix, tok, data, mod, step, chan+1, suffix);
       else if (n_steps) {
-	sprintf(name, "%sCC%d[%d]{", prefix, data, mod);
+	sprintf(name, "%s%s%d[%d]{", prefix, tok, data, mod);
 	int l = strlen(name);
 	for (int i = 0; i < n_steps; i++, (l = strlen(name)))
 	  sprintf(name+l, "%s%d", i?",":"", steps[i]);
 	sprintf(name+l, "}-%d%s", chan+1, suffix);
       } else
-	sprintf(name, "%sCC%d[%d]-%d%s", prefix, data, mod, chan+1, suffix);
+	sprintf(name, "%s%s%d[%d]-%d%s", prefix, tok, data, mod, chan+1, suffix);
     else
-      sprintf(name, "%sCC%d-%d%s", prefix, data, chan+1, suffix);
+      sprintf(name, "%s%s%d-%d%s", prefix, tok, data, chan+1, suffix);
     break;
   }
   case 0xc0:
@@ -841,22 +875,18 @@ send_strokes(translation *tr, uint8_t portno, int status, int chan,
 	if (!s->recursive && jack_num_outputs > 1) {
 	  if (s->feedback == 1)
 	    // direct feedback, simply flip the port number
-	    send_midi(!portno,
-		      s->status, s->data, s->step, s->n_steps, s->steps,
-		      s->incr, index, dir, mod,
-		      step, n_steps, steps, data2, s->swap, 0, depth, 0);
+	    send_midi(!portno, s, index, dir, mod,
+		      step, n_steps, steps, data2, depth, 0);
 	  else if (portno == 0 && !mod && !dir)
 	    // shift feedback, this only works with key translations right
 	    // now, and portno *must* be zero
-	    send_midi(1, s->status, s->data, s->step, s->n_steps, s->steps,
-		      s->incr, !shift, 0, 0,
-		      step, n_steps, steps, data2, s->swap, 0, depth,
+	    send_midi(1, s, !shift, 0, 0,
+		      step, n_steps, steps, data2, depth,
 		      shift?shift_fb[shift-1]:0);
 	}
       } else {
-	send_midi(portno, s->status, s->data, s->step, s->n_steps, s->steps,
-		  s->incr, index, dir, mod,
-		  step, n_steps, steps, data2, s->swap, s->recursive, depth, 0);
+	send_midi(portno, s, index, dir, mod,
+		  step, n_steps, steps, data2, depth, 0);
       }
     }
     s = s->next;

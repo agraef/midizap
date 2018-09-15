@@ -678,7 +678,10 @@ print_stroke(stroke *s, int mod, int step, int n_steps, int *steps, int val)
     } else {
       int status = s->status & 0xf0;
       int channel = (s->status & 0x0f) + 1;
-      char *suffix = s->swap?"'":s->incr?"~":"";
+      char suffix[3] = "";
+      if (s->incr) strcpy(suffix, "~");
+      if (s->swap) strcat(suffix, "'");
+      if (s->change) strcat(suffix, "?");
       if (s->recursive) printf("$");
       if (s->feedback) printf(s->feedback==2?"^":"!");
       switch (status) {
@@ -722,22 +725,27 @@ print_stroke(stroke *s, int mod, int step, int n_steps, int *steps, int val)
 	  printf("KP:%s%d-%d%s ", note_name(s->data),
 		 note_octave(s->data), channel, suffix);
 	break;
-      case 0xb0:
+      case 0xb0: {
+	// check for pseudo CC messages denoting a macro
+	int data = s->data;
+	char *tok = data>=128?"M":"CC";
+	data %= 128;
 	if (mod) {
 	  int q = s->swap?val%mod:val/mod, r = s->swap?val/mod:val%mod;
-	  int d = s->data + datavals(q, step, steps, n_steps);
+	  int d = data + datavals(q, step, steps, n_steps);
 	  int v = datavals(r, s->step, s->steps, s->n_steps);
-	  printf("CC%d[%d]-%d%s ", d, v, channel, suffix);
+	  printf("%s%d[%d]-%d%s ", tok, d, v, channel, suffix);
 	} else if (s->steps) {
-	  printf("CC%d{", s->data);
+	  printf("%s%d{", tok, data);
 	  for (int i = 0; i < s->n_steps; i++)
 	    printf("%s%d", i?",":"", s->steps[i]);
 	  printf("}-%d%s ", channel, suffix);
 	} else if (s->step)
-	  printf("CC%d[%d]-%d%s ", s->data, s->step, channel, suffix);
+	  printf("%s%d[%d]-%d%s ", tok, data, s->step, channel, suffix);
 	else
-	  printf("CC%d-%d%s ", s->data, channel, suffix);
+	  printf("%s%d-%d%s ", tok, data, channel, suffix);
 	break;
+      }
       case 0xc0:
 	if (mod) {
 	  int v = datavals(s->swap?val%mod:val/mod, s->step, s->steps, s->n_steps);
@@ -861,7 +869,7 @@ append_nop(void)
 
 void
 append_midi(int status, int data, int step, int n_steps, int *steps,
-	    int swap, int incr, int recursive, int feedback)
+	    int swap, int change, int incr, int recursive, int feedback)
 {
   stroke *s = (stroke *)allocate(sizeof(stroke));
 
@@ -869,6 +877,7 @@ append_midi(int status, int data, int step, int n_steps, int *steps,
   s->status = status;
   s->data = data;
   s->swap = swap;
+  s->change = change;
   s->step = step;
   s->n_steps = n_steps;
   s->steps = stepsdup(n_steps, steps);
@@ -1020,7 +1029,7 @@ static int note_number(char c, char b, int k)
   }
 }
 
-#define MAXSTEPS 8193
+#define MAXSTEPS 16384
 
 static char *parse_steps(char *tok, char *p,
 			 int *step, int *n_steps, int **steps)
@@ -1100,9 +1109,9 @@ static char *parse_steps(char *tok, char *p,
 }
 
 int
-parse_midi(char *tok, char *s, int lhs, int mode,
+parse_midi(char *tok, char *s, int lhs, int mode, int recursive,
 	   int *status, int *data, int *step, int *n_steps, int **steps,
-	   int *incr, int *dir, int *mod, int *swap)
+	   int *incr, int *dir, int *mod, int *swap, int *change)
 {
   char *p = tok, *t;
   int n, m = -1, k = midi_channel;
@@ -1192,12 +1201,27 @@ parse_midi(char *tok, char *s, int lhs, int mode,
       return 0;
     }
   }
-  *incr = *dir = *swap = 0;
+  *incr = *dir = *swap = *change = 0;
   if (*p == '\'') {
     // swap flag (only on rhs in mod translations)
     if (lhs || mode < 2) return 0;
     *swap = 1;
     p++;
+    if (*p == '?') {
+      // change flag
+      *change = 1;
+      p++;
+    }
+  } else if (*p == '?') {
+    // change flag (only on rhs in mod translations)
+    if (lhs || mode < 2) return 0;
+    *change = 1;
+    p++;
+    if (*p == '\'') {
+      // swap flag
+      *swap = 1;
+      p++;
+    }
   } else if (*p && strchr("+-=<>~", *p)) {
     // incremental flag (messages with data only, not "ch" or "pc")
     if (strcmp(s, "ch") == 0) return 0;
@@ -1229,7 +1253,7 @@ parse_midi(char *tok, char *s, int lhs, int mode,
   if (strcmp(s, "ch") == 0) {
     if (lhs) return 0; // not permitted on lhs
     if (*step || *n_steps) return 0; // not permitted
-    if (*swap || steps2 || n_steps2) return 0; // not permitted
+    if (*swap || *change || steps2 || n_steps2) return 0; // not permitted
     // we return a bogus status of 0 here, along with the MIDI channel
     // in the data byte; also check that the MIDI channel is in the
     // proper range
@@ -1277,6 +1301,22 @@ parse_midi(char *tok, char *s, int lhs, int mode,
       *n_steps = n_steps2; *steps = steps2;
       if (*mod < 0) *mod = 128;
     }
+    if (lhs && *incr && *step < 0) return 0; // not permitted
+    if (lhs && !*step) *step = 1; // default
+    return 1;
+  } else if (strcmp(s, "m") == 0) {
+    // macro, encoded as a pseudo cc message which cannot actually occur on
+    // input; this is only permitted in macro calls or on the lhs of a mod
+    // translation
+    if (m < 0 || m > 127) return 0;
+    *status = 0xb0 | k; *data = m+128;
+    // step size on lhs indicates modulus if non-incremental
+    if (lhs && *step && !*incr) {
+      *mod = *step; *step = step2;
+      *n_steps = n_steps2; *steps = steps2;
+      if (*mod < 0) *mod = 128;
+    } else if (lhs || !recursive)
+      return 0; // not permitted
     if (lhs && *incr && *step < 0) return 0; // not permitted
     if (lhs && !*step) *step = 1; // default
     return 1;
@@ -1345,7 +1385,7 @@ static void dup_stroke_data(stroke_data **sd, uint16_t *n, uint16_t *a,
 	    } else {
 	      append_midi(s->status, s->data,
 			  s->step, s->n_steps, s->steps,
-			  s->swap, s->incr, s->recursive, s->feedback);
+			  s->swap, s->change, s->incr, s->recursive, s->feedback);
 	    }
 	    s = s->next;
 	  }
@@ -1358,7 +1398,8 @@ static void dup_stroke_data(stroke_data **sd, uint16_t *n, uint16_t *a,
 int
 start_translation(translation *tr, char *which_key)
 {
-  int status, data, step, n_steps, *steps, incr, dir, mod, swap, anyshift;
+  int status, data, step, n_steps, *steps, incr, dir, mod, swap, change,
+    anyshift;
   char buf[100];
 
   //printf("start_translation(%s)\n", which_key);
@@ -1386,7 +1427,7 @@ start_translation(translation *tr, char *which_key)
   } else {
     anyshift = 1;
   }
-  if (parse_midi(which_key+offs, buf, 1, 0, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod, &swap)) {
+  if (parse_midi(which_key+offs, buf, 1, 0, 0, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod, &swap, &change)) {
     int chan = status & 0x0f;
     mode = incr?0:mod?2:1;
     switch (status & 0xf0) {
@@ -1615,7 +1656,7 @@ add_release(int all_keys)
 	if (!s->keysym && !s->shift && s->dirty) {
 	  append_midi(s->status, s->data,
 		      s->step, s->n_steps, s->steps,
-		      s->swap, s->incr, s->recursive, s->feedback);
+		      s->swap, s->change, s->incr, s->recursive, s->feedback);
 	  s->dirty = 0;
 	}
 	s = s->next;
@@ -1640,7 +1681,7 @@ add_release(int all_keys)
       } else {
 	append_midi(s->status, s->data,
 		    s->step, s->n_steps, s->steps,
-		    s->swap, s->incr, s->recursive, s->feedback);
+		    s->swap, s->change, s->incr, s->recursive, s->feedback);
       }
       s = s->next;
     }
@@ -1678,14 +1719,14 @@ add_string(char *str)
 void
 add_midi(char *tok)
 {
-  int status, data, step, n_steps, *steps, incr, dir = 0, mod = 0, swap = 0;
+  int status, data, step, n_steps, *steps, incr, dir = 0, mod = 0, swap = 0, change = 0;
   int recursive = *tok == '$', fb = *tok == '!', fb2 = *tok == '^';
   char buf[100];
   if (fb2 && mode != 1) {
     fprintf(stderr, "shift feedback only allowed in key translations: %s\n", tok);
     return;
   }
-  if (parse_midi(tok+recursive+fb+fb2, buf, 0, mode, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod, &swap)) {
+  if (parse_midi(tok+recursive+fb+fb2, buf, 0, mode, recursive, &status, &data, &step, &n_steps, &steps, &incr, &dir, &mod, &swap, &change)) {
     if (status == 0) {
       // 'ch' token; this doesn't actually generate any output, it just sets
       // the default MIDI channel
@@ -1694,7 +1735,7 @@ add_midi(char *tok)
 	fprintf(stderr, "invalid macro call: %s\n", tok);
     } else {
       append_midi(status, data, step, n_steps, steps,
-		  swap, incr!=0, recursive, fb2?2:fb);
+		  swap, change, incr!=0, recursive, fb2?2:fb);
     }
   } else {
     // inspect the token that was actually recognized (if any) to give some
