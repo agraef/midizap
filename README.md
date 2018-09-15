@@ -539,18 +539,20 @@ This transformation is surprisingly versatile, and there are some extensions of 
 token ::= msg [ steps ] [ "-" number] [ flag ]
 steps ::= [ "[" [ number ] "]" ] [ "{" list "}" ]
 list  ::= number { "," number | ":" number | "-" number }
-flag  ::= "'"
+flag  ::= "'" | "?" | "'?" | "?'"
 ~~~
 
-There are three new elements in the syntax, an empty modulus bracket `[]`, the "transposition" flag `'`, and lists of numbers enclosed in curly braces. They have the following meaning:
+There are a couple of new elements in the syntax: an empty modulus bracket `[]`, the transposition flag `'`, the change flag `?`, and lists of numbers enclosed in curly braces. They have the following meaning:
 
 - The *empty modulus* bracket, denoted `[]` on the left-hand side of a mod translation, indicates a default modulus large enough (16384 for `PB`, 128 for other messages) so that the offset *q* always becomes zero and the translation passes on the entire input value as is.
 
-- *Transposition*, denoted with the `'` (apostrophe) suffix on an output message, reverses the roles of *q* and *r*, so that the remainder becomes the offset and the quotient the value of the output message.
+- The *transposition* flag, denoted with the `'` (apostrophe) suffix on an output message, reverses the roles of *q* and *r*, so that the remainder becomes the offset and the quotient the value of the output message.
+
+- The *change* flag, denoted with the `?` suffix on an output message, only outputs the message if its value (quotient or remainder) has changed. (Note that transposition and change flag can also be combined in any order.)
 
 - *Value lists*, denoted as lists of numbers separated by commas and enclosed in curly braces, provide a way to describe *discrete mappings* of input to output values. The input value is used as an index into the list to give the corresponding output value, and the last value in the list will be used for any index which runs past the end of the list. There are also some convenient shortcuts which let you construct these lists more easily: repetition *a*`:`*b* (denoting *b* consecutive *a*'s) and enumeration *a*`-`*b* (denoting *a*`,`*a*±1`,`...`,`*b*, which ramps either up or down depending on whether *a*<=*b* or *a*>*b*, respectively).
 
-These are often used in concert. We will introduce value lists in a moment, and cover the use of default modulus and transposition in subsequent subsections.
+These are often used in concert. We will introduce value lists in a moment, and cover the other options in due course.
 
 **NOTE:** In the context of mod translations, pitch bend values are interpreted as *unsigned* quantities in the range 0..16383 (with 8192 denoting the center value), which corresponds to the way they are actually encoded in MIDI. This makes the modular arithmetic work consistently across all types of MIDI messages, and also facilitates conversions between the different types of absolute parameter values. Normally you shouldn't have to worry about this, but the change in representation needs to be taken into account when transforming pitch bend values with value lists.
  
@@ -686,7 +688,31 @@ Note that this works because the output mapping `{0}` (which forces the offset t
 CC1[16]{0} CC1 CC2'
 ~~~
 
-Using similar rules, you can extract almost any part of an input value, down to every single bit if needed (see the end of the next section for an example).
+Using similar rules, you can extract almost any part of an input value, down to every single bit if needed (see the *Macro Translations* section below for another example).
+
+## Detecting Changes
+
+Let's have another look at the high-nibble extraction rule from above:
+
+~~~
+CC1[16]{0} CC2'
+~~~
+
+Note that if the input value changes gradually then many output values will be identical. E.g., if the input values are 0, 10, 19, 32, 64 then the first four high nibbles are all zero, so the output will be 0, 0, 0, 0, 1, with the zero value repeated four times. If this is not desired, you can add the `?` flag to indicate that the message should be output only if the value has changed:
+
+~~~
+CC1[16]{0} CC2'?
+~~~
+
+Now, repeated values are suppressed, so with the same inputs the output will be just 0, 1. Note that we used the `?` flag in combination with transposition and the offset forced to zero here, but of course it will work for any kind of change (offset or value, transposed or not). Also note that change detection always considers the "post-transform" values as they would be output, i.e., changes are detected *after* transposition and all mappings of input and output values have been performed.
+
+Change detection is often useful when input values are projected, as in the above example, but also in many other situations in which you simply want to prevent repeated values. For instance, suppose that we'd like to turn the modulation wheel (`CC1`) into a kind of on/off switch. Using a basic mod translation with a value list and change detection, this can be done quite easily:
+
+~~~
+CC1[] CC1{0,127}?
+~~~
+
+This emits a single 127 value whenever the input value becomes nonzero, and a single 0 value when it drops to zero again. Note that without the `?` flag, the 127 value might be repeated any number of times, as long as you keep turning the modulation wheel, which probably wouldn't be wanted here.
 
 ## Macro Translations
 
@@ -703,8 +729,6 @@ CC0= $CC1
 ~~~
 
 Before we proceed, let's introduce a few terms which will make it easier to talk about these things. We refer to a mod translation being called in this manner as a *macro translation*, and we also call the left-hand side of the translation a *macro*, and the invocation of a macro using the dollar symbol a *macro call*.
-
-In principle, any message which can occur on the left-hand side of a data translation (i.e., everything but `PC`) can also be defined as a macro. However, you want to make sure that the message isn't already in use as a "real" input, so that you are free to define it as needed. Fortunately, MIDI has plenty of messages on offer (there are 2048 distinct `CC` messages alone, 128 on each of the 16 MIDI channels), so it shouldn't be too hard to find one that can be used for internal purposes.
 
 To continue our example, let's define the `CC1` macro so that it outputs just a single note message:
 
@@ -730,7 +754,7 @@ CC0[] C5
 CC0[16]{0} CC1
 ~~~
 
-But we can't just put these two rules into a configuration file, because we're not allowed to bind `CC0` in two different translations at once (if you try this, the parser will complain and just ignore the second rule). And the single rule `CC0[16]{0} C5 CC1` won't work either, because it only passes the low nibble to the `C5` message. However, using a macro call we can massage those rules into an eligible form:
+But we can't just put these two rules into the same section, because we're not allowed to bind `CC0` in two different translations at once (if you try this, the parser will complain and just ignore the second rule). And the single rule `CC0[16]{0} C5 CC1` won't work either, because it only passes the low nibble to the `C5` message. However, using a macro call we can massage those rules into an eligible form:
 
 ~~~
 CC0[] C5 $CC1
@@ -739,16 +763,16 @@ CC1[16]{0} CC1
 
 This does exactly what we set out to do, and the transformation of the original rules we applied here is actually quite straightforward. In the same vein, we can combine as many different mod translations as we like, even if they involve different moduli and offset transformations.
 
-If you know C, you will have realized by now that macro translations work pretty much like parameter-less macros in the C programming language. The same caveats apply here, too. Specifically, the configuration language provides no way to break out of a recursive macro, so you do *not* want to have a macro invoke itself (either directly or indirectly), because that will always lead to an infinite recursion. E.g.:
+If you know C, you will have realized by now that macro translations work pretty much like parameter-less macros in the C programming language. The same caveats apply here, too. Specifically, you usually do *not* want to have a macro invoke itself (either directly or indirectly), because that will almost certainly lead to infinite recursion. E.g.:
 
 ~~~
 CC0[128] $CC1
 CC1[128] $CC0 # don't do this!
 ~~~
 
-midizap *will* catch infinite recursion after a few iterations, so for educational purposes you can (and should) try the example above and see what happens.
+midizap *will* catch such mishaps after a few iterations, but it's better to avoid them in the first place.
 
-So macro translations are too limited to make for a Turing-complete programming language, but there's still a lot of fun to be had with them. Here's another instructive example which spits out the individual bits of a controller value, using the approach that we discussed earlier in the context of nibble extraction. Input comes from `CC7` in the example, and bit #*i* of the controller value becomes `CC`*i* in the output, where *i* runs from 0 to 6. Note that each of these rules uses a successively smaller power of 2 as modulus and passes on the remainder to the next rule, while transposition is used to extract and output the topmost bit in the quotient. (You may want to run this example with debugging enabled to see what exactly is going on there.)
+We mention in passing that while recursive macro calls in conjunction with value lists and change detection quite likely make the configuration language Turing-complete, these facilities are just way too limited to make for a practical programming language. But there's still a lot of fun to be had with macros despite their limitations. Here's another instructive example which spits out the individual bits of a controller value, using the approach that we discussed earlier in the context of nibble extraction. Input comes from `CC7` in the example, and bit #*i* of the controller value becomes `CC`*i* in the output, where *i* runs from 0 to 6. Note that each of these rules uses a successively smaller power of 2 as modulus and passes on the remainder to the next rule, while transposition is used to extract and output the topmost bit in the quotient.
 
 ~~~
 CC7[64]{0} $CC6 CC6'
@@ -759,6 +783,41 @@ CC3[4]{0}  $CC2 CC2'
 CC2[2]{0}  CC0  CC1'
 ~~~
 
+You may want to run this example with debugging enabled to see what exactly is going on there.
+
+Another potential gotcha is the "naming" of macros. In principle, any message which can occur on the left-hand side of a mod translation (i.e., everything but `PC`) can also be used as a macro. However, if the message is to be used *only* as a macro, you better make sure that it doesn't also occur as a "real" input, so that you are free to define it as needed. While MIDI has plenty of messages on offer, you can never be sure which ones might show up in MIDI input. For instance, in the example above the macro translations for `CC2` to `CC6` might also be triggered by real MIDI input instead of macro calls. While this may be useful at times, e.g., for testing purposes, it is most likely going to confuse unsuspecting end users.
+
+As a remedy, midizap also provides a special kind of *macro events*, denoted `M0` to `M127`. These "synthetic" messages work exactly like `CC` messages, but they are guaranteed to never occur as real inputs, and they can *only* be used in macro calls and on the left-hand side of mod translations. We can rewrite the previous example using macro events as follows:
+
+~~~
+CC7[64]{0} $M6 CC6'
+M6[32]{0}  $M5 CC5'
+M5[16]{0}  $M4 CC4'
+M4[8]{0}   $M3 CC3'
+M3[4]{0}   $M2 CC2'
+M2[2]{0}   CC0  CC1'
+~~~
+
+Let's conclude with another, slightly more practical example for the use of macros, which turns the pitch wheel of a MIDI keyboard into a simple kind of "shuttle control". To illustrate how this works, let's emit an `XK_Left` key event when the pitch wheel is pushed left, and an `XK_Right` event when pushed right. This can be done as follows:
+
+~~~
+PB[] $M0{0:8192,1,2}?
+M0[] $M1{1,-1} $M2{-1:2,1,-1}
+M1[] XK_Left
+M2[] XK_Right
+~~~
+
+Note that the `M0` macro will be invoked with a value of 0, 1 and 2 if the pitch wheel is down, centered, and up, respectively. The value lists in the definition of `M0` are then used to filter these values and call the appropriate macro (`M1` for value 0, `M2` for value 2) which handles the key output.
+
+It's easy to adjust the `M1` and `M2` macros for other purposes. E.g., we might output the "Rewind" and "Fast Forward" functions of a Mackie controller:
+
+~~~
+PB[] $M0{0:8192,1,2}?
+M0[] $M1{1,-1} $M2{-1:2,1,-1}
+M1[] G7[127]  # Rew
+M2[] G#7[127] # FFwd
+~~~
+
 # Bugs
 
 There probably are some. Please submit bug reports and pull requests at the midizap [git repository][agraef/midizap]. Contributions are also welcome. In particular, we're looking for interesting configurations to be included in the distribution.
@@ -766,8 +825,6 @@ There probably are some. Please submit bug reports and pull requests at the midi
 The names of some of the debugging options are rather idiosyncratic. midizap inherited them from Eric Messick's ShuttlePRO program, and we decided to keep them for backward compatibility.
 
 midizap tries to keep things simple, which implies that it has its limitations. In particular, midizap lacks support for translating system messages and some more interesting ways of mapping, filtering and recombining MIDI data right now. There are other, more powerful utilities which do these things, but they are also more complicated and usually require programming skills. Fortunately, midizap often does the job reasonably well for simple mapping tasks (and even some rather complicated ones, such as the APCmini Mackie emulation included in the distribution). But if things start getting fiddly then you should consider using a more comprehensive tool like [Pd][] instead.
-
-In trying to keep with the simplicity of Eric Messick's original as much as possible, most of the configuration file language is fairly straightforward. But there are some bolted on parts of the syntax (in particular, mod translations and macros) which look rather cryptic. Only use them if you must. :)
 
 midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now. Native Mac or Windows support certainly seems possible, but it's not going to happen until someone who's in the know about suitable Mac and Windows replacements for the X11 XTest extension, comes along and ports it over.
 

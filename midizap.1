@@ -1482,13 +1482,13 @@ for the MIDI syntax):
 token\ ::=\ msg\ [\ steps\ ]\ [\ "\-"\ number]\ [\ flag\ ]
 steps\ ::=\ [\ "["\ [\ number\ ]\ "]"\ ]\ [\ "{"\ list\ "}"\ ]
 list\ \ ::=\ number\ {\ ","\ number\ |\ ":"\ number\ |\ "\-"\ number\ }
-flag\ \ ::=\ "\[aq]"
+flag\ \ ::=\ "\[aq]"\ |\ "?"\ |\ "\[aq]?"\ |\ "?\[aq]"
 \f[]
 .fi
 .PP
-There are three new elements in the syntax, an empty modulus bracket
-\f[C][]\f[], the \[lq]transposition\[rq] flag \f[C]\[aq]\f[], and lists
-of numbers enclosed in curly braces.
+There are a couple of new elements in the syntax: an empty modulus
+bracket \f[C][]\f[], the transposition flag \f[C]\[aq]\f[], the change
+flag \f[C]?\f[], and lists of numbers enclosed in curly braces.
 They have the following meaning:
 .IP \[bu] 2
 The \f[I]empty modulus\f[] bracket, denoted \f[C][]\f[] on the
@@ -1497,10 +1497,16 @@ enough (16384 for \f[C]PB\f[], 128 for other messages) so that the
 offset \f[I]q\f[] always becomes zero and the translation passes on the
 entire input value as is.
 .IP \[bu] 2
-\f[I]Transposition\f[], denoted with the \f[C]\[aq]\f[] (apostrophe)
-suffix on an output message, reverses the roles of \f[I]q\f[] and
-\f[I]r\f[], so that the remainder becomes the offset and the quotient
-the value of the output message.
+The \f[I]transposition\f[] flag, denoted with the \f[C]\[aq]\f[]
+(apostrophe) suffix on an output message, reverses the roles of
+\f[I]q\f[] and \f[I]r\f[], so that the remainder becomes the offset and
+the quotient the value of the output message.
+.IP \[bu] 2
+The \f[I]change\f[] flag, denoted with the \f[C]?\f[] suffix on an
+output message, only outputs the message if its value (quotient or
+remainder) has changed.
+(Note that transposition and change flag can also be combined in any
+order.)
 .IP \[bu] 2
 \f[I]Value lists\f[], denoted as lists of numbers separated by commas
 and enclosed in curly braces, provide a way to describe \f[I]discrete
@@ -1517,8 +1523,8 @@ which ramps either up or down depending on whether
 \f[I]a\f[]<=\f[I]b\f[] or \f[I]a\f[]>\f[I]b\f[], respectively).
 .PP
 These are often used in concert.
-We will introduce value lists in a moment, and cover the use of default
-modulus and transposition in subsequent subsections.
+We will introduce value lists in a moment, and cover the other options
+in due course.
 .PP
 \f[B]NOTE:\f[] In the context of mod translations, pitch bend values are
 interpreted as \f[I]unsigned\f[] quantities in the range 0..16383 (with
@@ -1821,8 +1827,61 @@ CC1[16]{0}\ CC1\ CC2\[aq]
 .fi
 .PP
 Using similar rules, you can extract almost any part of an input value,
-down to every single bit if needed (see the end of the next section for
-an example).
+down to every single bit if needed (see the \f[I]Macro Translations\f[]
+section below for another example).
+.SS Detecting Changes
+.PP
+Let's have another look at the high\-nibble extraction rule from above:
+.IP
+.nf
+\f[C]
+CC1[16]{0}\ CC2\[aq]
+\f[]
+.fi
+.PP
+Note that if the input value changes gradually then many output values
+will be identical.
+E.g., if the input values are 0, 10, 19, 32, 64 then the first four high
+nibbles are all zero, so the output will be 0, 0, 0, 0, 1, with the zero
+value repeated four times.
+If this is not desired, you can add the \f[C]?\f[] flag to indicate that
+the message should be output only if the value has changed:
+.IP
+.nf
+\f[C]
+CC1[16]{0}\ CC2\[aq]?
+\f[]
+.fi
+.PP
+Now, repeated values are suppressed, so with the same inputs the output
+will be just 0, 1.
+Note that we used the \f[C]?\f[] flag in combination with transposition
+and the offset forced to zero here, but of course it will work for any
+kind of change (offset or value, transposed or not).
+Also note that change detection always considers the
+\[lq]post\-transform\[rq] values as they would be output, i.e., changes
+are detected \f[I]after\f[] transposition and all mappings of input and
+output values have been performed.
+.PP
+Change detection is often useful when input values are projected, as in
+the above example, but also in many other situations in which you simply
+want to prevent repeated values.
+For instance, suppose that we'd like to turn the modulation wheel
+(\f[C]CC1\f[]) into a kind of on/off switch.
+Using a basic mod translation with a value list and change detection,
+this can be done quite easily:
+.IP
+.nf
+\f[C]
+CC1[]\ CC1{0,127}?
+\f[]
+.fi
+.PP
+This emits a single 127 value whenever the input value becomes nonzero,
+and a single 0 value when it drops to zero again.
+Note that without the \f[C]?\f[] flag, the 127 value might be repeated
+any number of times, as long as you keep turning the modulation wheel,
+which probably wouldn't be wanted here.
 .SS Macro Translations
 .PP
 There are some situations in which it is hard or even impossible to
@@ -1859,16 +1918,6 @@ We refer to a mod translation being called in this manner as a
 \f[I]macro translation\f[], and we also call the left\-hand side of the
 translation a \f[I]macro\f[], and the invocation of a macro using the
 dollar symbol a \f[I]macro call\f[].
-.PP
-In principle, any message which can occur on the left\-hand side of a
-data translation (i.e., everything but \f[C]PC\f[]) can also be defined
-as a macro.
-However, you want to make sure that the message isn't already in use as
-a \[lq]real\[rq] input, so that you are free to define it as needed.
-Fortunately, MIDI has plenty of messages on offer (there are 2048
-distinct \f[C]CC\f[] messages alone, 128 on each of the 16 MIDI
-channels), so it shouldn't be too hard to find one that can be used for
-internal purposes.
 .PP
 To continue our example, let's define the \f[C]CC1\f[] macro so that it
 outputs just a single note message:
@@ -1916,7 +1965,7 @@ CC0[16]{0}\ CC1
 \f[]
 .fi
 .PP
-But we can't just put these two rules into a configuration file, because
+But we can't just put these two rules into the same section, because
 we're not allowed to bind \f[C]CC0\f[] in two different translations at
 once (if you try this, the parser will complain and just ignore the
 second rule).
@@ -1942,10 +1991,9 @@ If you know C, you will have realized by now that macro translations
 work pretty much like parameter\-less macros in the C programming
 language.
 The same caveats apply here, too.
-Specifically, the configuration language provides no way to break out of
-a recursive macro, so you do \f[I]not\f[] want to have a macro invoke
-itself (either directly or indirectly), because that will always lead to
-an infinite recursion.
+Specifically, you usually do \f[I]not\f[] want to have a macro invoke
+itself (either directly or indirectly), because that will almost
+certainly lead to infinite recursion.
 E.g.:
 .IP
 .nf
@@ -1955,13 +2003,15 @@ CC1[128]\ $CC0\ #\ don\[aq]t\ do\ this!
 \f[]
 .fi
 .PP
-midizap \f[I]will\f[] catch infinite recursion after a few iterations,
-so for educational purposes you can (and should) try the example above
-and see what happens.
+midizap \f[I]will\f[] catch such mishaps after a few iterations, but
+it's better to avoid them in the first place.
 .PP
-So macro translations are too limited to make for a Turing\-complete
-programming language, but there's still a lot of fun to be had with
-them.
+We mention in passing that while recursive macro calls in conjunction
+with value lists and change detection quite likely make the
+configuration language Turing\-complete, these facilities are just way
+too limited to make for a practical programming language.
+But there's still a lot of fun to be had with macros despite their
+limitations.
 Here's another instructive example which spits out the individual bits
 of a controller value, using the approach that we discussed earlier in
 the context of nibble extraction.
@@ -1972,8 +2022,6 @@ Note that each of these rules uses a successively smaller power of 2 as
 modulus and passes on the remainder to the next rule, while
 transposition is used to extract and output the topmost bit in the
 quotient.
-(You may want to run this example with debugging enabled to see what
-exactly is going on there.)
 .IP
 .nf
 \f[C]
@@ -1983,6 +2031,80 @@ CC5[16]{0}\ $CC4\ CC4\[aq]
 CC4[8]{0}\ \ $CC3\ CC3\[aq]
 CC3[4]{0}\ \ $CC2\ CC2\[aq]
 CC2[2]{0}\ \ CC0\ \ CC1\[aq]
+\f[]
+.fi
+.PP
+You may want to run this example with debugging enabled to see what
+exactly is going on there.
+.PP
+Another potential gotcha is the \[lq]naming\[rq] of macros.
+In principle, any message which can occur on the left\-hand side of a
+mod translation (i.e., everything but \f[C]PC\f[]) can also be used as a
+macro.
+However, if the message is to be used \f[I]only\f[] as a macro, you
+better make sure that it doesn't also occur as a \[lq]real\[rq] input,
+so that you are free to define it as needed.
+While MIDI has plenty of messages on offer, you can never be sure which
+ones might show up in MIDI input.
+For instance, in the example above the macro translations for
+\f[C]CC2\f[] to \f[C]CC6\f[] might also be triggered by real MIDI input
+instead of macro calls.
+While this may be useful at times, e.g., for testing purposes, it is
+most likely going to confuse unsuspecting end users.
+.PP
+As a remedy, midizap also provides a special kind of \f[I]macro
+events\f[], denoted \f[C]M0\f[] to \f[C]M127\f[].
+These \[lq]synthetic\[rq] messages work exactly like \f[C]CC\f[]
+messages, but they are guaranteed to never occur as real inputs, and
+they can \f[I]only\f[] be used in macro calls and on the left\-hand side
+of mod translations.
+We can rewrite the previous example using macro events as follows:
+.IP
+.nf
+\f[C]
+CC7[64]{0}\ $M6\ CC6\[aq]
+M6[32]{0}\ \ $M5\ CC5\[aq]
+M5[16]{0}\ \ $M4\ CC4\[aq]
+M4[8]{0}\ \ \ $M3\ CC3\[aq]
+M3[4]{0}\ \ \ $M2\ CC2\[aq]
+M2[2]{0}\ \ \ CC0\ \ CC1\[aq]
+\f[]
+.fi
+.PP
+Let's conclude with another, slightly more practical example for the use
+of macros, which turns the pitch wheel of a MIDI keyboard into a simple
+kind of \[lq]shuttle control\[rq].
+To illustrate how this works, let's emit an \f[C]XK_Left\f[] key event
+when the pitch wheel is pushed left, and an \f[C]XK_Right\f[] event when
+pushed right.
+This can be done as follows:
+.IP
+.nf
+\f[C]
+PB[]\ $M0{0:8192,1,2}?
+M0[]\ $M1{1,\-1}\ $M2{\-1:2,1,\-1}
+M1[]\ XK_Left
+M2[]\ XK_Right
+\f[]
+.fi
+.PP
+Note that the \f[C]M0\f[] macro will be invoked with a value of 0, 1 and
+2 if the pitch wheel is down, centered, and up, respectively.
+The value lists in the definition of \f[C]M0\f[] are then used to filter
+these values and call the appropriate macro (\f[C]M1\f[] for value 0,
+\f[C]M2\f[] for value 2) which handles the key output.
+.PP
+It's easy to adjust the \f[C]M1\f[] and \f[C]M2\f[] macros for other
+purposes.
+E.g., we might output the \[lq]Rewind\[rq] and \[lq]Fast Forward\[rq]
+functions of a Mackie controller:
+.IP
+.nf
+\f[C]
+PB[]\ $M0{0:8192,1,2}?
+M0[]\ $M1{1,\-1}\ $M2{\-1:2,1,\-1}
+M1[]\ G7[127]\ \ #\ Rew
+M2[]\ G#7[127]\ #\ FFwd
 \f[]
 .fi
 .SH Bugs
@@ -2010,14 +2132,6 @@ mapping tasks (and even some rather complicated ones, such as the
 APCmini Mackie emulation included in the distribution).
 But if things start getting fiddly then you should consider using a more
 comprehensive tool like Pd (http://puredata.info/) instead.
-.PP
-In trying to keep with the simplicity of Eric Messick's original as much
-as possible, most of the configuration file language is fairly
-straightforward.
-But there are some bolted on parts of the syntax (in particular, mod
-translations and macros) which look rather cryptic.
-Only use them if you must.
-:)
 .PP
 midizap has only been tested on Linux so far, and its keyboard and mouse
 support is tailored to X11, i.e., it's pretty much tied to Unix/X11
