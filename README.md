@@ -327,7 +327,7 @@ Note that since there's no persistent absolute controller state in this case, th
 
 ## MIDI Events
 
-Most of the notation for MIDI messages on the left-hand side of a translation rule also carry over to the output side. The only real difference is that the increment flags `+-=<>` aren't permitted here, as they are only used to determine the input mode (key or data) of the entire translation. The `~` flag *is* allowed, however, to indicate output in bit-sign encoder format in data translations, see below. Step sizes are permitted as well on the output side, in *both* key and data translations. Their meaning depends on the kind of translation, however. In key translations, they denote the (nonzero) value to be used for the "on" state in the press sequence; in data translations, they indicate the amount of change for each unit input change (which has the effect of *upscaling* the value change).
+Most of the notation for MIDI messages on the left-hand side of a translation rule also carries over to the output side. The only real difference is that the increment flags `+-=<>` aren't permitted here, as they are only used to determine the input mode (key or data) of the entire translation. The `~` flag *is* allowed, however, to indicate output in bit-sign encoder format in data translations, see below. Step sizes are permitted as well on the output side, in *both* key and data translations. Their meaning depends on the kind of translation, however. In key translations, they denote the (nonzero) value to be used for the "on" state in the press sequence; in data translations, they indicate the amount of change for each unit input change (which has the effect of *upscaling* the value change).
 
 The output sequence can involve as many MIDI messages as you want, and these can be combined freely with keyboard and mouse events in any order. However, as already discussed in Section *MIDI Output* above, you also need to invoke the midizap program with the `-o` option to make MIDI output work. Otherwise, MIDI messages in the output translations will just be silently ignored.
 
@@ -424,7 +424,7 @@ This rule doesn't have a prefix, so it is used to turn shift state both on and o
 D8 SHIFT RELEASE SHIFT
 ~~~
 
-Note that in either case `SHIFT` works as a toggle, which turns shift status on when it is currently off, and turns it off again when it is on.
+Note that in either case `SHIFT` works as a *toggle*; when executed, it turns the shift status from off to on, and vice versa from on to off.
 
 Having set up the translation for the shift key itself, we can now assign, depending on the shift state, different functions to buttons and faders. Here's a typical example which maps a control change to either Mackie-style fader values encoded as pitch bends, or incremental encoder values:
 
@@ -457,7 +457,7 @@ F7 SHIFT2 RELEASE SHIFT2
 2^CC48+ XK_Right
 ~~~
 
-Another way to look at this is that translations are organized in *layers*. Layer 0 contains the unshifted translations, layer 1 to 4 the translations prefixed with the corresponding shift level. Unprefixed translations are available in all of these layers, unless they are overriden by translations specifically assigned to one of the layers. To keep things simple, only one layer can be active at any one time; if you press more than one shift key without releasing them, the last one wins.
+Another way to look at this is that translations are organized in *layers*. Layer 0 contains the unshifted translations, layer 1 to 4 the translations prefixed with the corresponding shift level. Unprefixed translations are available in all of these layers, unless they are overriden by translations specifically assigned to one of the layers. To keep things simple, only one layer can be active at any one time; if you press a shift key while another layer is still active, it will be deactivated automatically before activating the new layer.
 
 Also note that the status of internal shift keys is *only* available to the midizap program; the host application never gets to see them. If your host software does its own handling of shift keys, it's usually more convenient to simply pass those keys on to the application. However, `SHIFT` comes in handy if your controller doesn't have enough buttons and faders, since it makes it possible to multiply the amount of controls available on the device. For instance, you can emulate a Mackie controller with both encoders and faders on a device which only has a single set of faders, simply by assigning the shifted faders to the encoders, as shown in the first example above.
 
@@ -471,9 +471,9 @@ The distribution includes a full-blown example of this kind of setup for your pe
 
 ## Automatic Feedback
 
-If done right, MIDI feedback will usually eliminate the problem of controls being out of sync with the application. midizap has some built-in logic to help with this. Specifically, the current state of controls communicated by the host application via the `midi_in2` port will be recorded, so that subsequent MIDI output for incremental data translations will use the proper values for determining the required relative changes. (The same goes for the reverse path, recording the values from `midi_in` so that data translations feeding back to the controller will work correctly.)
+If done right, MIDI feedback will eliminate the problem of controls being out of sync with the application. midizap has some built-in logic to help with this. Specifically, the current state of controls received from the host application via the `midi_in2` port will be recorded, so that subsequent MIDI output for incremental data translations on the first output port will use the proper values for determining the required relative changes. (The same goes for the reverse path, recording the values from `midi_in` so that data translations feeding back to the controller will work correctly.)
 
-We refer to this as *automatic feedback*. Some devices may provide you with sign-bit encoders which don't need any kind of feedback for themselves. In this case the automatic feedback will be all that's needed to keep controller and application in sync, and you don't even have to write any translation rules for the feedback; just enabling the second port and hooking it up to the application will be enough. Other controllers may provide faders with motors or LEDs on them, however, in which case additional translation rules for the feedback will be needed.
+We refer to this as *automatic feedback*. Some devices may provide you with sign-bit encoders which don't need any kind of feedback for themselves. In this case the automatic feedback will be all that's needed to keep controller and application in sync, and you don't even have to write any translation rules for the feedback; just enabling the second input port and hooking it up to the application will be enough. Other controllers may provide faders with motors or LEDs on them, however, in which case additional translation rules for the feedback will be needed.
 
 **NOTE:** Automatic feedback is enabled automatically whenever you create a second pair of ports using `-o2`. If you're using the second pair for more esoteric purposes, you may want to disable this feature, which can be done with the `-n` option or the `NO_FEEDBACK` directive in the configuration file. Use this option *only* if feedback isn't needed with your application.
 
@@ -507,13 +507,13 @@ This variation of direct feedback is tailored to shift keys, and it *only* works
 
 - The shift keys can be turned off by sending them a zero parameter value.
 
-Under these conditions it is possible to employ the machinery built into midizap which makes handling direct feedback for shift keys much easier. In particular, midizap ensures that the feedback message reflects the *shift* (rather than the button) state, which is needed to make "Caps Lock"-style toggle keys like the following work correctly:
+midizap has some built-in machinery to deal with shift key feedback, which handles direct feedback for shift keys in an automatic fashion, provided that these conditions are met. In particular, midizap ensures that the feedback message reflects the *shift* (rather than the button) state, which is needed to make "Caps Lock"-style toggle keys like the following work correctly:
 
 ~~~
 D8 SHIFT ^D8
 ~~~
 
-This turns the key on when pushed, and toggles it off again when pushed a second time. Note that you can't get this behavior with the basic direct feedback facility, since there's no way to keep track of the required status information across different translations. Moreover, midizap also maintains the current status of all shift keys and automatically turns them off when switching from one shift status to another, so that the proper key will be lit even if you use multiple shift keys in your configuration.
+This turns the key on when pushed, and toggles it off again when pushed a second time. Note that you can't get this behavior with the basic direct feedback facility, since there's no way to keep track of the required status information across different translations. Moreover, midizap also maintains the current status of all shift keys and automatically turns them off when switching from one shift status to another, so that the keys will be lit properly even if you use multiple shift keys in your configuration.
 
 midizap still has a few more tricks up its sleeves which are useful when dealing with controller feedback, but they require the use of a special kind of data translation, the mod translations. These are a separate topic in their own right, so we'll introduce them in the next section.
 
@@ -764,14 +764,14 @@ CC1[16]{0} CC1
 
 This does exactly what we set out to do, and the transformation of the original rules we applied here is actually quite straightforward. In the same vein, we can combine as many different mod translations as we like, even if they involve different moduli and offset transformations.
 
-If you know C, you will have realized by now that macro translations work pretty much like parameter-less macros in the C programming language. The same caveats apply here, too. Specifically, you usually do *not* want to have a macro invoke itself (either directly or indirectly), because that will almost certainly lead to infinite recursion. E.g.:
+If you know C, you will have realized by now that macro translations work pretty much like macros in the C programming language. The same caveats apply here, too. Specifically, you usually do *not* want to have a macro invoke itself (either directly or indirectly), because that will almost certainly lead to infinite recursion. E.g.:
 
 ~~~
 CC0[128] $CC1
 CC1[128] $CC0 # don't do this!
 ~~~
 
-midizap *will* catch such mishaps after a few iterations, but it's better to avoid them in the first place. We mention in passing that in theory, recursive macro calls in conjunction with value lists and change detection make the configuration language Turing-complete. However, there's a quite stringent limit on the number of recursive calls, and there are no variables and no iteration constructs, so these facilities aren't really intended for general-purpose programming.
+midizap *will* catch such mishaps after a few iterations, but it's better to avoid them in the first place. We mention in passing that in theory, recursive macro calls in conjunction with value lists and change detection make the configuration language Turing-complete. However, there's a quite stringent limit on the number of recursive calls, and there are no variables and no iteration constructs, so these facilities aren't really suitable for general-purpose programming.
 
 But there's still a lot of fun to be had with macros despite their limitations. Here's another instructive example which spits out the individual bits of a controller value, using the approach that we discussed earlier in the context of nibble extraction. Input comes from `CC7` in the example, and bit #*i* of the controller value becomes `CC`*i* in the output, where *i* runs from 0 to 6. Note that each of these rules uses a successively smaller power of 2 as modulus and passes on the remainder to the next rule, while transposition is used to extract and output the topmost bit in the quotient.
 
@@ -800,7 +800,7 @@ M6[32]{0}  $M5 CC5'
 M5[16]{0}  $M4 CC4'
 M4[8]{0}   $M3 CC3'
 M3[4]{0}   $M2 CC2'
-M2[2]{0}   CC0  CC1'
+M2[2]{0}   CC0 CC1'
 ~~~
 
 Let's conclude with another, slightly more practical example for the use of macros, which turns the pitch wheel of a MIDI keyboard into a simple kind of "shuttle control". To illustrate how this works, let's emit an `XK_Left` key event when the pitch wheel is pushed down, and an `XK_Right` event when it's pushed up. This can be done as follows:

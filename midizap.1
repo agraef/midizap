@@ -929,7 +929,7 @@ itself.
 .SS MIDI Events
 .PP
 Most of the notation for MIDI messages on the left\-hand side of a
-translation rule also carry over to the output side.
+translation rule also carries over to the output side.
 The only real difference is that the increment flags \f[C]+\-=<>\f[]
 aren't permitted here, as they are only used to determine the input mode
 (key or data) of the entire translation.
@@ -1161,9 +1161,9 @@ D8\ SHIFT\ RELEASE\ SHIFT
 \f[]
 .fi
 .PP
-Note that in either case \f[C]SHIFT\f[] works as a toggle, which turns
-shift status on when it is currently off, and turns it off again when it
-is on.
+Note that in either case \f[C]SHIFT\f[] works as a \f[I]toggle\f[]; when
+executed, it turns the shift status from off to on, and vice versa from
+on to off.
 .PP
 Having set up the translation for the shift key itself, we can now
 assign, depending on the shift state, different functions to buttons and
@@ -1228,8 +1228,8 @@ Unprefixed translations are available in all of these layers, unless
 they are overriden by translations specifically assigned to one of the
 layers.
 To keep things simple, only one layer can be active at any one time; if
-you press more than one shift key without releasing them, the last one
-wins.
+you press a shift key while another layer is still active, it will be
+deactivated automatically before activating the new layer.
 .PP
 Also note that the status of internal shift keys is \f[I]only\f[]
 available to the midizap program; the host application never gets to see
@@ -1278,13 +1278,14 @@ It shows how to emulate a Mackie controller with AKAI's APCmini device,
 so that it readily works with DAW software such as Ardour.
 .SS Automatic Feedback
 .PP
-If done right, MIDI feedback will usually eliminate the problem of
-controls being out of sync with the application.
+If done right, MIDI feedback will eliminate the problem of controls
+being out of sync with the application.
 midizap has some built\-in logic to help with this.
-Specifically, the current state of controls communicated by the host
+Specifically, the current state of controls received from the host
 application via the \f[C]midi_in2\f[] port will be recorded, so that
-subsequent MIDI output for incremental data translations will use the
-proper values for determining the required relative changes.
+subsequent MIDI output for incremental data translations on the first
+output port will use the proper values for determining the required
+relative changes.
 (The same goes for the reverse path, recording the values from
 \f[C]midi_in\f[] so that data translations feeding back to the
 controller will work correctly.)
@@ -1294,8 +1295,8 @@ Some devices may provide you with sign\-bit encoders which don't need
 any kind of feedback for themselves.
 In this case the automatic feedback will be all that's needed to keep
 controller and application in sync, and you don't even have to write any
-translation rules for the feedback; just enabling the second port and
-hooking it up to the application will be enough.
+translation rules for the feedback; just enabling the second input port
+and hooking it up to the application will be enough.
 Other controllers may provide faders with motors or LEDs on them,
 however, in which case additional translation rules for the feedback
 will be needed.
@@ -1371,8 +1372,9 @@ message belongs to.
 .IP \[bu] 2
 The shift keys can be turned off by sending them a zero parameter value.
 .PP
-Under these conditions it is possible to employ the machinery built into
-midizap which makes handling direct feedback for shift keys much easier.
+midizap has some built\-in machinery to deal with shift key feedback,
+which handles direct feedback for shift keys in an automatic fashion,
+provided that these conditions are met.
 In particular, midizap ensures that the feedback message reflects the
 \f[I]shift\f[] (rather than the button) state, which is needed to make
 \[lq]Caps Lock\[rq]\-style toggle keys like the following work
@@ -1391,7 +1393,7 @@ facility, since there's no way to keep track of the required status
 information across different translations.
 Moreover, midizap also maintains the current status of all shift keys
 and automatically turns them off when switching from one shift status to
-another, so that the proper key will be lit even if you use multiple
+another, so that the keys will be lit properly even if you use multiple
 shift keys in your configuration.
 .PP
 midizap still has a few more tricks up its sleeves which are useful when
@@ -1984,8 +1986,7 @@ we like, even if they involve different moduli and offset
 transformations.
 .PP
 If you know C, you will have realized by now that macro translations
-work pretty much like parameter\-less macros in the C programming
-language.
+work pretty much like macros in the C programming language.
 The same caveats apply here, too.
 Specifically, you usually do \f[I]not\f[] want to have a macro invoke
 itself (either directly or indirectly), because that will almost
@@ -2006,7 +2007,7 @@ conjunction with value lists and change detection make the configuration
 language Turing\-complete.
 However, there's a quite stringent limit on the number of recursive
 calls, and there are no variables and no iteration constructs, so these
-facilities aren't really intended for general\-purpose programming.
+facilities aren't really suitable for general\-purpose programming.
 .PP
 But there's still a lot of fun to be had with macros despite their
 limitations.
@@ -2069,7 +2070,7 @@ M6[32]{0}\ \ $M5\ CC5\[aq]
 M5[16]{0}\ \ $M4\ CC4\[aq]
 M4[8]{0}\ \ \ $M3\ CC3\[aq]
 M3[4]{0}\ \ \ $M2\ CC2\[aq]
-M2[2]{0}\ \ \ CC0\ \ CC1\[aq]
+M2[2]{0}\ \ \ CC0\ CC1\[aq]
 \f[]
 .fi
 .PP
