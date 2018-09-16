@@ -1426,9 +1426,6 @@ nibble\[rq] (bits 4..6) and the corresponding meter value in the
 We will show how to map these values to notes indicating buttons on the
 AKAI APCmini (please check examples/APCmini.midizaprc in the sources for
 details about this device).
-This involves extracting and mapping the meter values, as well as
-shifting the target note, which is exactly the kind of operation that
-mod translations are designed to perform.
 Mod translations aren't limited to this specific use case, however;
 similar rules will apply to other kinds of \[lq]scrambled\[rq] MIDI
 data.
@@ -1479,8 +1476,9 @@ for the MIDI syntax):
 .IP
 .nf
 \f[C]
-token\ ::=\ msg\ [\ steps\ ]\ [\ "\-"\ number]\ [\ flag\ ]
-steps\ ::=\ [\ "["\ [\ number\ ]\ "]"\ ]\ [\ "{"\ list\ "}"\ ]
+token\ ::=\ msg\ [\ mod\ ]\ [\ steps\ ]\ [\ "\-"\ number]\ [\ flag\ ]
+mod\ \ \ ::=\ "["\ [\ number\ ]\ "]"
+steps\ ::=\ "["\ number\ "]"\ |\ "{"\ list\ "}"
 list\ \ ::=\ number\ {\ ","\ number\ |\ ":"\ number\ |\ "\-"\ number\ }
 flag\ \ ::=\ "\[aq]"\ |\ "?"\ |\ "\[aq]?"\ |\ "?\[aq]"
 \f[]
@@ -1503,10 +1501,8 @@ The \f[I]transposition\f[] flag, denoted with the \f[C]\[aq]\f[]
 the quotient the value of the output message.
 .IP \[bu] 2
 The \f[I]change\f[] flag, denoted with the \f[C]?\f[] suffix on an
-output message, only outputs the message if its value (quotient or
-remainder) has changed.
-(Note that transposition and change flag can also be combined in any
-order.)
+output message, only outputs the message if there are any changes in
+offset or value.
 .IP \[bu] 2
 \f[I]Value lists\f[], denoted as lists of numbers separated by commas
 and enclosed in curly braces, provide a way to describe \f[I]discrete
@@ -1756,7 +1752,7 @@ Note that it's impossible to do this kind of mapping with key or
 incremental data translations, because these don't allow you to suppress
 the note\-off messages.
 .PP
-Last but not least, you can also use a modulus of 1 to nullify the
+Last but not least, you can also use a modulus of 1 to cancel the
 \f[I]remainder\f[] instead, if you want to use the input value solely as
 an offset.
 For instance, here's how you can map controller values to note
@@ -1773,7 +1769,7 @@ This outputs the note with the same number as the controller value,
 2, etc.
 In fact, this is just a basic mod translation in disguise, because
 employing the \f[C]\[aq]\f[] flag on the output message to transpose
-quotient and remainder we can also write it as:
+quotient and remainder, we can also write it as:
 .IP
 .nf
 \f[C]
@@ -1877,11 +1873,11 @@ CC1[]\ CC1{0,127}?
 \f[]
 .fi
 .PP
-This emits a single 127 value whenever the input value becomes nonzero,
-and a single 0 value when it drops to zero again.
+This emits a single 127 value as soon as the input value becomes
+nonzero, and a single 0 value when it drops to zero again.
 Note that without the \f[C]?\f[] flag, the 127 value might be repeated
-any number of times, as long as you keep turning the modulation wheel,
-which probably wouldn't be wanted here.
+any number of times while you keep turning the modulation wheel, which
+isn't the behavior we want here.
 .SS Macro Translations
 .PP
 There are some situations in which it is hard or even impossible to
@@ -2005,11 +2001,13 @@ CC1[128]\ $CC0\ #\ don\[aq]t\ do\ this!
 .PP
 midizap \f[I]will\f[] catch such mishaps after a few iterations, but
 it's better to avoid them in the first place.
+We mention in passing that in theory, recursive macro calls in
+conjunction with value lists and change detection make the configuration
+language Turing\-complete.
+However, there's a quite stringent limit on the number of recursive
+calls, and there are no variables and no iteration constructs, so these
+facilities aren't really intended for general\-purpose programming.
 .PP
-We mention in passing that while recursive macro calls in conjunction
-with value lists and change detection quite likely make the
-configuration language Turing\-complete, these facilities are just way
-too limited to make for a practical programming language.
 But there's still a lot of fun to be had with macros despite their
 limitations.
 Here's another instructive example which spits out the individual bits
@@ -2037,27 +2035,31 @@ CC2[2]{0}\ \ CC0\ \ CC1\[aq]
 You may want to run this example with debugging enabled to see what
 exactly is going on there.
 .PP
-Another potential gotcha is the \[lq]naming\[rq] of macros.
+The \[lq]naming\[rq] of macros is another issue worth discussing here.
 In principle, any message which can occur on the left\-hand side of a
 mod translation (i.e., everything but \f[C]PC\f[]) can also be used as a
 macro.
-However, if the message is to be used \f[I]only\f[] as a macro, you
-better make sure that it doesn't also occur as a \[lq]real\[rq] input,
-so that you are free to define it as needed.
-While MIDI has plenty of messages on offer, you can never be sure which
-ones might show up in MIDI input.
+Unfortunately, in general you can't be sure which messages might show up
+in \f[I]real\f[] MIDI input.
 For instance, in the example above the macro translations for
 \f[C]CC2\f[] to \f[C]CC6\f[] might also be triggered by real MIDI input
 instead of macro calls.
 While this may be useful at times, e.g., for testing purposes, it is
 most likely going to confuse unsuspecting end users.
-.PP
 As a remedy, midizap also provides a special kind of \f[I]macro
-events\f[], denoted \f[C]M0\f[] to \f[C]M127\f[].
+event\f[], denoted \f[C]M0\f[] to \f[C]M127\f[], using the following
+syntax:
+.IP
+.nf
+\f[C]
+msg\ \ \ ::=\ "M"\ number
+\f[]
+.fi
+.PP
 These \[lq]synthetic\[rq] messages work exactly like \f[C]CC\f[]
-messages, but they are guaranteed to never occur as real inputs, and
-they can \f[I]only\f[] be used in macro calls and on the left\-hand side
-of mod translations.
+messages, but they are guaranteed to never occur as real input, and they
+can \f[I]only\f[] be used in macro calls and on the left\-hand side of
+mod translations.
 We can rewrite the previous example using macro events as follows:
 .IP
 .nf
@@ -2075,8 +2077,8 @@ Let's conclude with another, slightly more practical example for the use
 of macros, which turns the pitch wheel of a MIDI keyboard into a simple
 kind of \[lq]shuttle control\[rq].
 To illustrate how this works, let's emit an \f[C]XK_Left\f[] key event
-when the pitch wheel is pushed left, and an \f[C]XK_Right\f[] event when
-pushed right.
+when the pitch wheel is pushed down, and an \f[C]XK_Right\f[] event when
+it's pushed up.
 This can be done as follows:
 .IP
 .nf
@@ -2091,18 +2093,16 @@ M2[]\ XK_Right
 Note that the \f[C]M0\f[] macro will be invoked with a value of 0, 1 and
 2 if the pitch wheel is down, centered, and up, respectively.
 The value lists in the definition of \f[C]M0\f[] are then used to filter
-these values and call the appropriate macro (\f[C]M1\f[] for value 0,
-\f[C]M2\f[] for value 2) which handles the key output.
-.PP
+these values and call the appropriate macro which handles the key output
+(\f[C]M1\f[] for value 0, \f[C]M2\f[] for value 2).
 It's easy to adjust the \f[C]M1\f[] and \f[C]M2\f[] macros for other
 purposes.
-E.g., we might output the \[lq]Rewind\[rq] and \[lq]Fast Forward\[rq]
-functions of a Mackie controller:
+E.g., we might output the keyboard shortcuts for \[lq]Rewind\[rq] and
+\[lq]Fast Forward\[rq] of a video editor like Kdenlive, or the
+corresponding MIDI messages of a Mackie controller:
 .IP
 .nf
 \f[C]
-PB[]\ $M0{0:8192,1,2}?
-M0[]\ $M1{1,\-1}\ $M2{\-1:2,1,\-1}
 M1[]\ G7[127]\ \ #\ Rew
 M2[]\ G#7[127]\ #\ FFwd
 \f[]
@@ -2130,8 +2130,9 @@ are also more complicated and usually require programming skills.
 Fortunately, midizap often does the job reasonably well for simple
 mapping tasks (and even some rather complicated ones, such as the
 APCmini Mackie emulation included in the distribution).
-But if things start getting fiddly then you should consider using a more
-comprehensive tool like Pd (http://puredata.info/) instead.
+But if things start getting too fiddly then you should consider using a
+more comprehensive tool with real programming capabilities such as
+Pd (http://puredata.info/) instead.
 .PP
 midizap has only been tested on Linux so far, and its keyboard and mouse
 support is tailored to X11, i.e., it's pretty much tied to Unix/X11
