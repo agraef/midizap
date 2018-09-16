@@ -214,7 +214,7 @@ D#7 E9
 [MIDI2]
 
 # transport
-A7   F#5 $CC0 # reset all meters, see "meter" in the MCP feedback section below
+A7   F#5 $M0 # reset all meters, see "meter" in the MCP feedback section below
 A#7  E5
 B7   F5 # Rec
 D7   C5 # Cycle
@@ -300,10 +300,9 @@ CP[] CP
 # NOTE: We only report the values as we receive them here, there's no
 # automatic decay of the meters like with real Mackie hardware.  Thus we
 # explicitly reset all meters when transport stops below.  (Ardour at least
-# does *not* do that automatically.)  NB: We use CC0 as a macro here,
-# hopefully this won't occur as real feedback?
+# does *not* do that automatically.)
 
-CC0[1] CP{0} CP{16} CP{32} CP{48} CP{64} CP{80} CP{96} CP{112}
+M0[1] CP{0} CP{16} CP{32} CP{48} CP{64} CP{80} CP{96} CP{112}
 
 # timecode
 CC64[] CC64

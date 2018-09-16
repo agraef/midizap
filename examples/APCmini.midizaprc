@@ -157,7 +157,7 @@ CC56[] PB[129]-9
 [MIDI2]
 
 # transport (will light up in green)
-A7  A#6 $CC0 # reset all meters, see "meter feedback" below
+A7  A#6 $M0 # reset all meters, see "meter feedback" below
 A#7 B6
 B7  C7[2] # Rec, blinks when engaged
 #C#7 C7 # Cycle
@@ -192,10 +192,9 @@ CP[16] C2{0,1} G#2{0:3,1} E3{0:6,1} C4{0:9,5} G#4{0:12,3}
 # NOTE: We only report the values as we receive them here, there's no
 # automatic decay of the meters like with real Mackie hardware.  Thus we
 # explicitly reset all meters when transport stops below.  (Ardour at least
-# does *not* do that automatically.)  NB: We use CC0 as a macro here,
-# hopefully this won't occur as real feedback?
+# does *not* do that automatically.)
 
-CC0[1] $CP{0} $CP{16} $CP{32} $CP{48} $CP{64} $CP{80} $CP{96} $CP{112}
+M0[1] $CP{0} $CP{16} $CP{32} $CP{48} $CP{64} $CP{80} $CP{96} $CP{112}
 
 # This decodes the least significant digit in the time display (CC69) to count
 # off time on the 4 bottommost scene launch buttons.  Note that the digits are
