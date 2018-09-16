@@ -40,17 +40,17 @@
 #JACK_PORTS 2
 
 # Other than the input being MIDI instead of the Shuttle's key and wheel
-# events, the program works exactly the same. Each section in the file
-# (starting with a name in brackets and a regex to be matched against
-# the window class and name) specifies the bindings for one application.
-# A section at the end without regex provides default bindings if none
-# of the other sections are matched.  Within each section, bindings are
-# introduced with the name of the MIDI message being assigned, followed
-# by a sequence of X KeySyms and/or MIDI messages to be output when the
-# MIDI message is received.
+# events, the program works like Eric Messick's original.  Each section
+# in the file (starting with a name in brackets and a regex to be
+# matched against the window class and name) specifies the bindings for
+# one application.  A section at the end without regex provides default
+# bindings if none of the other sections are matched.  Within each
+# section, bindings are introduced with the name of the MIDI message
+# being assigned, followed by a sequence of X KeySyms and/or MIDI
+# messages to be output when the MIDI message is received.
 
 # Here is a brief rundown of the supported notation for MIDI messages
-# (please check the documentation for more details).
+# (please check the documentation for details).
 
 # CC<0..127>: control change message for the given controller
 # PC<0..127>: program change message
@@ -61,10 +61,10 @@
 
 # Note messages are specified using the customary notation (note name
 # A..G, optionally followed by an accidental, # or b, followed by a MIDI
-# octave number.  The same notation is also used with aftertouch (KP)
+# octave number).  The same notation is also used with aftertouch (KP)
 # messages, which always apply to a specific note (in contrast, channel
 # pressure (CP) always applies to all notes on a single MIDI channel).
-# Enharmonic spellings are equivalent, so, e.g., D# and Eb denote
+# Enharmonic spellings are equivalent, so, e.g., D#5 and Eb5 denote
 # exactly the same MIDI note.  All MIDI octaves start at the note C, so
 # B0 comes before C1.  By default, octave numbers are zero-based, so C0
 # is MIDI note 0, C5 denotes middle C, A5 is the chamber pitch, etc.
@@ -78,36 +78,20 @@
 # The program distinguishes between messages on different MIDI channels.
 # By default, messages are assumed to be on MIDI channel 1, but the MIDI
 # channel can be specified explicitly following a dash at the end of the
-# message token.  E.g., a message on MIDI channel 10 would be denoted,
-# e.g., CC7-10 or C#3-10.
+# message token.  E.g., a message on MIDI channel 10 would be denoted
+# CC7-10 or C#3-10.
 
 # Each of these messages can be either "on" or "off", and so they can
 # have different "press" and "release" keystrokes associated with them.
-# E.g., a "note on" message with non-zero velocity emulates a button
-# press, while the corresponding "note off" emulates a button release,
-# just as if the MIDI keys were just ordinary keys on a computer
-# keyboard.  The same holds true for control change, channel and key
-# pressure messages (here any non-zero value means "on", zero "off"),
-# and pitch bends (here the center value of the pitch wheel means "off",
-# any other value means "on").  The program change messages play a
-# somewhat special role in that they don't actually have any "off"
-# messages associated with them, so to keep in line with the other kinds
-# of MIDI messages we consider them as being "pressed" and then
-# "released" immediately afterwards.
-
 # In addition, all messages except PC (which doesn't have a data value)
 # can also have their value changes translated, in which case they have
 # associated key bindings which are executed each time the value
 # increases or decreases, respectively.  Such bindings are indicated
-# with the suffixes "+" and "-".  Thus, e.g., a key sequence bound to
-# CC7+ will be executed each time the value of controller 7 increases,
-# and CC7- will be executed each time it decreases.  The same applies to
-# channel and key pressure as well as pitch bend and even note messages.
-# You can also use the "=" suffix to indicate that the same translation
-# should be applied to both increases and decreases of the controller or
-# pitch bend value.  Thus, e.g., CC7= indicates that the same
-# translation applies for both CC7+ and CC7-.  This is most commonly
-# used with pure MIDI -> MIDI translations.
+# with the suffixes "+" and "-".  You can also use the "=" suffix to
+# indicate that the same translation should be applied to both increases
+# and decreases of the controller or pitch bend value.  Thus, e.g., CC7=
+# indicates that the same translation applies for both CC7+ and CC7-.
+# This is most commonly used with pure MIDI -> MIDI translations.
 
 # There is also another special mode for these incremental bindings,
 # incremental "bit-sign" mode.  The suffixes "<", ">" and "~" can be
@@ -116,14 +100,6 @@
 # on Mackie-like devices.  These encoders send values < 64 for
 # increases, and > 64 for decreases, where the first 6 bits of the value
 # denote the actual amount of change relative to the current value.
-
-# As already mentioned, translations can also contain other MIDI
-# messages, in order to translate MIDI input to MIDI output to be passed
-# on to to other MIDI devices and applications.  In fact, X KeySyms and
-# MIDI messages can be mixed freely in the output.  To enable this,
-# invoke the program with the '-o' option.  This creates a MIDI output
-# port, which can then be hooked up to other Jack MIDI applications.
-# (Otherwise, MIDI messages in the translations will just be ignored.)
 
 # Debugging options: You want to run the program in a terminal window to
 # see its output when using these.  The following line, when
@@ -155,16 +131,16 @@
 # without any option letter turns on all debugging options.
 
 
-# Sample bindings for video editing.  These assume a Mackie MCU-like
+# Sample bindings for video editing.  These assume a Mackie-compatible
 # device, which are available from various manufacturers.  They are more
 # or less standardized, and offer an abundance of useful controls,
 # making it easier to provide bindings which just work.  If you don't
 # have one of these lying around, there are inexpensive emulations in
-# software (such as the TouchDAW app on Android), or you can just edit the
-# rules below to make them work with your controller.
+# software (such as the TouchDAW app on Android), or you can just edit
+# the rules below to make them work with your controller.
 
-# On most MCU-style devices there are some playback controls and cursor
-# keys which generate various note events, and a jog wheel which
+# On most Mackie-like devices there are some playback controls and
+# cursor keys which generate various note events, and a jog wheel which
 # generates CC60 messages.  We put all of these to good use here.  Note
 # that the CC60 control requires use of the aforementioned special
 # incremental mode for endless rotary encoders.
@@ -187,8 +163,8 @@
  G#7 "L"         # Forward
 
 # punch in/out (sets in and out points)
-# Note that your device may not have these, or they may be labeled
-# differently, so we provide an alternative binding below.
+# Note that these are labeled drop/replace on some devices.  We also
+# provide an alternative binding below.
  D#7 "I"         # Set In
  E7  "O"         # Set Out
 
@@ -200,7 +176,7 @@
  D8  XK_Home     # Beginning
  D#8 XK_End      # End
 
-# the jog wheel moves single frames to the left or the right
+# the jog wheel moves left/right by single frames
  CC60< XK_Left    # Frame reverse
  CC60> XK_Right   # Frame forward
 
@@ -210,13 +186,13 @@
 # The special "MIDI" default section is only active when MIDI output is
 # enabled (midizap -o).  This allows you to use midizap as a MIDI mapper
 # translating MIDI input to MIDI output.  Here's a simple example for
-# illustration purposes, which shows how to map both the MCU master
+# illustration purposes, which shows how to map both the Mackie master
 # fader and the jog wheel to CC7, so that they can be used as volume
 # controls.
 
-# Note that the MCU master fader is PB (on MIDI channel 9), which has
-# 128 times the range of a MIDI controller, so we scale it down
-# accordingly by specifying a step size of 128.
+# Note that the master fader is PB (on MIDI channel 9), which has 128
+# times the range of a MIDI controller, so we scale it down accordingly
+# by specifying a step size of 128.
 
  PB[128]-9= CC7
  CC60~      CC7
@@ -258,7 +234,7 @@
 
 [Default]
 
-# First, some MCU-compatible bindings.
+# First, some Mackie-compatible bindings.
 
 # cursor movement
  D8    XK_Left
