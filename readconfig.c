@@ -437,6 +437,7 @@ static stroke **find_pbs(translation *tr, int shift,
 }
 
 static void dup_stroke_data(stroke_data **sd, uint16_t *n, uint16_t *a,
+			    stroke_data *sd0, uint16_t n0,
 			    stroke_data *sd1, uint16_t n1);
 
 void
@@ -447,26 +448,37 @@ finish_translation_section(translation *tr)
   if (tr) {
     for (k=1; k<N_SHIFTS+1; k++) {
       dup_stroke_data(&tr->pc[k], &tr->n_pc[k], &tr->a_pc[k],
+		      0, 0,
 		      tr->pc[0], tr->n_pc[0]);
       dup_stroke_data(&tr->note[k], &tr->n_note[k], &tr->a_note[k],
+		      tr->notes[k], tr->n_notes[k],
 		      tr->note[0], tr->n_note[0]);
       dup_stroke_data(&tr->notes[k], &tr->n_notes[k], &tr->a_notes[k],
+		      tr->note[k], tr->n_note[k],
 		      tr->notes[0], tr->n_notes[0]);
       dup_stroke_data(&tr->cc[k], &tr->n_cc[k], &tr->a_cc[k],
+		      tr->ccs[k], tr->n_ccs[k],
 		      tr->cc[0], tr->n_cc[0]);
       dup_stroke_data(&tr->ccs[k], &tr->n_ccs[k], &tr->a_ccs[k],
+		      tr->cc[k], tr->n_cc[k],
 		      tr->ccs[0], tr->n_ccs[0]);
       dup_stroke_data(&tr->pb[k], &tr->n_pb[k], &tr->a_pb[k],
+		      tr->pbs[k], tr->n_pbs[k],
 		      tr->pb[0], tr->n_pb[0]);
       dup_stroke_data(&tr->pbs[k], &tr->n_pbs[k], &tr->a_pbs[k],
+		      tr->pb[k], tr->n_pb[k],
 		      tr->pbs[0], tr->n_pbs[0]);
       dup_stroke_data(&tr->kp[k], &tr->n_kp[k], &tr->a_kp[k],
+		      tr->kps[k], tr->n_kps[k],
 		      tr->kp[0], tr->n_kp[0]);
       dup_stroke_data(&tr->kps[k], &tr->n_kps[k], &tr->a_kps[k],
+		      tr->kp[k], tr->n_kp[k],
 		      tr->kps[0], tr->n_kps[0]);
       dup_stroke_data(&tr->cp[k], &tr->n_cp[k], &tr->a_cp[k],
+		      tr->cps[k], tr->n_cps[k],
 		      tr->cp[0], tr->n_cp[0]);
       dup_stroke_data(&tr->cps[k], &tr->n_cps[k], &tr->a_cps[k],
+		      tr->cp[k], tr->n_cp[k],
 		      tr->cps[0], tr->n_cps[0]);
     }
     for (k=0; k<N_SHIFTS+1; k++) {
@@ -1359,12 +1371,14 @@ static int chk(stroke **s)
 }
 
 static void dup_stroke_data(stroke_data **sd, uint16_t *n, uint16_t *a,
+			    stroke_data *sd0, uint16_t n0,
 			    stroke_data *sd1, uint16_t n1)
 {
   for (int i = 0; i < n1; i++) {
     if (sd1[i].anyshift) {
       for (int index = 0; index < 2; index++) {
 	stroke **t =
+	  sd0 && check_stroke_data(sd0, sd1[i].chan, sd1[i].data, n0) ? 0 :
 	  find_stroke_data(sd, sd1[i].chan, sd1[i].data, index,
 			   sd1[i].step[index],
 			   sd1[i].n_steps[index], sd1[i].steps[index],
