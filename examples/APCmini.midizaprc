@@ -50,7 +50,7 @@ D8 SHIFT RELEASE SHIFT
 A#6 A7  # Stop
 B6  A#7 # Play
 C7  B7  # Rec
-#C7  C#7  # Cycle
+#C7  D7  # Cycle
 C#7 G7  # Rew
 D7  G#7 # FFwd
 
@@ -160,7 +160,7 @@ CC56[] PB[129]-9
 A7  A#6 $M0 # reset all meters, see "meter feedback" below
 A#7 B6
 B7  C7[2] # Rec, blinks when engaged
-#C#7 C7 # Cycle
+#D7 C7 # Cycle
 G7  C#7
 G#7 D7
 
