@@ -167,10 +167,12 @@ example; you're expected to edit this file to adjust the bindings for
 the MIDI controllers and the applications that you use.
 .PP
 It is also possible to specify the configuration file to be used, by
-invoking midizap with the \f[C]\-r\f[] option on the command line, e.g.:
-\f[C]midizap\ \-r\ myconfig.midizaprc\f[].
+invoking midizap with the \f[C]\-r\f[] option followed by the name of
+the midizaprc file on the command line.
 This is often used with more specialized configurations dealing with
 specific applications or MIDI controllers.
+E.g., to try one of sample configurations in the sources:
+\f[C]midizap\ \-r\ examples/MPKmini2.midizaprc\f[]
 .PP
 The program automatically reloads the midizaprc file whenever it notices
 that the file has been changed.
@@ -614,7 +616,9 @@ notation handy for reference.
 (To keep things simple, the grammar is somewhat abridged, but it covers
 all the frequently used notation.
 There is some additional syntax for special forms of translations which
-will be introduced later.)
+will be introduced later.
+Also, at the end of the manual you can find a complete grammar for the
+entire configuration language.)
 .IP
 .nf
 \f[C]
@@ -2048,15 +2052,7 @@ instead of macro calls.
 While this may be useful at times, e.g., for testing purposes, it is
 most likely going to confuse unsuspecting end users.
 As a remedy, midizap also provides a special kind of \f[I]macro
-event\f[], denoted \f[C]M0\f[] to \f[C]M127\f[], using the following
-syntax:
-.IP
-.nf
-\f[C]
-msg\ \ \ ::=\ "M"\ number
-\f[]
-.fi
-.PP
+event\f[], denoted \f[C]M0\f[] to \f[C]M127\f[].
 These \[lq]synthetic\[rq] messages work exactly like \f[C]CC\f[]
 messages, but they are guaranteed to never occur as real input, and they
 can \f[I]only\f[] be used in macro calls and on the left\-hand side of
@@ -2093,19 +2089,73 @@ M2[]\ XK_Right
 .PP
 Note that the \f[C]M0\f[] macro will be invoked with a value of 0, 1 and
 2 if the pitch wheel is down, centered, and up, respectively.
+Also, we use the change flag here, so the \f[C]M0\f[] macro is only
+invoked when this value actually changes.
 The value lists in the definition of \f[C]M0\f[] are then used to filter
-these values and call the appropriate macro which handles the key output
-(\f[C]M1\f[] for value 0, \f[C]M2\f[] for value 2).
+these values and call the appropriate macro which handles the key
+output: \f[C]M1\f[] for value 0, \f[C]M2\f[] for value 2.
 It's easy to adjust the \f[C]M1\f[] and \f[C]M2\f[] macros for other
 purposes.
 E.g., we might output the keyboard shortcuts for \[lq]Rewind\[rq] and
-\[lq]Fast Forward\[rq] of a video editor like Kdenlive, or the
-corresponding MIDI messages of a Mackie controller:
+\[lq]Fast Forward\[rq] for a video editor like Kdenlive, or the
+corresponding MIDI messages of a Mackie controller when working with a
+DAW program:
 .IP
 .nf
 \f[C]
 M1[]\ G7[127]\ \ #\ Rew
 M2[]\ G#7[127]\ #\ FFwd
+\f[]
+.fi
+.SH Configuration Language Grammar
+.PP
+The following EBNF grammar summarizes the syntax of the configuration
+language.
+The character set is 7 bit ASCII (arbitrary UTF\-8 characters are
+permitted in comments, however).
+The language is line\-oriented; each section header, directive, and
+translation must be on a line of its own.
+Empty lines and lines containing nothing but whitespace are generally
+ignored, as are comments (\f[C]#\f[] at the beginning of a line or after
+whitespace until the end of the line), except in the name and regex
+parts of header lines which are taken verbatim.
+.PP
+In a directive or translation line, tokens are delimited by whitespace.
+Section names may contain any character but \f[C]]\f[] and newline,
+regular expressions any character but newline.
+The latter must follow the usual syntax for basic regular expressions,
+see regex(7) for details.
+Strings are delimited by double quotes and may contain any printable
+ASCII character except newline and double quotes.
+Numbers are always decimal integers.
+.IP
+.nf
+\f[C]
+config\ \ \ \ \ \ ::=\ header\ {\ directive\ |\ translation\ }
+header\ \ \ \ \ \ ::=\ "["\ name\ "]"\ regex
+translation\ ::=\ midi\-token\ {\ key\-token\ |\ midi\-token\ }
+
+directive\ \ \ ::=\ "DEBUG_REGEX"\ |\ "DEBUG_STROKES"\ |\ "DEBUG_KEYS"\ |
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "DEBUG_MIDI"\ |\ "MIDI_OCTAVE"\ number\ |
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "JACK_PORTS"\ number\ |\ "JACK_NAME"\ string
+
+midi\-token\ \ ::=\ msg\ [\ mod\ ]\ [\ steps\ ]\ [\ "\-"\ number]\ [\ flag\ ]
+msg\ \ \ \ \ \ \ \ \ ::=\ (\ note\ |\ other\ |\ "M"\ )\ [\ number\ ]
+note\ \ \ \ \ \ \ \ ::=\ (\ "A"\ |\ ...\ |\ "G"\ )\ [\ "#"\ |\ "b"\ ]
+other\ \ \ \ \ \ \ ::=\ "CH"\ |\ "PB"\ |\ "PC"\ |\ "CC"\ |\ "CP"\ |\ "KP:"\ note
+mod\ \ \ \ \ \ \ \ \ ::=\ "["\ [\ number\ ]\ "]"
+steps\ \ \ \ \ \ \ ::=\ "["\ number\ "]"\ |\ "{"\ list\ "}"
+list\ \ \ \ \ \ \ \ ::=\ number\ {\ ","\ number\ |\ ":"\ number\ |\ "\-"\ number\ }
+flag\ \ \ \ \ \ \ \ ::=\ "\-"\ |\ "+"\ |\ "="\ |\ "<"\ |\ ">"\ |\ "~"\ |
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "\[aq]"\ |\ "?"\ |\ "\[aq]?"\ |\ "?\[aq]"
+
+key\-token\ \ \ ::=\ "RELEASE"\ |\ "SHIFT"\ [\ number\ ]\ |
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ keycode\ [\ "/"\ keyflag\ ]\ |\ string
+keycode\ \ \ \ \ ::=\ "XK_Button_1"\ |\ "XK_Button_2"\ |\ "XK_Button_3"\ |
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "XK_Scroll_Up"\ |\ "XK_Scroll_Down"\ |
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "XK_..."\ (see\ /usr/include/X11/keysymdef.h)
+keyflag\ \ \ \ \ ::=\ "U"\ |\ "D"\ |\ "H"
+string\ \ \ \ \ \ ::=\ \[aq]"\[aq]\ {\ character\ }\ \[aq]"\[aq]
 \f[]
 .fi
 .SH Bugs

@@ -63,7 +63,7 @@ After installation the system-wide default configuration file will be in /etc/mi
 
 The ~/.midizaprc file, if it exists, takes priority over /etc/midizaprc, so it becomes your personal default midizap configuration. The midizaprc file included in the distribution is really just an example; you're expected to edit this file to adjust the bindings for the MIDI controllers and the applications that you use.
 
-It is also possible to specify the configuration file to be used, by invoking midizap with the `-r` option on the command line, e.g.: `midizap -r myconfig.midizaprc`. This is often used with more specialized configurations dealing with specific applications or MIDI controllers.
+It is also possible to specify the configuration file to be used, by invoking midizap with the `-r` option followed by the name of the midizaprc file on the command line. This is often used with more specialized configurations dealing with specific applications or MIDI controllers. E.g., to try one of sample configurations in the sources: `midizap -r examples/MPKmini2.midizaprc`
 
 The program automatically reloads the midizaprc file whenever it notices that the file has been changed. Thus you can edit the file while the program keeps running, and have the changes take effect immediately without having to restart the program. When working on new translations, you may want to run the program in a terminal, and employ some or all of the debugging options explained below to see exactly how your translations are being processed.
 
@@ -215,7 +215,7 @@ This binds a few keys in the middle octave to the Up, Down and Return keys as we
  
 There's no real standard for symbolic designations of MIDI messages, but we hope that most users will find midizap's notation easy to understand and remember. Notes are specified using a format which musicians will find familiar: a note name `A`, `B`, ..., `G` is followed by an (optional) accidental (`#` or `b`), and a (mandatory) MIDI octave number. Note that all MIDI octaves start at the note C, so `B0` comes before `C1`. By default, `C5` denotes middle C (you can change this if you want, see *Octave Numbering* below). Enharmonic spellings are equivalent, so, e.g., `D#5` and `Eb5` denote exactly the same MIDI note.
 
-The other messages are denoted using short mnemonics: `KP:`*note* (aftertouch a.k.a.\ key pressure for the given note); `CC`*n* (control change for the given controller number); `PC`*n* (program change for the given program number); `CP` (channel pressure); and `PB` (pitch bend). We will go into the other syntactic bits and pieces of MIDI message designations later, but it's good to have the following grammar in EBNF notation handy for reference. (To keep things simple, the grammar is somewhat abridged, but it covers all the frequently used notation. There is some additional syntax for special forms of translations which will be introduced later.)
+The other messages are denoted using short mnemonics: `KP:`*note* (aftertouch a.k.a.\ key pressure for the given note); `CC`*n* (control change for the given controller number); `PC`*n* (program change for the given program number); `CP` (channel pressure); and `PB` (pitch bend). We will go into the other syntactic bits and pieces of MIDI message designations later, but it's good to have the following grammar in EBNF notation handy for reference. (To keep things simple, the grammar is somewhat abridged, but it covers all the frequently used notation. There is some additional syntax for special forms of translations which will be introduced later. Also, at the end of the manual you can find a complete grammar for the entire configuration language.)
 
 ~~~
 token ::= msg [ "[" number "]" ] [ "-" number ] [ flag ]
@@ -786,13 +786,7 @@ CC2[2]{0}  CC0  CC1'
 
 You may want to run this example with debugging enabled to see what exactly is going on there.
 
-The "naming" of macros is another issue worth discussing here. In principle, any message which can occur on the left-hand side of a mod translation (i.e., everything but `PC`) can also be used as a macro. Unfortunately, in general you can't be sure which messages might show up in *real* MIDI input. For instance, in the example above the macro translations for `CC2` to `CC6` might also be triggered by real MIDI input instead of macro calls. While this may be useful at times, e.g., for testing purposes, it is most likely going to confuse unsuspecting end users. As a remedy, midizap also provides a special kind of *macro event*, denoted `M0` to `M127`, using the following syntax:
-
-~~~
-msg   ::= "M" number
-~~~
-
-These "synthetic" messages work exactly like `CC` messages, but they are guaranteed to never occur as real input, and they can *only* be used in macro calls and on the left-hand side of mod translations. We can rewrite the previous example using macro events as follows:
+The "naming" of macros is another issue worth discussing here. In principle, any message which can occur on the left-hand side of a mod translation (i.e., everything but `PC`) can also be used as a macro. Unfortunately, in general you can't be sure which messages might show up in *real* MIDI input. For instance, in the example above the macro translations for `CC2` to `CC6` might also be triggered by real MIDI input instead of macro calls. While this may be useful at times, e.g., for testing purposes, it is most likely going to confuse unsuspecting end users. As a remedy, midizap also provides a special kind of *macro event*, denoted `M0` to `M127`. These "synthetic" messages work exactly like `CC` messages, but they are guaranteed to never occur as real input, and they can *only* be used in macro calls and on the left-hand side of mod translations. We can rewrite the previous example using macro events as follows:
 
 ~~~
 CC7[64]{0} $M6 CC6'
@@ -812,11 +806,45 @@ M1[] XK_Left
 M2[] XK_Right
 ~~~
 
-Note that the `M0` macro will be invoked with a value of 0, 1 and 2 if the pitch wheel is down, centered, and up, respectively. The value lists in the definition of `M0` are then used to filter these values and call the appropriate macro which handles the key output (`M1` for value 0, `M2` for value 2). It's easy to adjust the `M1` and `M2` macros for other purposes. E.g., we might output the keyboard shortcuts for "Rewind" and "Fast Forward" of a video editor like Kdenlive, or the corresponding MIDI messages of a Mackie controller:
+Note that the `M0` macro will be invoked with a value of 0, 1 and 2 if the pitch wheel is down, centered, and up, respectively. Also, we use the change flag here, so the `M0` macro is only invoked when this value actually changes. The value lists in the definition of `M0` are then used to filter these values and call the appropriate macro which handles the key output: `M1` for value 0, `M2` for value 2. It's easy to adjust the `M1` and `M2` macros for other purposes. E.g., we might output the keyboard shortcuts for "Rewind" and "Fast Forward" for a video editor like Kdenlive, or the corresponding MIDI messages of a Mackie controller when working with a DAW program:
 
 ~~~
 M1[] G7[127]  # Rew
 M2[] G#7[127] # FFwd
+~~~
+
+# Configuration Language Grammar
+
+The following EBNF grammar summarizes the syntax of the configuration language. The character set is 7 bit ASCII (arbitrary UTF-8 characters are permitted in comments, however). The language is line-oriented; each section header, directive, and translation must be on a line of its own. Empty lines and lines containing nothing but whitespace are generally ignored, as are comments (`#` at the beginning of a line or after whitespace until the end of the line), except in the name and regex parts of header lines which are taken verbatim.
+
+In a directive or translation line, tokens are delimited by whitespace. Section names may contain any character but `]` and newline, regular expressions any character but newline. The latter must follow the usual syntax for basic regular expressions, see regex(7) for details. Strings are delimited by double quotes and may contain any printable ASCII character except newline and double quotes. Numbers are always decimal integers.
+
+~~~
+config      ::= header { directive | translation }
+header      ::= "[" name "]" regex
+translation ::= midi-token { key-token | midi-token }
+
+directive   ::= "DEBUG_REGEX" | "DEBUG_STROKES" | "DEBUG_KEYS" |
+                "DEBUG_MIDI" | "MIDI_OCTAVE" number |
+				"JACK_PORTS" number | "JACK_NAME" string
+
+midi-token  ::= msg [ mod ] [ steps ] [ "-" number] [ flag ]
+msg         ::= ( note | other | "M" ) [ number ]
+note        ::= ( "A" | ... | "G" ) [ "#" | "b" ]
+other       ::= "CH" | "PB" | "PC" | "CC" | "CP" | "KP:" note
+mod         ::= "[" [ number ] "]"
+steps       ::= "[" number "]" | "{" list "}"
+list        ::= number { "," number | ":" number | "-" number }
+flag        ::= "-" | "+" | "=" | "<" | ">" | "~" |
+                "'" | "?" | "'?" | "?'"
+
+key-token   ::= "RELEASE" | "SHIFT" [ number ] |
+	            keycode [ "/" keyflag ] | string
+keycode     ::= "XK_Button_1" | "XK_Button_2" | "XK_Button_3" |
+                "XK_Scroll_Up" | "XK_Scroll_Down" |
+                "XK_..." (see /usr/include/X11/keysymdef.h)
+keyflag     ::= "U" | "D" | "H"
+string      ::= '"' { character } '"'
 ~~~
 
 # Bugs
