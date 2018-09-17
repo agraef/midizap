@@ -1,0 +1,67 @@
+
+# Minimal Mackie emulation for the AKAI MPKmini mkII
+
+# Copyright (c) 2018 Albert Graef <aggraef@gmail.com>
+
+# Copying and distribution of this file, with or without modification, are
+# permitted in any medium without royalty provided the copyright notice and
+# this notice are preserved.  This file is offered as-is, without any
+# warranty.
+
+JACK_NAME "midizap-MPKmini2"
+JACK_PORTS 1
+
+# This configuration assumes that the MPKmini2 is set to factory defaults.
+# The device doesn't provide much feedback possibilities, so we don't even
+# try.  Connections: Controller goes into midizap midi_in, midi_out into the
+# Mackie control input of your DAW.
+
+# Controls: The joystick can be used as a shuttle control (push to the left
+# for rewind, to the right for fast forward).  The eight knobs are mapped to
+# the channel volume controls.  The drum pads are assigned as follows, with
+# the transport section on bank A and the cursor and bank controls on bank B:
+
+# Bank A: Pad 1-4: Stop Play Rec Cycle; Pad 5-8: Rew FFwd Click Marker
+# Bank B: Pad 1-4: Up Down Left Right;  Pad 5-8: Bank< Bank> Channel< Channel>
+
+# TODO: No assignments for the pads in CC and PROG CHANGE mode at this time,
+# they may be added later when we figure out what to do with them.  Also, no
+# encoders on the MPKmini2, so no jog wheel. :(
+
+[MIDI]
+
+# Pads, Bank A
+G#3 A7  # Stop
+A3  A#7 # Play
+A#3 B7  # Rec
+B3  D7  # Cycle
+C4  G7  # Rew
+C#4 G#7 # FFwd
+D4  F7  # Click
+D#4 C7  # Marker
+
+# Pads, Bank B
+G#2 C8  # Up
+A2  C#8 # Down
+A#2 D8  # Left
+B2  D#8 # Right
+C3  A#3 # Bank Left
+C#3 B3  # Bank Right
+D3  C4  # Channel Left
+D#3 C#4 # Channel Right
+
+# Joystick (push left/right for Rewind/Fast Forward)
+PB[] $M0{0:8192,1,2}?
+M0[] $M1{1,-1} $M2{-1:2,1,-1}
+M1[] G7[127]  # Rew
+M2[] G#7[127] # FFwd
+
+# knobs (MC pitch bends, use 129 as step size to get full range)
+CC1[] PB[129]-1
+CC2[] PB[129]-2
+CC3[] PB[129]-3
+CC4[] PB[129]-4
+CC5[] PB[129]-5
+CC6[] PB[129]-6
+CC7[] PB[129]-7
+CC8[] PB[129]-8
