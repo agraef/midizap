@@ -175,7 +175,7 @@ new_translation_section(char *name, char *regex)
       default_translation = ret;
   } else {
     ret->is_default = 0;
-    err = regcomp(&ret->regex, regex, REG_NOSUB);
+    err = regcomp(&ret->regex, regex, REG_EXTENDED|REG_NOSUB);
     if (err != 0) {
       regerror(err, &ret->regex, read_line_buffer, read_line_buffer_length);
       fprintf(stderr, "error compiling regex for [%s]: %s\n", name, read_line_buffer);

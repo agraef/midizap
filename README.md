@@ -178,7 +178,7 @@ PB output                 # pitch bend
 
 The `#` character at the beginning of a line and after whitespace is special; it indicates that the rest of the line is a comment, which is skipped by the parser. Empty lines and lines containing nothing but whitespace are also ignored.
 
-Lines beginning with a `[`*name*`]` header are also special. Each such line introduces a translation class *name*, which may be followed by a basic regular expression *regex* (see the regex(7) manual page) to be matched against window class and title. Note that *everything* following the `[`*name*`]` header on the same line is taken verbatim; the *regex* part is the entire rest of the line, ignoring leading and trailing whitespace, but including embedded whitespace and `#` characters (so you can't place a comment on such lines).
+Lines beginning with a `[`*name*`]` header are also special. Each such line introduces a translation class *name*, which may be followed by an extended regular expression *regex* (see the regex(7) manual page) to be matched against window class and title. Note that *everything* following the `[`*name*`]` header on the same line is taken verbatim; the *regex* part is the entire rest of the line, ignoring leading and trailing whitespace, but including embedded whitespace and `#` characters (so you can't place a comment on such lines).
 
 To find a set of eligible translations, midizap matches class and title of the window with the keyboard focus against each section, in the order in which they are listed in the configuration file. For each section, midizap first tries to match the window class (the `WM_CLASS` property), then the window title (the `WM_NAME` property). The first section which matches determines the translations to be used for that window. An empty *regex* for the last class will always match, allowing default translations. If a translation cannot be found in the matched section, it will be loaded from the default section if possible. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the given *name* is only used for debugging output and diagnostics, and needn't be unique.
 
@@ -201,7 +201,7 @@ The header is followed by a list of translations which define what output should
 Example:
 
 ~~~
-[Terminal] ^.*-terminal.*\|konsole\|xterm$ 
+[Terminal] ^.*-terminal.*|konsole|xterm$ 
  F5    XK_Up
  F#5   "pwd"
  G5    XK_Down
@@ -845,7 +845,7 @@ M2[] G#7[127] # Fast Forward
 
 The following EBNF grammar summarizes the syntax of the configuration language. The character set is 7 bit ASCII (arbitrary UTF-8 characters are permitted in comments, however). The language is line-oriented; each directive, section header, and translation must be on a separate line. Empty lines and lines containing nothing but whitespace are generally ignored, as are comments, which begin with `#` at the beginning of a line or after whitespace, and continue until the end of the line. The only exception are header lines which are always taken verbatim, so whitespace and `#` have no special meaning there.
 
-Section names may contain any character but `]` and newline, regular expressions any character but newline. The latter must follow the usual syntax for basic regular expressions, see regex(7) for details. In a directive or translation line, tokens are delimited by whitespace. Strings are delimited by double quotes and may contain any printable ASCII character except newline and double quotes. Numbers are always decimal integers.
+Section names may contain any character but `]` and newline, regular expressions any character but newline. The latter must follow the usual syntax for extended regular expressions, see regex(7) for details. In a directive or translation line, tokens are delimited by whitespace. Strings are delimited by double quotes and may contain any printable ASCII character except newline and double quotes. Numbers are always decimal integers.
 
 ~~~
 config      ::= { directive | header | translation }

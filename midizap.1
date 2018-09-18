@@ -483,7 +483,7 @@ ignored.
 Lines beginning with a \f[C][\f[]\f[I]name\f[]\f[C]]\f[] header are also
 special.
 Each such line introduces a translation class \f[I]name\f[], which may
-be followed by a basic regular expression \f[I]regex\f[] (see the
+be followed by an extended regular expression \f[I]regex\f[] (see the
 regex(7) manual page) to be matched against window class and title.
 Note that \f[I]everything\f[] following the
 \f[C][\f[]\f[I]name\f[]\f[C]]\f[] header on the same line is taken
@@ -574,7 +574,7 @@ Example:
 .IP
 .nf
 \f[C]
-[Terminal]\ ^.*\-terminal.*\\|konsole\\|xterm$\ 
+[Terminal]\ ^.*\-terminal.*|konsole|xterm$\ 
 \ F5\ \ \ \ XK_Up
 \ F#5\ \ \ "pwd"
 \ G5\ \ \ \ XK_Down
@@ -2183,8 +2183,8 @@ whitespace and \f[C]#\f[] have no special meaning there.
 .PP
 Section names may contain any character but \f[C]]\f[] and newline,
 regular expressions any character but newline.
-The latter must follow the usual syntax for basic regular expressions,
-see regex(7) for details.
+The latter must follow the usual syntax for extended regular
+expressions, see regex(7) for details.
 In a directive or translation line, tokens are delimited by whitespace.
 Strings are delimited by double quotes and may contain any printable
 ASCII character except newline and double quotes.
