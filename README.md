@@ -20,7 +20,7 @@ midizap [-hkns] [-d[rskmj]] [-j *name*] [-o[*n*]] [-P[*prio*]] [-r *rcfile*]
 :   Set the Jack client name. This overrides the corresponding directive in the configuration file. Default: "midizap". See Section *Jack-Related Options*.
 
 -k
-:   Keep track of key (on/off) status of MIDI notes and control switches. This isn't generally recommended, but may occasionally be useful to deal with quirky controllers sending note- or control-ons without corresponding off messages.
+:   Keep track of key (on/off) status. This may occasionally be useful to deal with quirky controllers sending repeated on or off messages. See Section *Key and Data Translations*.
 
 -n
 :   No automatic feedback. By default, midizap keeps track of controller feedback from the second input port if it is enabled (`-o2`). This option lets you disable this feature if the second port is being used for other purposes. See Section *Automatic Feedback*.
@@ -251,6 +251,8 @@ Note that since translations must be determined uniquely in each translation cla
 
 - Since program changes have no parameter value associated with them, they don't really have an "on" or "off" status. But they are treated in the same key-like fashion anyway, assuming that they are "pressed" and then "released" immediately afterwards.
 
+Key mode can optionally keep track of the current key (on/off) status, so that a key translation is only triggered when its status actually changes. It may occasionally be useful to enable this with the `-k` option on the command line, so that, e.g., repeated note-ons or -offs are filtered out automatically. Normally this is disabled, so on and off messages will be translated as is. You usually want to keep it that way, unless you're dealing with an unreliable controller or transmission line.
+
 *Data mode* is available for all messages with a parameter value, i.e., anything but `PC`. In this mode, the actual value of the message is processed rather than just the on/off state. Data mode is indicated with a special suffix on the message token which denotes a step size and/or the direction of the value change which the rule should apply to: increment (`+`), decrement (`-`), or both (`=`). The two parts are both optional, but at least one of them must be present (otherwise the rule is interpreted as a key translation).
 
 In the following, we concentrate on *incremental* data mode messages, i.e., the kind which has an increment suffix. In this case, the optional step size in brackets indicates the amount of change required to trigger the translation, so its effect is to downscale the amount of change in the input value. The variant without an increment suffix is more complicated and mostly intended for more specialized uses, so we'll have a look at it later in the *Mod Translations* section.
@@ -386,6 +388,15 @@ The `~` flag can be used to denote encoders in output messages, too. E.g., to tr
 CC48= CC16~
 ~~~
 
+Of course, this won't magically turn a standard controller into a *real* encoder; it's range will still be limited. To emulate the endless range of an encoder on a device which doesn't have one, you'll have to spend *two* standard controllers, one for reducing and another one for increasing values. For instance:
+
+~~~
+CC1- CC60~
+CC2+ CC60~
+~~~
+
+Note that the "down" controller (`CC1` in this example) only reacts to negative, and the "up" controlller (`CC2`) only to positive changes. This allows you to "rewind" each control when getting to the end of its range, so that you can continue to change its value as much as you want.
+
 Step sizes work on the right-hand side of data translations as well. You might use these to scale up value changes, e.g., when translating from control changes to pitch bends:
 
 ~~~
@@ -406,7 +417,9 @@ CC1[3]= CC1[2]
 
 The above translation will only be triggered when the input value changes by 3 units, and the change in the output value will then be doubled again, so that the net effect is to scale the input value by 2/3. (Note that for most ratios this will only give a rough approximation; the method works best if the input and output step sizes are reasonably small.)
 
-**NOTE:** All data translations we've seen so far handle *incremental* value changes. In order to be able to detect these changes and, in the case of MIDI output, change the output values accordingly, midizap has to keep track of all the current parameter values of all messages on all MIDI channels, for both input and output. This is easy enough, but midizap usually has no way of knowing the *actual* state of your controllers and MIDI applications, so when the program starts up, it simply assumes all these values to be zero. This means that midizap's "shadow" values of controllers, pitch bends etc.\ may initially well be out of sync with your input devices and applications, and you may have to wiggle a control in order to "calibrate" it. (This becomes most apparent when using negative step sizes, as in the translation `CC1= CC1[-1]` from above. In this case, you will first have to move the control all the way up and then down again to get it working properly.) There are some ways to alleviate these issues, however. In particular, midizap can utilize controller feedback from the application, please check the *MIDI Feedback* section below for details. Also, encoders need no calibration as they represent incremental changes anyway, and there's an alternative form of data translation, to be discussed in Section *Mod Translations*, which always works with absolute values and thus needs no calibration either.
+**NOTE:** All data translations we've seen so far handle *incremental* value changes. In order to be able to detect these changes and, in the case of MIDI output, change the output values accordingly, midizap has to keep track of all the current parameter values of all messages on all MIDI channels, for both input and output. This is easy enough, but midizap usually has no way of knowing the *actual* state of your controllers and MIDI applications, so when the program starts up, it simply assumes all these values to be zero. This means that midizap's "shadow" values of controllers, pitch bends etc.\ may initially well be out of sync with your input devices and applications, and you may have to wiggle a control in order to "calibrate" it.
+
+This becomes most apparent when using negative step sizes, as in the translation `CC1= CC1[-1]` from above. In this case, you will first have to move the control all the way up and then down again to get it working properly. There are some ways to alleviate these issues, however. In particular, midizap can utilize controller feedback from the application, please check the *MIDI Feedback* section below for details. Also, encoders need no calibration as they represent incremental changes anyway, and there's an alternative form of data translation, to be discussed in Section *Mod Translations*, which always works with absolute values and thus needs no calibration either.
 
 ## Shift State
 
@@ -507,7 +520,7 @@ This variation of direct feedback is tailored to shift keys, and it *only* works
 
 - The shift keys can be turned off by sending them a zero parameter value.
 
-midizap has some built-in machinery to deal with shift key feedback, which handles direct feedback for shift keys in an automatic fashion, provided that these conditions are met. In particular, midizap ensures that the feedback message reflects the *shift* (rather than the button) state, which is needed to make "Caps Lock"-style toggle keys like the following work correctly:
+midizap has some built-in machinery to deal with shift key feedback which handles direct feedback for shift keys in an automatic fashion, provided that these conditions are met. In particular, midizap ensures that the feedback message reflects the *shift* (rather than the button) state, which is needed to make "Caps Lock"-style toggle keys like the following work correctly:
 
 ~~~
 D8 SHIFT ^D8
@@ -583,7 +596,7 @@ The quotient here is the mixer channel index in the high-nibble of the `CP` mess
 CP[16][8] C0{0,1:8,5:3,3}
 ~~~
 
-With this rule, the buttons are now in the first *column* of the grid (first value on `C0`, second value on `G#0`, etc.). Instead of a single step size, it's also possible to specify a list of discrete offset values, so that you can achieve any regular or irregular output pattern that you want. E.g., the following rule places every other meter value in the second row:
+Even though the extra step size appears on the left-hand side of a mod translation, it is applied to all messages on the *right-hand side*, scaling *up* the offsets of all output messages by the same factor. Thus, in the example above, the buttons are now in the first *column* of the grid (first value on `C0`, second value on `G#0`, etc.). Instead of a single step size, it's also possible to specify a list of discrete offset values, so that you can achieve any regular or irregular output pattern that you want. E.g., the following rule places every other meter value in the second row:
 
 ~~~
 CP[16]{0,9,2,11,4,13,6,15} C0{0,1:8,5:3,3}
@@ -628,6 +641,14 @@ Value lists offer some conveniences to facilitate their use, *repetitions* (whic
 ~~~
 CC1[] CC1{127-0}
 ~~~
+
+Contrast this with the *incremental* reversed controller rule that we've seen earlier:
+
+~~~
+CC1= CC1[-1]
+~~~
+
+As mentioned, this rule requires that you first move the controller up to its maximum position to make it work. The corresponding mod translation uses absolute values and thus doesn't have this defect; it just works without jumping through any such hoops.
 
 The values in a list may be in any order, and you can throw in any combination of singleton values, enumerations and repetitions. For instance:
 
@@ -806,21 +827,28 @@ M1[] XK_Left
 M2[] XK_Right
 ~~~
 
-Note that the `M0` macro will be invoked with a value of 0, 1 and 2 if the pitch wheel is down, centered, and up, respectively. Also, we use the change flag here, so the `M0` macro is only invoked when this value actually changes. The value lists in the definition of `M0` are then used to filter these values and call the appropriate macro which handles the key output: `M1` for value 0, `M2` for value 2. It's easy to adjust the `M1` and `M2` macros for other purposes. E.g., we might output the keyboard shortcuts for "Rewind" and "Fast Forward" for a video editor like Kdenlive, or the corresponding MIDI messages of a Mackie controller when working with a DAW program:
+Note that the `M0` macro will be invoked with a value of 0, 1 and 2 if the pitch wheel is down, centered, and up, respectively. Also, we use the change flag here, so the `M0` macro is only invoked when this value actually changes. The value lists in the definition of `M0` are then used to filter these values and call the appropriate macro which handles the key output: `M1` for value 0, `M2` for value 2. It's easy to adjust the `M1` and `M2` macros for other purposes. E.g., we might output the keyboard shortcuts for "Rewind" and "Fast Forward" for a video editor like Kdenlive or Shotcut:
 
 ~~~
-M1[] G7[127]  # Rew
-M2[] G#7[127] # FFwd
+M1[] "j"
+M2[] "l"
+~~~
+
+We could also substitute the corresponding MIDI messages of the Mackie protocol to control a DAW program like Ardour:
+
+~~~
+M1[] G7[127]  # Rewind
+M2[] G#7[127] # Fast Forward
 ~~~
 
 # Configuration Language Grammar
 
-The following EBNF grammar summarizes the syntax of the configuration language. The character set is 7 bit ASCII (arbitrary UTF-8 characters are permitted in comments, however). The language is line-oriented; each section header, directive, and translation must be on a line of its own. Empty lines and lines containing nothing but whitespace are generally ignored, as are comments (`#` at the beginning of a line or after whitespace until the end of the line), except in the name and regex parts of header lines which are taken verbatim.
+The following EBNF grammar summarizes the syntax of the configuration language. The character set is 7 bit ASCII (arbitrary UTF-8 characters are permitted in comments, however). The language is line-oriented; each directive, section header, and translation must be on a separate line. Empty lines and lines containing nothing but whitespace are generally ignored, as are comments, which begin with `#` at the beginning of a line or after whitespace, and continue until the end of the line. The only exception are header lines which are always taken verbatim, so whitespace and `#` have no special meaning there.
 
-In a directive or translation line, tokens are delimited by whitespace. Section names may contain any character but `]` and newline, regular expressions any character but newline. The latter must follow the usual syntax for basic regular expressions, see regex(7) for details. Strings are delimited by double quotes and may contain any printable ASCII character except newline and double quotes. Numbers are always decimal integers.
+Section names may contain any character but `]` and newline, regular expressions any character but newline. The latter must follow the usual syntax for basic regular expressions, see regex(7) for details. In a directive or translation line, tokens are delimited by whitespace. Strings are delimited by double quotes and may contain any printable ASCII character except newline and double quotes. Numbers are always decimal integers.
 
 ~~~
-config      ::= header { directive | translation }
+config      ::= { directive | header | translation }
 header      ::= "[" name "]" regex
 translation ::= midi-token { key-token | midi-token }
 

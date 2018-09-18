@@ -36,10 +36,10 @@ See Section \f[I]Jack\-Related Options\f[].
 .RE
 .TP
 .B \-k
-Keep track of key (on/off) status of MIDI notes and control switches.
-This isn't generally recommended, but may occasionally be useful to deal
-with quirky controllers sending note\- or control\-ons without
-corresponding off messages.
+Keep track of key (on/off) status.
+This may occasionally be useful to deal with quirky controllers sending
+repeated on or off messages.
+See Section \f[I]Key and Data Translations\f[].
 .RS
 .RE
 .TP
@@ -722,6 +722,17 @@ But they are treated in the same key\-like fashion anyway, assuming that
 they are \[lq]pressed\[rq] and then \[lq]released\[rq] immediately
 afterwards.
 .PP
+Key mode can optionally keep track of the current key (on/off) status,
+so that a key translation is only triggered when its status actually
+changes.
+It may occasionally be useful to enable this with the \f[C]\-k\f[]
+option on the command line, so that, e.g., repeated note\-ons or \-offs
+are filtered out automatically.
+Normally this is disabled, so on and off messages will be translated as
+is.
+You usually want to keep it that way, unless you're dealing with an
+unreliable controller or transmission line.
+.PP
 \f[I]Data mode\f[] is available for all messages with a parameter value,
 i.e., anything but \f[C]PC\f[].
 In this mode, the actual value of the message is processed rather than
@@ -1062,6 +1073,27 @@ CC48=\ CC16~
 \f[]
 .fi
 .PP
+Of course, this won't magically turn a standard controller into a
+\f[I]real\f[] encoder; it's range will still be limited.
+To emulate the endless range of an encoder on a device which doesn't
+have one, you'll have to spend \f[I]two\f[] standard controllers, one
+for reducing and another one for increasing values.
+For instance:
+.IP
+.nf
+\f[C]
+CC1\-\ CC60~
+CC2+\ CC60~
+\f[]
+.fi
+.PP
+Note that the \[lq]down\[rq] controller (\f[C]CC1\f[] in this example)
+only reacts to negative, and the \[lq]up\[rq] controlller (\f[C]CC2\f[])
+only to positive changes.
+This allows you to \[lq]rewind\[rq] each control when getting to the end
+of its range, so that you can continue to change its value as much as
+you want.
+.PP
 Step sizes work on the right\-hand side of data translations as well.
 You might use these to scale up value changes, e.g., when translating
 from control changes to pitch bends:
@@ -1114,11 +1146,12 @@ This means that midizap's \[lq]shadow\[rq] values of controllers, pitch
 bends etc.\ may initially well be out of sync with your input devices
 and applications, and you may have to wiggle a control in order to
 \[lq]calibrate\[rq] it.
-(This becomes most apparent when using negative step sizes, as in the
+.PP
+This becomes most apparent when using negative step sizes, as in the
 translation \f[C]CC1=\ CC1[\-1]\f[] from above.
 In this case, you will first have to move the control all the way up and
-then down again to get it working properly.) There are some ways to
-alleviate these issues, however.
+then down again to get it working properly.
+There are some ways to alleviate these issues, however.
 In particular, midizap can utilize controller feedback from the
 application, please check the \f[I]MIDI Feedback\f[] section below for
 details.
@@ -1376,7 +1409,7 @@ message belongs to.
 .IP \[bu] 2
 The shift keys can be turned off by sending them a zero parameter value.
 .PP
-midizap has some built\-in machinery to deal with shift key feedback,
+midizap has some built\-in machinery to deal with shift key feedback
 which handles direct feedback for shift keys in an automatic fashion,
 provided that these conditions are met.
 In particular, midizap ensures that the feedback message reflects the
@@ -1593,8 +1626,13 @@ CP[16][8]\ C0{0,1:8,5:3,3}
 \f[]
 .fi
 .PP
-With this rule, the buttons are now in the first \f[I]column\f[] of the
-grid (first value on \f[C]C0\f[], second value on \f[C]G#0\f[], etc.).
+Even though the extra step size appears on the left\-hand side of a mod
+translation, it is applied to all messages on the \f[I]right\-hand
+side\f[], scaling \f[I]up\f[] the offsets of all output messages by the
+same factor.
+Thus, in the example above, the buttons are now in the first
+\f[I]column\f[] of the grid (first value on \f[C]C0\f[], second value on
+\f[C]G#0\f[], etc.).
 Instead of a single step size, it's also possible to specify a list of
 discrete offset values, so that you can achieve any regular or irregular
 output pattern that you want.
@@ -1708,6 +1746,20 @@ E.g., to reverse the values of a controller you may write:
 CC1[]\ CC1{127\-0}
 \f[]
 .fi
+.PP
+Contrast this with the \f[I]incremental\f[] reversed controller rule
+that we've seen earlier:
+.IP
+.nf
+\f[C]
+CC1=\ CC1[\-1]
+\f[]
+.fi
+.PP
+As mentioned, this rule requires that you first move the controller up
+to its maximum position to make it work.
+The corresponding mod translation uses absolute values and thus doesn't
+have this defect; it just works without jumping through any such hoops.
 .PP
 The values in a list may be in any order, and you can throw in any
 combination of singleton values, enumerations and repetitions.
@@ -2097,14 +2149,22 @@ output: \f[C]M1\f[] for value 0, \f[C]M2\f[] for value 2.
 It's easy to adjust the \f[C]M1\f[] and \f[C]M2\f[] macros for other
 purposes.
 E.g., we might output the keyboard shortcuts for \[lq]Rewind\[rq] and
-\[lq]Fast Forward\[rq] for a video editor like Kdenlive, or the
-corresponding MIDI messages of a Mackie controller when working with a
-DAW program:
+\[lq]Fast Forward\[rq] for a video editor like Kdenlive or Shotcut:
 .IP
 .nf
 \f[C]
-M1[]\ G7[127]\ \ #\ Rew
-M2[]\ G#7[127]\ #\ FFwd
+M1[]\ "j"
+M2[]\ "l"
+\f[]
+.fi
+.PP
+We could also substitute the corresponding MIDI messages of the Mackie
+protocol to control a DAW program like Ardour:
+.IP
+.nf
+\f[C]
+M1[]\ G7[127]\ \ #\ Rewind
+M2[]\ G#7[127]\ #\ Fast\ Forward
 \f[]
 .fi
 .SH Configuration Language Grammar
@@ -2113,25 +2173,26 @@ The following EBNF grammar summarizes the syntax of the configuration
 language.
 The character set is 7 bit ASCII (arbitrary UTF\-8 characters are
 permitted in comments, however).
-The language is line\-oriented; each section header, directive, and
-translation must be on a line of its own.
+The language is line\-oriented; each directive, section header, and
+translation must be on a separate line.
 Empty lines and lines containing nothing but whitespace are generally
-ignored, as are comments (\f[C]#\f[] at the beginning of a line or after
-whitespace until the end of the line), except in the name and regex
-parts of header lines which are taken verbatim.
+ignored, as are comments, which begin with \f[C]#\f[] at the beginning
+of a line or after whitespace, and continue until the end of the line.
+The only exception are header lines which are always taken verbatim, so
+whitespace and \f[C]#\f[] have no special meaning there.
 .PP
-In a directive or translation line, tokens are delimited by whitespace.
 Section names may contain any character but \f[C]]\f[] and newline,
 regular expressions any character but newline.
 The latter must follow the usual syntax for basic regular expressions,
 see regex(7) for details.
+In a directive or translation line, tokens are delimited by whitespace.
 Strings are delimited by double quotes and may contain any printable
 ASCII character except newline and double quotes.
 Numbers are always decimal integers.
 .IP
 .nf
 \f[C]
-config\ \ \ \ \ \ ::=\ header\ {\ directive\ |\ translation\ }
+config\ \ \ \ \ \ ::=\ {\ directive\ |\ header\ |\ translation\ }
 header\ \ \ \ \ \ ::=\ "["\ name\ "]"\ regex
 translation\ ::=\ midi\-token\ {\ key\-token\ |\ midi\-token\ }
 

@@ -1583,7 +1583,7 @@ void help(char *progname)
   fprintf(stderr, "-h print this message\n");
   fprintf(stderr, "-d debug (r = regex, s = strokes, k = keys, m = midi, j = jack; default: all)\n");
   fprintf(stderr, "-j jack client name (default: midizap)\n");
-  fprintf(stderr, "-k keep track of key status (ignore double notes)\n");
+  fprintf(stderr, "-k keep track of key status (ignore double on/off messages)\n");
   fprintf(stderr, "-n no automatic feedback from the second port (-o2)\n");
   fprintf(stderr, "-o set number of MIDI output ports (0-2, default: 1)\n");
   fprintf(stderr, "-P set real-time priority (default: 90)\n");
@@ -1671,7 +1671,6 @@ main(int argc, char **argv)
       help(argv[0]);
       exit(0);
     case 'k':
-      // see comment on -k and keydown_tracker above
       keydown_tracker = 1;
       add_command("-k", 1);
       break;
