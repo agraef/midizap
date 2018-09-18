@@ -6,7 +6,7 @@ midizap -- control your multimedia applications with MIDI
 
 # Synopsis
 
-midizap [-hkns] [-d[rskmj]] [-j *name*] [-o[*n*]] [-P[*prio*]] [-r *rcfile*]
+midizap [-hkn] [-d[rskmj]] [-j *name*] [-os[*n*]] [-P[*prio*]] [-r *rcfile*]
 
 # Options
 
@@ -34,8 +34,8 @@ midizap [-hkns] [-d[rskmj]] [-j *name*] [-o[*n*]] [-P[*prio*]] [-r *rcfile*]
 -r *rcfile*
 :   Set the configuration file name. Default: taken from the MIDIZAP_CONFIG_FILE environment variable if it exists, or ~/.midizaprc if it exists, /etc/midizaprc otherwise. See Section *Configuration File*.
 
--s
-:   Pass through system messages from MIDI input to output.  See Section *MIDI Output*.
+-s[*n*]
+:   Pass through system messages from MIDI input to output; *n* optionally specifies the port (0 = none, 1 = first, 2 = second port only), default is pass-through on both ports (if available). This overrides the corresponding directive in the configuration file. See Section *Jack-Related Options*.
 
 # Description
 
@@ -136,7 +136,7 @@ You can try it and test that it works by running `midizap -o` along with a MIDI 
 
 Note the `-10` suffix on the output messages in the above example, which indicates that output goes to MIDI channel 10. In midizaprc syntax, MIDI channels are 1-based, so they are numbered 1..16, and 10 denotes the GM (General MIDI) drum channel. E.g., the input note `C4` is mapped to `C3-10`, the note C in the third MIDI octave, which on channel 10 will produce the sound of a bass drum, at least on GM compatible synthesizers like Fluidsynth. The binding for the volume controller (`CC7`) at the end of the entry sends volume changes to the same drum channel (`CC7-10`), so that you can use the volume control on your keyboard to change the volume on the drum channel.
 
-Besides MIDI notes and control change (`CC`) messages, the midizap program also recognizes key and channel pressure (`KP`, `CP`), program change (`PC`), and pitch bend (`PB`) messages, which should cover most common use cases. These are discussed in more detail in the *Translation Syntax* section below. In addition, while midizap cannot translate system messages such as system exclusive, it can pass them through if you specify the `-s` option on the command line, or the special `SYSTEM_PASSTHROUGH` directive in the configuration file.
+Besides MIDI notes and control change (`CC`) messages, the midizap program also recognizes key and channel pressure (`KP`, `CP`), program change (`PC`), and pitch bend (`PB`) messages, which should cover most common use cases. These are discussed in more detail in the *Translation Syntax* section below. In addition, while midizap cannot translate system messages such as system exclusive, it can pass them through if you specify the `-s` option on the command line, see the following section for details.
 
 # Jack-Related Options
 
@@ -158,9 +158,17 @@ JACK_PORTS 1
 
 The given number of output ports must be 0, 1 or 2. Zero means that MIDI output is disabled (which is the default anyway, so you don't have to specify it explicitly). You may want to use `JACK_PORTS 1` if the configuration is primarily aimed at doing MIDI translations, so you'd like to have MIDI output enabled by default. `JACK_PORTS 2` or the `-o2` option indicates that *two* pairs of input and output ports are to be created (the second port is typically used to deal with controller feedback from the application, see the *MIDI Feedback* section for details).
 
-**NOTE:** If you notice bad latency or jitter in MIDI output, you should try running midizap with real-time priorities. Jack itself usually does that anyway, but midizap's main thread won't unless you run it with the `-P` option (`midizap -P`, or `midizap -P80` if you also want to specify the priority; the default is 90). Using this option, midizap should be able to get down to MIDI latencies in the 1 msec ballpark which should be good enough for most purposes (YMMV, though).
+Thirdly, the `-s` option and the `SYSTEM_PASSTHROUGH` directive are used to indicate that system messages are to be passed through unchanged. You can optionally specify which port the pass-through should apply to (0 means none, 1 the first, 2 the second port); otherwise it applies to both ports. For instance, if you only need system pass-through on the feedback port, you might write:
 
-Last but not least, midizap also supports *Jack session management*, which makes it possible to record the options the program was invoked with, along with all the MIDI connections. This feature can be used with any Jack session management software. QjackCtl has its own built-in Jack session manager which is available in its Session dialog. To use this, launch midizap and any other Jack applications you want to have in the session, use QjackCtl to set up all the connections as needed, and then hit the "Save" button in the Session dialog to have the session recorded. (The "Save and Quit" option does the same, but also asks midizap and other Jack session clients to quit afterwards.) Now, at any later time you can rerun the recorded session with the "Load" button in the same dialog. Also, your most recent sessions are available in the "Recent" menu from where they can be launched quickly.
+~~~
+SYSTEM_PASSTHROUGH 2
+~~~
+
+Note that all Jack-related options can only be set at program startup, which is the time the Jack backend gets initialized. If you later edit the corresponding directives in the configuration file, the changes won't take effect until you restart the program.
+
+As a convenience, midizap also supports *Jack session management*, which makes it possible to record the options the program was invoked with, along with all the MIDI connections. This feature can be used with any Jack session management software. QjackCtl has its own built-in Jack session manager which is available in its Session dialog. To use this, launch midizap and any other Jack applications you want to have in the session, use QjackCtl to set up all the connections as needed, and then hit the "Save" button in the Session dialog to have the session recorded. (The "Save and Quit" option does the same, but also asks midizap and other Jack session clients to quit afterwards.) Now, at any later time you can rerun the recorded session with the "Load" button in the same dialog. Also, your most recent sessions are available in the "Recent" menu from where they can be launched quickly.
+
+Finally, midizap also offers an option to run the program with *real-time priorities*. Jack itself usually does that anyway where needed, but midizap's main thread won't unless you run it with the `-P` option (`midizap -P`, or `midizap -P80` if you also want to specify the priority; the default is 90). You should try this option, in particular, if you notice bad latency or jitter in MIDI output. Using this option, midizap should be able to get down to MIDI latencies in the 1 msec ballpark which should be good enough for most purposes (YMMV, though).
 
 # Translation Syntax
 
@@ -251,13 +259,13 @@ Note that since translations must be determined uniquely in each translation cla
 
 - Since program changes have no parameter value associated with them, they don't really have an "on" or "off" status. But they are treated in the same key-like fashion anyway, assuming that they are "pressed" and then "released" immediately afterwards.
 
-Key mode can optionally keep track of the current key (on/off) status, so that a key translation is only triggered when its status actually changes. It may occasionally be useful to enable this with the `-k` option on the command line, so that, e.g., repeated note-ons or -offs are filtered out automatically. Normally this is disabled, so on and off messages will be translated as is. You usually want to keep it that way, unless you're dealing with an unreliable controller or transmission line.
+Key mode can optionally keep track of the current key (on/off) status, so that a key translation is only triggered when its status actually changes. Normally this shouldn't be necessary and thus it is disabled by default. You usually want to keep it that way, unless you're dealing with a quirky controller or an unreliable transmission line. In such cases it may useful to enable this option with the `-k` option on the command line, so that, e.g., repeated note-ons or -offs are filtered out automatically.
 
 *Data mode* is available for all messages with a parameter value, i.e., anything but `PC`. In this mode, the actual value of the message is processed rather than just the on/off state. Data mode is indicated with a special suffix on the message token which denotes a step size and/or the direction of the value change which the rule should apply to: increment (`+`), decrement (`-`), or both (`=`). The two parts are both optional, but at least one of them must be present (otherwise the rule is interpreted as a key translation).
 
 In the following, we concentrate on *incremental* data mode messages, i.e., the kind which has an increment suffix. In this case, the optional step size in brackets indicates the amount of change required to trigger the translation, so its effect is to downscale the amount of change in the input value. The variant without an increment suffix is more complicated and mostly intended for more specialized uses, so we'll have a look at it later in the *Mod Translations* section.
 
-Data mode usually tracks changes in the *absolute* value of a control. However, for `CC` messages there's also an alternative mode for so-called *incremental* controllers, or *encoders* for short, which can found on some DAW controllers. These usually take the form of jog wheels or rotary encoders which can be turned endlessly in either direction. Encoders emit a special *sign bit* value indicating a *relative* change, where a value < 64 usually denotes an increment (representing clockwise rotation), and a value > 64 a decrement (counter-clockwise rotation). The actual amount of change is in the lower 6 bits of the value. In the message syntax, these kinds of controls are indicated by using the suffixes `<`, `>` and `~` in lieu of `-`, `+` and `=`, respectively. These flags are only permitted with `CC` messages.
+Data mode usually tracks changes in the *absolute* value of a control. However, for `CC` messages there's also an alternative mode for so-called *relative* controllers which can found on some devices. These usually take the form of jog wheels or rotary encoders which can be turned endlessly in either direction, therefore we also just call them *encoders* for short in the following. There are various kinds of these which differ in the way they represent relative changes, but these days most encoders found on MIDI controllers employ the *sign bit* format; this is also the only kind supported by midizap in the present implementation. In the sign-bit representation, a value <64 denotes an increment (representing clockwise rotation), and a value >64 a decrement (counter-clockwise rotation); the actual amount of change is in the lower 6 bits of the value. In the message syntax, sign-bit values are indicated by using the suffixes `<`, `>` and `~` in lieu of `-`, `+` and `=`, respectively. These flags are only permitted with `CC` messages.
 
 ## Keyboard and Mouse Events
 
@@ -302,7 +310,7 @@ CC7- XK_Left
 CC7+ XK_Right
 ~~~
 
-Incremental `CC` messages are treated in an analogous fashion, but in this case the increment or decrement is determined directly by the input message. One example for this type of controller is the big jog wheel (`CC60`) on some Mackie devices, which can be processed as follows (using `<` and `>` in lieu of `-` and `+` as the increment flag of the `CC` message):
+Sign-bit encoders are treated in an analogous fashion, but in this case the increment or decrement is determined directly by the input message. One example for this type of controller is the big jog wheel (`CC60`) on some Mackie devices, which can be processed as follows (using `<` and `>` in lieu of `-` and `+` as the increment flag of the `CC` message):
 
 ~~~
 CC60< XK_Left
@@ -318,7 +326,7 @@ CC7[4]- XK_Left
 CC7[4]+ XK_Right
 ~~~
 
-The same goes for incremental `CC` messages:
+The same goes for sign-bit encoders:
 
 ~~~
 CC60[4]< XK_Left
@@ -329,7 +337,7 @@ Note that since there's no persistent absolute controller state in this case, th
 
 ## MIDI Events
 
-Most of the notation for MIDI messages on the left-hand side of a translation rule also carries over to the output side. The only real difference is that the increment flags `+-=<>` aren't permitted here, as they are only used to determine the input mode (key or data) of the entire translation. The `~` flag *is* allowed, however, to indicate output in bit-sign encoder format in data translations, see below. Step sizes are permitted as well on the output side, in *both* key and data translations. Their meaning depends on the kind of translation, however. In key translations, they denote the (nonzero) value to be used for the "on" state in the press sequence; in data translations, they indicate the amount of change for each unit input change (which has the effect of *upscaling* the value change).
+Most of the notation for MIDI messages on the left-hand side of a translation rule also carries over to the output side. The only real difference is that the increment flags `+-=<>` aren't permitted here, as they are only used to determine the input mode (key or data) of the entire translation. The `~` flag *is* allowed, however, to indicate output in sign-bit encoder format in data translations, see below. Step sizes are permitted as well on the output side, in *both* key and data translations. Their meaning depends on the kind of translation, however. In key translations, they denote the (nonzero) value to be used for the "on" state in the press sequence; in data translations, they indicate the amount of change for each unit input change (which has the effect of *upscaling* the value change).
 
 The output sequence can involve as many MIDI messages as you want, and these can be combined freely with keyboard and mouse events in any order. However, as already discussed in Section *MIDI Output* above, you also need to invoke the midizap program with the `-o` option to make MIDI output work. Otherwise, MIDI messages in the output translations will just be silently ignored.
 
@@ -382,20 +390,20 @@ CC60< CC7
 CC60> CC7
 ~~~
 
-The `~` flag can be used to denote encoders in output messages, too. E.g., to translate a standard (absolute) MIDI controller to an incremental encoder value, you might use a rule like:
+The `~` flag can be used to denote encoders in output messages, too. E.g., to translate a standard (absolute) MIDI controller to a sign-bit encoder value, you might use a rule like:
 
 ~~~
 CC48= CC16~
 ~~~
 
-Of course, this won't magically turn a standard controller into a *real* encoder; it's range will still be limited. To emulate the endless range of an encoder on a device which doesn't have one, you'll have to spend *two* standard controllers, one for reducing and another one for increasing values. For instance:
+Of course, this won't magically turn a standard controller into a *real* encoder; its range will still be limited. One way to properly emulate the endless range of an encoder is to expend *two* absolute controllers, one for reducing and another one for increasing the value. For instance:
 
 ~~~
 CC1- CC60~
 CC2+ CC60~
 ~~~
 
-Note that the "down" controller (`CC1` in this example) only reacts to negative, and the "up" controlller (`CC2`) only to positive changes. This allows you to "rewind" each control when getting to the end of its range, so that you can continue to change its value as much as you want.
+Note that the "down" controller (`CC1` in this example) only reacts to negative, and the "up" controlller (`CC2`) only to positive changes. Therefore it's possible to "rewind" each control when getting to the end of its range, so that you can continue to change its value as much as you want. Admittedly, this solution is a bit quirky, but hey -- if you absolutely need to emulate a real encoder on a device which doesn't have one, that's one way to do it.
 
 Step sizes work on the right-hand side of data translations as well. You might use these to scale up value changes, e.g., when translating from control changes to pitch bends:
 
@@ -419,7 +427,7 @@ The above translation will only be triggered when the input value changes by 3 u
 
 **NOTE:** All data translations we've seen so far handle *incremental* value changes. In order to be able to detect these changes and, in the case of MIDI output, change the output values accordingly, midizap has to keep track of all the current parameter values of all messages on all MIDI channels, for both input and output. This is easy enough, but midizap usually has no way of knowing the *actual* state of your controllers and MIDI applications, so when the program starts up, it simply assumes all these values to be zero. This means that midizap's "shadow" values of controllers, pitch bends etc.\ may initially well be out of sync with your input devices and applications, and you may have to wiggle a control in order to "calibrate" it.
 
-This becomes most apparent when using negative step sizes, as in the translation `CC1= CC1[-1]` from above. In this case, you will first have to move the control all the way up and then down again to get it working properly. There are some ways to alleviate these issues, however. In particular, midizap can utilize controller feedback from the application, please check the *MIDI Feedback* section below for details. Also, encoders need no calibration as they represent incremental changes anyway, and there's an alternative form of data translation, to be discussed in Section *Mod Translations*, which always works with absolute values and thus needs no calibration either.
+This becomes most apparent when using negative step sizes, as in the translation `CC1= CC1[-1]` from above. In this case, you will first have to move the control all the way up and then down again to get it working properly. There are some ways to mitigate these issues, however. In particular, midizap can utilize controller feedback from the application, please check the *MIDI Feedback* section below for details. Also, encoders need no calibration as they represent incremental changes anyway, and there's an alternative form of data translation, to be discussed in Section *Mod Translations*, which always works with absolute values and thus needs no calibration either.
 
 ## Shift State
 
@@ -439,7 +447,7 @@ D8 SHIFT RELEASE SHIFT
 
 Note that in either case `SHIFT` works as a *toggle*; when executed, it turns the shift status from off to on, and vice versa from on to off.
 
-Having set up the translation for the shift key itself, we can now assign, depending on the shift state, different functions to buttons and faders. Here's a typical example which maps a control change to either Mackie-style fader values encoded as pitch bends, or incremental encoder values:
+Having set up the translation for the shift key itself, we can now assign, depending on the shift state, different functions to buttons and faders. Here's a typical example which maps a control change to either Mackie-style fader values encoded as pitch bends, or sign-bit encoder values:
 
 ~~~
  CC48= PB[128]  # default: translate to pitch bend
@@ -854,7 +862,8 @@ translation ::= midi-token { key-token | midi-token }
 
 directive   ::= "DEBUG_REGEX" | "DEBUG_STROKES" | "DEBUG_KEYS" |
                 "DEBUG_MIDI" | "MIDI_OCTAVE" number |
-				"JACK_PORTS" number | "JACK_NAME" string
+				"JACK_NAME" string | "JACK_PORTS" number |
+				"SYSTEM_PASSTHROUGH" [ number ]
 
 midi-token  ::= msg [ mod ] [ steps ] [ "-" number] [ flag ]
 msg         ::= ( note | other | "M" ) [ number ]
