@@ -151,7 +151,7 @@ process_midi_input(JACK_SEQ* seq,jack_nframes_t nframes)
 
     void *port_buffer = jack_port_get_buffer(seq->input_port[k], nframes);
     // this is used for direct pass-through of system messages
-    void *out_buffer = seq->passthrough && k < seq->n_out?
+    void *out_buffer = seq->passthrough[k] && k < seq->n_out?
       jack_port_get_buffer(seq->output_port[k], nframes):0;
     if (port_buffer == NULL)
     {
@@ -233,7 +233,7 @@ process_midi_output(JACK_SEQ* seq,jack_nframes_t nframes)
       return;
     }
 
-    if (!seq->passthrough)
+    if (!seq->passthrough[k])
     {
 #ifdef JACK_MIDI_NEEDS_NFRAMES
       jack_midi_clear_buffer(port_buffer, nframes);

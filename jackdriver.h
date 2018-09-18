@@ -11,7 +11,7 @@ typedef struct _jseq
   jack_client_t	*jack_client;
   jack_port_t	**output_port;
   jack_port_t	**input_port;
-  uint8_t n_in, n_out, passthrough;
+  uint8_t n_in, n_out, passthrough[2];
 } JACK_SEQ;
 
 extern int jack_quit;

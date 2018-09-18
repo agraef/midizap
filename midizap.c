@@ -21,7 +21,7 @@ Display *display;
 
 JACK_SEQ seq;
 int jack_num_outputs = 0, debug_jack = 0;
-int auto_feedback = 1, system_passthrough = 0;
+int auto_feedback = 1, system_passthrough[2] = {-1, -1};
 int shift = 0;
 
 void
@@ -1579,7 +1579,7 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
 
 void help(char *progname)
 {
-  fprintf(stderr, "Usage: %s [-hkns] [-d[rskmj]] [-o[n]] [-j name] [-P[prio]] [-r rcfile]\n", progname);
+  fprintf(stderr, "Usage: %s [-hkn] [-d[rskmj]] [-os[n]] [-j name] [-P[prio]] [-r rcfile]\n", progname);
   fprintf(stderr, "-h print this message\n");
   fprintf(stderr, "-d debug (r = regex, s = strokes, k = keys, m = midi, j = jack; default: all)\n");
   fprintf(stderr, "-j jack client name (default: midizap)\n");
@@ -1588,7 +1588,7 @@ void help(char *progname)
   fprintf(stderr, "-o set number of MIDI output ports (0-2, default: 1)\n");
   fprintf(stderr, "-P set real-time priority (default: 90)\n");
   fprintf(stderr, "-r config file name (default: MIDIZAP_CONFIG_FILE variable or ~/.midizaprc)\n");
-  fprintf(stderr, "-s pass-through of system messages\n");
+  fprintf(stderr, "-s pass-through of system messages (0-2; default: all ports)\n");
 }
 
 uint8_t quit = 0;
@@ -1665,7 +1665,7 @@ main(int argc, char **argv)
   // Start recording the command line to be passed to Jack session management.
   add_command(argv[0], 0);
 
-  while ((opt = getopt(argc, argv, "hkno::d::j:r:P::s")) != -1) {
+  while ((opt = getopt(argc, argv, "hkno::d::j:r:P::s::")) != -1) {
     switch (opt) {
     case 'h':
       help(argv[0]);
@@ -1758,8 +1758,28 @@ main(int argc, char **argv)
       }
       break;
     case 's':
-      system_passthrough = 1;
-      add_command("-s", 1);
+      if (optarg && *optarg) {
+	const char *a = optarg;
+	if (!strcmp(a, "2")) {
+	  system_passthrough[0] = 0;
+	  system_passthrough[1] = 1;
+	  add_command("-s2", 1);
+	} else if (!strcmp(a, "1")) {
+	  system_passthrough[0] = 1;
+	  system_passthrough[1] = 0;
+	  add_command("-s1", 1);
+	} else if (!strcmp(a, "0")) {
+	  system_passthrough[0] = system_passthrough[1] = 0;
+	  add_command("-s0", 1);
+	} else {
+	  fprintf(stderr, "%s: wrong port number (-s), must be 0, 1 or 2\n", argv[0]);
+	  fprintf(stderr, "Try -h for help.\n");
+	  exit(1);
+	}
+      } else {
+	system_passthrough[0] = system_passthrough[1] = 1;
+	add_command("-s", 1);
+      }
       break;
     default:
       fprintf(stderr, "Try -h for help.\n");
@@ -1786,7 +1806,8 @@ main(int argc, char **argv)
   seq.client_name = jack_client_name;
   seq.n_in = jack_num_outputs>1?jack_num_outputs:1;
   seq.n_out = jack_num_outputs>0?jack_num_outputs:0;
-  seq.passthrough = jack_num_outputs>0?system_passthrough:0;
+  seq.passthrough[0] = jack_num_outputs>0?system_passthrough[0]>0:0;
+  seq.passthrough[1] = jack_num_outputs>1?system_passthrough[1]>0:0;
   if (!init_jack(&seq, debug_jack)) {
     exit(1);
   }

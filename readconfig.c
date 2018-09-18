@@ -1914,10 +1914,6 @@ read_config_file(void)
 	auto_feedback = 0; // -n
 	continue;
       }
-      if (!strcmp(tok, "SYSTEM_PASSTHROUGH")) {
-	system_passthrough = 1; // -s
-	continue;
-      }
       if (!strcmp(tok, "JACK_NAME")) {
 	char *a = token(NULL, &delim);
 	if (!jack_client_name) {
@@ -1936,6 +1932,22 @@ read_config_file(void)
 	  } else {
 	    fprintf(stderr, "invalid port number: %s, must be 0, 1 or 2\n", a);
 	  }
+	}
+	continue;
+      }
+      if (!strcmp(tok, "SYSTEM_PASSTHROUGH")) { // -s
+	char *a = token(NULL, &delim);
+	int k, n;
+	if (a && *a && *a != '#') {
+	  if (sscanf(a, "%d%n", &k, &n) == 1 && !a[n] && k>=0 && k<=2) {
+	    if (system_passthrough[0] < 0) system_passthrough[0] = k==1;
+	    if (system_passthrough[1] < 0) system_passthrough[1] = k==2;
+	  } else {
+	    fprintf(stderr, "invalid port number: %s, must be 0, 1 or 2\n", a);
+	  }
+	} else {
+	  if (system_passthrough[0] < 0) system_passthrough[0] = 1;
+	  if (system_passthrough[1] < 0) system_passthrough[1] = 1;
 	}
 	continue;
       }
