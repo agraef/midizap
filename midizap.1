@@ -98,10 +98,9 @@ See Section \f[I]Jack\-Related Options\f[].
 .PP
 midizap lets you control your multimedia applications using
 MIDI (https://www.midi.org/), the Musical Instrument Digital Interface.
-There is an abundance of MIDI devices available these days, many of
-which are USB class devices which can be readily connected to computers
-without special drivers.
-midizap makes it possible to use this equipment with just about any
+Modern MIDI controllers are often USB class devices which can be
+connected to computers without any ado.
+midizap makes it possible to use this gear with just about any
 X11\-based application.
 To these ends, it translates Jack MIDI input into X keyboard and mouse
 events, and optionally MIDI output.
@@ -2214,8 +2213,10 @@ invoked when this value actually changes.
 The value lists in the definition of \f[C]M0\f[] are then used to filter
 these values and call the appropriate macro which handles the key
 output: \f[C]M1\f[] for value 0, \f[C]M2\f[] for value 2.
-It's easy to adjust the \f[C]M1\f[] and \f[C]M2\f[] macros for other
-purposes.
+.PP
+Kicking the pitch wheel around just to move the cursor left and right
+isn't much fun after a while, but it's easy to adjust the \f[C]M1\f[]
+and \f[C]M2\f[] macros for more sensible purposes.
 E.g., we might output the keyboard shortcuts for \[lq]Rewind\[rq] and
 \[lq]Fast Forward\[rq] for a video editor like Kdenlive or Shotcut:
 .IP
@@ -2244,8 +2245,9 @@ permitted in comments, however).
 The language is line\-oriented; each directive, section header, and
 translation must be on a separate line.
 Empty lines and lines containing nothing but whitespace are generally
-ignored, as are comments, which begin with \f[C]#\f[] at the beginning
-of a line or after whitespace, and continue until the end of the line.
+ignored, as are comments, which are introduced with \f[C]#\f[] at the
+beginning of a line or after whitespace, and continue until the end of
+the line.
 The only exception are header lines which are always taken verbatim, so
 whitespace and \f[C]#\f[] have no special meaning there.
 .PP

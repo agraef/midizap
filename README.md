@@ -42,7 +42,7 @@ midizap [-hkn] [-d[rskmj]] [-j *name*] [-ost[*n*]] [-P[*prio*]] [-r *rcfile*]
 
 # Description
 
-midizap lets you control your multimedia applications using [MIDI][], the Musical Instrument Digital Interface. There is an abundance of MIDI devices available these days, many of which are USB class devices which can be readily connected to computers without special drivers. midizap makes it possible to use this equipment with just about any X11-based application. To these ends, it translates Jack MIDI input into X keyboard and mouse events, and optionally MIDI output. It does this by matching the `WM_CLASS` and `WM_NAME` properties of the window that has the keyboard focus against the regular expressions for each application section in its configuration (midizaprc) file. If a regex matches, the corresponding set of translations is used. If a matching section cannot be found, or if it doesn't define a suitable translation, the program falls back to a set of translations in a default section at the end of the file, if available.
+midizap lets you control your multimedia applications using [MIDI][], the Musical Instrument Digital Interface. Modern MIDI controllers are often USB class devices which can be connected to computers without any ado. midizap makes it possible to use this gear with just about any X11-based application. To these ends, it translates Jack MIDI input into X keyboard and mouse events, and optionally MIDI output. It does this by matching the `WM_CLASS` and `WM_NAME` properties of the window that has the keyboard focus against the regular expressions for each application section in its configuration (midizaprc) file. If a regex matches, the corresponding set of translations is used. If a matching section cannot be found, or if it doesn't define a suitable translation, the program falls back to a set of translations in a default section at the end of the file, if available.
 
 The midizaprc file is just an ordinary text file which you can edit to configure the program. The configuration language is fairly straightforward, basically the file is just a list of MIDI messages (denoted with familiar human-readable mnemonics, no hex numbers!) and their translations, which is divided into sections for different applications. An example.midizaprc file is included in the sources to get you started, and you can find some more examples of configuration files for various purposes in the examples directory.
 
@@ -848,7 +848,9 @@ M1[] XK_Left
 M2[] XK_Right
 ~~~
 
-Note that the `M0` macro will be invoked with a value of 0, 1 and 2 if the pitch wheel is down, centered, and up, respectively. Also, we use the change flag here, so the `M0` macro is only invoked when this value actually changes. The value lists in the definition of `M0` are then used to filter these values and call the appropriate macro which handles the key output: `M1` for value 0, `M2` for value 2. It's easy to adjust the `M1` and `M2` macros for other purposes. E.g., we might output the keyboard shortcuts for "Rewind" and "Fast Forward" for a video editor like Kdenlive or Shotcut:
+Note that the `M0` macro will be invoked with a value of 0, 1 and 2 if the pitch wheel is down, centered, and up, respectively. Also, we use the change flag here, so the `M0` macro is only invoked when this value actually changes. The value lists in the definition of `M0` are then used to filter these values and call the appropriate macro which handles the key output: `M1` for value 0, `M2` for value 2.
+
+Kicking the pitch wheel around just to move the cursor left and right isn't much fun after a while, but it's easy to adjust the `M1` and `M2` macros for more sensible purposes. E.g., we might output the keyboard shortcuts for "Rewind" and "Fast Forward" for a video editor like Kdenlive or Shotcut:
 
 ~~~
 M1[] "j"
@@ -864,7 +866,7 @@ M2[] G#7[127] # Fast Forward
 
 # Configuration Language Grammar
 
-The following EBNF grammar summarizes the syntax of the configuration language. The character set is 7 bit ASCII (arbitrary UTF-8 characters are permitted in comments, however). The language is line-oriented; each directive, section header, and translation must be on a separate line. Empty lines and lines containing nothing but whitespace are generally ignored, as are comments, which begin with `#` at the beginning of a line or after whitespace, and continue until the end of the line. The only exception are header lines which are always taken verbatim, so whitespace and `#` have no special meaning there.
+The following EBNF grammar summarizes the syntax of the configuration language. The character set is 7 bit ASCII (arbitrary UTF-8 characters are permitted in comments, however). The language is line-oriented; each directive, section header, and translation must be on a separate line. Empty lines and lines containing nothing but whitespace are generally ignored, as are comments, which are introduced with `#` at the beginning of a line or after whitespace, and continue until the end of the line. The only exception are header lines which are always taken verbatim, so whitespace and `#` have no special meaning there.
 
 Section names may contain any character but `]` and newline, regular expressions any character but newline. The latter must follow the usual syntax for extended regular expressions, see regex(7) for details. In a directive or translation line, tokens are delimited by whitespace. Strings are delimited by double quotes and may contain any printable ASCII character except newline and double quotes. Numbers are always decimal integers.
 
