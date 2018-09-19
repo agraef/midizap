@@ -1,0 +1,34 @@
+
+# The nanoKONTROL2 has no plain Mackie emulation. Its Cubase mode comes close,
+# except for the MARKER keys. This config patches them up a bit so that they
+# do something useful.
+
+# Copyright (c) 2018 Albert Graef <aggraef@gmail.com>
+
+# Copying and distribution of this file, with or without modification, are
+# permitted in any medium without royalty provided the copyright notice and
+# this notice are preserved.  This file is offered as-is, without any
+# warranty.
+
+JACK_NAME "midizap-nanoKONTROL2"
+JACK_PORTS 2
+
+# Pass everything through (including feedback), except for the mappings below.
+PASSTHROUGH
+SYSTEM_PASSTHROUGH
+
+# NOTE: This assumes that you run the nanoKONTROL2 in Cubase mode.
+
+[MIDI]
+
+F7  C7   # "SET" -> MARKER
+
+# AFAICT, the "Prev/Next Marker" functions have no standard representation in
+# MCP. In Ardour, they can be accessed with the Q and W keys, but we don't
+# want to depend on "real" keyboard bindings here. Instead, we assume that you
+# have bound these operations to some MCP function keys in your DAW. The
+# bindings below use the shifted cursor keys, but you can use whatever is
+# convenient.
+
+E7  A#5 D8  # SHIFT <-
+F#7 A#5 D#8 # SHIFT ->

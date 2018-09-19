@@ -1,0 +1,28 @@
+
+# The X-Touch ONE is quite capable as it is, it just lacks a SHIFT key.
+# The sole purpose of this utterly trivial config is to provide one.
+
+# Copyright (c) 2018 Albert Graef <aggraef@gmail.com>
+
+# Copying and distribution of this file, with or without modification, are
+# permitted in any medium without royalty provided the copyright notice and
+# this notice are preserved.  This file is offered as-is, without any
+# warranty.
+
+JACK_NAME "midizap-XTouchONE"
+JACK_PORTS 2
+
+# Pass everything through, except for the one mapping below.
+PASSTHROUGH
+SYSTEM_PASSTHROUGH
+
+# NOTE: This assumes that you use the default Mackie mode of the ONE.
+# Otherwise you'll have to adjust the key mapping accordingly. I use the
+# SCRUB key as a replacement (F8 in MC mode), because Ardour doesn't use
+# it. If you do need that key, use another one that you can spare.
+
+[MIDI]
+F8 A#5
+
+[MIDI2]
+A#5 F8
