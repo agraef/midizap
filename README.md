@@ -6,7 +6,7 @@ midizap -- control your multimedia applications with MIDI
 
 # Synopsis
 
-midizap [-hkn] [-d[rskmj]] [-j *name*] [-os[*n*]] [-P[*prio*]] [-r *rcfile*]
+midizap [-hkn] [-d[rskmj]] [-j *name*] [-ost[*n*]] [-P[*prio*]] [-r *rcfile*]
 
 # Options
 
@@ -37,13 +37,16 @@ midizap [-hkn] [-d[rskmj]] [-j *name*] [-os[*n*]] [-P[*prio*]] [-r *rcfile*]
 -s[*n*]
 :   Pass through system messages from MIDI input to output; *n* optionally specifies the port (0 = none, 1 = first, 2 = second port only), default is pass-through on both ports (if available). This overrides the corresponding directive in the configuration file. See Section *Jack-Related Options*.
 
+-t[*n*]
+:   Pass through untranslated (non-system) messages from MIDI input to output; the meaning of the optional parameter *n* is the same as with the `-s` option. This overrides the corresponding directive in the configuration file. See Section *Jack-Related Options*.
+
 # Description
 
-midizap lets you control your multimedia applications using [MIDI][]. To these ends, it translates Jack MIDI input into X keystrokes, mouse button presses, scroll wheel events, and, as an option, MIDI output. It does this by matching the `WM_CLASS` and `WM_NAME` properties of the window that has the keyboard focus against the regular expressions for each application section in its configuration (midizaprc) file. If a regex matches, the corresponding set of translations is used. If a matching section cannot be found, or if it doesn't define a suitable translation, the program falls back to a set of translations in a default section at the end of the file, if available.
+midizap lets you control your multimedia applications using [MIDI][], the Musical Instrument Digital Interface. There is an abundance of MIDI devices available these days, many of which are USB class devices which can be readily connected to computers without special drivers. midizap makes it possible to use this equipment with just about any X11-based application. To these ends, it translates Jack MIDI input into X keyboard and mouse events, and optionally MIDI output. It does this by matching the `WM_CLASS` and `WM_NAME` properties of the window that has the keyboard focus against the regular expressions for each application section in its configuration (midizaprc) file. If a regex matches, the corresponding set of translations is used. If a matching section cannot be found, or if it doesn't define a suitable translation, the program falls back to a set of translations in a default section at the end of the file, if available.
 
-The midizaprc file is just an ordinary text file which you can edit to configure the program. The configuration language is fairly straightforward, basically the file is just a list of MIDI messages (denoted with familiar human-readable mnemonics, no hex numbers!) and their translations, which is divided into sections for different applications. An example.midizaprc file containing sample configurations for some applications is included in the sources to get you started, and you can find some more examples of configuration files for various purposes in the examples directory.
+The midizaprc file is just an ordinary text file which you can edit to configure the program. The configuration language is fairly straightforward, basically the file is just a list of MIDI messages (denoted with familiar human-readable mnemonics, no hex numbers!) and their translations, which is divided into sections for different applications. An example.midizaprc file is included in the sources to get you started, and you can find some more examples of configuration files for various purposes in the examples directory.
 
-midizap provides you with a way to hook up just about any MIDI controller to your applications. Even if your target application already supports MIDI, midizap's MIDI output option will be useful if your controller can't work directly with the application because of protocol incompatibilities. In particular, you can use midizap to turn pretty much any MIDI controller with enough faders and buttons into a Mackie-compatible mixing device ready to be used with most DAW (digital audio workstation) programs. Another common use case is video editing software, which rarely offers built-in MIDI support. midizap allows you to map the faders, encoders and buttons of your MIDI controller to keyboard commands of your video editor for cutting, marking, playback, scrolling, zooming, etc.
+midizap provides you with a way to hook up just about any MIDI controller to your applications. Even if your target application already supports MIDI, midizap's MIDI output option will be useful if your controller can't work directly with the application because of protocol incompatibilities. In particular, you can use midizap to turn pretty much any MIDI controller with enough faders and buttons into a Mackie-compatible mixing console ready to be used with most DAW (digital audio workstation) programs. Another common use case is video editing software, which rarely offers built-in MIDI support. midizap allows you to map the faders, encoders and buttons of your MIDI controller to keyboard commands of your video editor for cutting, marking, playback, scrolling, zooming, etc.
 
 In other words, as long as the target application can be controlled with simple keyboard shortcuts and/or MIDI commands, chances are that midizap can make it work (at least to some extent) with your controller.
 
@@ -136,7 +139,7 @@ You can try it and test that it works by running `midizap -o` along with a MIDI 
 
 Note the `-10` suffix on the output messages in the above example, which indicates that output goes to MIDI channel 10. In midizaprc syntax, MIDI channels are 1-based, so they are numbered 1..16, and 10 denotes the GM (General MIDI) drum channel. E.g., the input note `C4` is mapped to `C3-10`, the note C in the third MIDI octave, which on channel 10 will produce the sound of a bass drum, at least on GM compatible synthesizers like Fluidsynth. The binding for the volume controller (`CC7`) at the end of the entry sends volume changes to the same drum channel (`CC7-10`), so that you can use the volume control on your keyboard to change the volume on the drum channel.
 
-Besides MIDI notes and control change (`CC`) messages, the midizap program also recognizes key and channel pressure (`KP`, `CP`), program change (`PC`), and pitch bend (`PB`) messages, which should cover most common use cases. These are discussed in more detail in the *Translation Syntax* section below. In addition, while midizap cannot translate system messages such as system exclusive, it can pass them through if you specify the `-s` option on the command line, see the following section for details.
+Besides MIDI notes and control change (`CC`) messages, the midizap program also recognizes key and channel pressure (`KP`, `CP`), program change (`PC`), and pitch bend (`PB`) messages, which should cover most common use cases. These are discussed in more detail in the *Translation Syntax* section below. In addition, unrecognized MIDI messages can be simply passed through with the `-t` option. Also, while midizap cannot translate system messages such as system exclusive, you can pass them through as well with the `-s` option, see the following section for details.
 
 # Jack-Related Options
 
@@ -156,19 +159,29 @@ Secondly, we've already seen the `-o` option which is used to equip the Jack cli
 JACK_PORTS 1
 ~~~
 
-The given number of output ports must be 0, 1 or 2. Zero means that MIDI output is disabled (which is the default anyway, so you don't have to specify it explicitly). You may want to use `JACK_PORTS 1` if the configuration is primarily aimed at doing MIDI translations, so you'd like to have MIDI output enabled by default. `JACK_PORTS 2` or the `-o2` option indicates that *two* pairs of input and output ports are to be created (the second port is typically used to deal with controller feedback from the application, see the *MIDI Feedback* section for details).
+The given number of output ports must be 0, 1 or 2. Zero means that MIDI output is disabled (which is the default). You may want to use `JACK_PORTS 1` if the configuration is primarily aimed at doing MIDI translations, so you'd like to have MIDI output enabled by default. `JACK_PORTS 2` or the `-o2` option indicates that *two* pairs of input and output ports are to be created. The second port is typically used to deal with controller feedback from the application, see the *MIDI Feedback* section for details.
 
-Thirdly, the `-s` option and the `SYSTEM_PASSTHROUGH` directive are used to indicate that system messages are to be passed through unchanged. You can optionally specify which port the pass-through should apply to (0 means none, 1 the first, 2 the second port); otherwise it applies to both ports. For instance, if you only need system pass-through on the feedback port, you might write:
+Note that at least one output port is needed if you want to output any MIDI at all; otherwise MIDI messages on the right-hand side of translations will be silently ignored.
+
+If at least one output port is available then it also becomes possible to pass through MIDI messages from input to output unchanged. Two options are available for this: `-t` which passes through any ordinary (non-system) message for which there are no translations (not even in the default section), and `-s` which passes through all system messages. The former is useful if the incoming MIDI data only needs to be modified in a few places to accommodate for slight variations in the protocol, but most of it can be left untouched. The latter may be needed when the input data may contain system messages; midizap cannot translate these, but it can pass them on unchanged when necessary. You can find examples for both use cases in the examples folder in the sources.
+
+The corresponding directives are named `PASSTHROUGH` and `SYSTEM_PASSTHROUGH`, respectively. In either case, you can optionally specify which port the pass-through should apply to (0 means none, 1 the first, 2 the second port); otherwise it applies to both ports. For instance, if you only need system pass-through on the feedback port, you might write:
 
 ~~~
 SYSTEM_PASSTHROUGH 2
 ~~~
 
-Note that all Jack-related options can only be set at program startup, which is the time the Jack backend gets initialized. If you later edit the corresponding directives in the configuration file, the changes won't take effect until you restart the program.
+Similarly, to have unrecognized MIDI messages passed through in either direction:
+
+~~~
+PASSTHROUGH
+~~~
+
+Note that all these options can only be set at program startup, which is the time the Jack backend gets initialized. If you later edit the corresponding directives in the configuration file, the changes won't take effect until you restart the program.
 
 As a convenience, midizap also supports *Jack session management*, which makes it possible to record the options the program was invoked with, along with all the MIDI connections. This feature can be used with any Jack session management software. QjackCtl has its own built-in Jack session manager which is available in its Session dialog. To use this, launch midizap and any other Jack applications you want to have in the session, use QjackCtl to set up all the connections as needed, and then hit the "Save" button in the Session dialog to have the session recorded. (The "Save and Quit" option does the same, but also asks midizap and other Jack session clients to quit afterwards.) Now, at any later time you can rerun the recorded session with the "Load" button in the same dialog. Also, your most recent sessions are available in the "Recent" menu from where they can be launched quickly.
 
-Finally, midizap also offers an option to run the program with *real-time priorities*. Jack itself usually does that anyway where needed, but midizap's main thread won't unless you run it with the `-P` option (`midizap -P`, or `midizap -P80` if you also want to specify the priority; the default is 90). You should try this option, in particular, if you notice bad latency or jitter in MIDI output. Using this option, midizap should be able to get down to MIDI latencies in the 1 msec ballpark which should be good enough for most purposes (YMMV, though).
+Finally, midizap also offers an option to run the program with *real-time priorities*. Jack itself usually does that anyway where needed, but midizap's main thread won't unless you run it with the `-P` option (`midizap -P`, or `midizap -P80` if you also want to specify the priority; the default is 90). You should try this option, in particular, if you notice bad latency or jitter in MIDI output. Using this option, midizap should be able to get down to MIDI latencies in the 1 msec ballpark which should be good enough for most purposes.
 
 # Translation Syntax
 
@@ -536,7 +549,7 @@ D8 SHIFT ^D8
 
 This turns the key on when pushed, and toggles it off again when pushed a second time. Note that you can't get this behavior with the basic direct feedback facility, since there's no way to keep track of the required status information across different translations. Moreover, midizap also maintains the current status of all shift keys and automatically turns them off when switching from one shift status to another, so that the keys will be lit properly even if you use multiple shift keys in your configuration.
 
-midizap still has a few more tricks up its sleeves which are useful when dealing with controller feedback, but they require the use of a special kind of data translation, the mod translations. These are a separate topic in their own right, so we'll introduce them in the next section.
+midizap still has a few more tricks up its sleeves, but they require the use of a special kind of data translation. These are a separate topic in their own right, so we'll introduce them in the next section.
 
 # Mod Translations
 
@@ -892,7 +905,7 @@ The names of some of the debugging options are rather idiosyncratic. midizap inh
 
 midizap tries to keep things simple, which implies that it has its limitations. In particular, midizap lacks support for translating system messages and some more interesting ways of mapping, filtering and recombining MIDI data right now. There are other, more powerful utilities which do these things, but they are also more complicated and usually require programming skills. Fortunately, midizap often does the job reasonably well for simple mapping tasks (and even some rather complicated ones, such as the APCmini Mackie emulation included in the distribution). But if things start getting too fiddly then you should consider using a more comprehensive tool with real programming capabilities such as [Pd][] instead.
 
-midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now. Native Mac or Windows support certainly seems possible, but it's not going to happen until someone who's in the know about suitable Mac and Windows replacements for the X11 XTest extension, comes along and ports it over.
+midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now. Native Mac or Windows support certainly seems possible, but it's not going to happen until someone steps in who's in the know about suitable Mac and Windows replacements for the X11 XTest extension.
 
 # See Also
 

@@ -7,7 +7,7 @@
 midizap \[en] control your multimedia applications with MIDI
 .SH Synopsis
 .PP
-midizap [\-hkn] [\-d[rskmj]] [\-j \f[I]name\f[]] [\-os[\f[I]n\f[]]]
+midizap [\-hkn] [\-d[rskmj]] [\-j \f[I]name\f[]] [\-ost[\f[I]n\f[]]]
 [\-P[\f[I]prio\f[]]] [\-r \f[I]rcfile\f[]]
 .SH Options
 .TP
@@ -85,12 +85,26 @@ This overrides the corresponding directive in the configuration file.
 See Section \f[I]Jack\-Related Options\f[].
 .RS
 .RE
+.TP
+.B \-t[\f[I]n\f[]]
+Pass through untranslated (non\-system) messages from MIDI input to
+output; the meaning of the optional parameter \f[I]n\f[] is the same as
+with the \f[C]\-s\f[] option.
+This overrides the corresponding directive in the configuration file.
+See Section \f[I]Jack\-Related Options\f[].
+.RS
+.RE
 .SH Description
 .PP
 midizap lets you control your multimedia applications using
-MIDI (https://www.midi.org/).
-To these ends, it translates Jack MIDI input into X keystrokes, mouse
-button presses, scroll wheel events, and, as an option, MIDI output.
+MIDI (https://www.midi.org/), the Musical Instrument Digital Interface.
+There is an abundance of MIDI devices available these days, many of
+which are USB class devices which can be readily connected to computers
+without special drivers.
+midizap makes it possible to use this equipment with just about any
+X11\-based application.
+To these ends, it translates Jack MIDI input into X keyboard and mouse
+events, and optionally MIDI output.
 It does this by matching the \f[C]WM_CLASS\f[] and \f[C]WM_NAME\f[]
 properties of the window that has the keyboard focus against the regular
 expressions for each application section in its configuration
@@ -106,10 +120,9 @@ The configuration language is fairly straightforward, basically the file
 is just a list of MIDI messages (denoted with familiar human\-readable
 mnemonics, no hex numbers!) and their translations, which is divided
 into sections for different applications.
-An example.midizaprc file containing sample configurations for some
-applications is included in the sources to get you started, and you can
-find some more examples of configuration files for various purposes in
-the examples directory.
+An example.midizaprc file is included in the sources to get you started,
+and you can find some more examples of configuration files for various
+purposes in the examples directory.
 .PP
 midizap provides you with a way to hook up just about any MIDI
 controller to your applications.
@@ -118,8 +131,8 @@ output option will be useful if your controller can't work directly with
 the application because of protocol incompatibilities.
 In particular, you can use midizap to turn pretty much any MIDI
 controller with enough faders and buttons into a Mackie\-compatible
-mixing device ready to be used with most DAW (digital audio workstation)
-programs.
+mixing console ready to be used with most DAW (digital audio
+workstation) programs.
 Another common use case is video editing software, which rarely offers
 built\-in MIDI support.
 midizap allows you to map the faders, encoders and buttons of your MIDI
@@ -374,10 +387,11 @@ midizap program also recognizes key and channel pressure (\f[C]KP\f[],
 messages, which should cover most common use cases.
 These are discussed in more detail in the \f[I]Translation Syntax\f[]
 section below.
-In addition, while midizap cannot translate system messages such as
-system exclusive, it can pass them through if you specify the
-\f[C]\-s\f[] option on the command line, see the following section for
-details.
+In addition, unrecognized MIDI messages can be simply passed through
+with the \f[C]\-t\f[] option.
+Also, while midizap cannot translate system messages such as system
+exclusive, you can pass them through as well with the \f[C]\-s\f[]
+option, see the following section for details.
 .SH Jack\-Related Options
 .PP
 There are some additional directives (and corresponding command line
@@ -421,22 +435,39 @@ JACK_PORTS\ 1
 .fi
 .PP
 The given number of output ports must be 0, 1 or 2.
-Zero means that MIDI output is disabled (which is the default anyway, so
-you don't have to specify it explicitly).
+Zero means that MIDI output is disabled (which is the default).
 You may want to use \f[C]JACK_PORTS\ 1\f[] if the configuration is
 primarily aimed at doing MIDI translations, so you'd like to have MIDI
 output enabled by default.
 \f[C]JACK_PORTS\ 2\f[] or the \f[C]\-o2\f[] option indicates that
-\f[I]two\f[] pairs of input and output ports are to be created (the
-second port is typically used to deal with controller feedback from the
-application, see the \f[I]MIDI Feedback\f[] section for details).
+\f[I]two\f[] pairs of input and output ports are to be created.
+The second port is typically used to deal with controller feedback from
+the application, see the \f[I]MIDI Feedback\f[] section for details.
 .PP
-Thirdly, the \f[C]\-s\f[] option and the \f[C]SYSTEM_PASSTHROUGH\f[]
-directive are used to indicate that system messages are to be passed
-through unchanged.
-You can optionally specify which port the pass\-through should apply to
-(0 means none, 1 the first, 2 the second port); otherwise it applies to
-both ports.
+Note that at least one output port is needed if you want to output any
+MIDI at all; otherwise MIDI messages on the right\-hand side of
+translations will be silently ignored.
+.PP
+If at least one output port is available then it also becomes possible
+to pass through MIDI messages from input to output unchanged.
+Two options are available for this: \f[C]\-t\f[] which passes through
+any ordinary (non\-system) message for which there are no translations
+(not even in the default section), and \f[C]\-s\f[] which passes through
+all system messages.
+The former is useful if the incoming MIDI data only needs to be modified
+in a few places to accommodate for slight variations in the protocol,
+but most of it can be left untouched.
+The latter may be needed when the input data may contain system
+messages; midizap cannot translate these, but it can pass them on
+unchanged when necessary.
+You can find examples for both use cases in the examples folder in the
+sources.
+.PP
+The corresponding directives are named \f[C]PASSTHROUGH\f[] and
+\f[C]SYSTEM_PASSTHROUGH\f[], respectively.
+In either case, you can optionally specify which port the pass\-through
+should apply to (0 means none, 1 the first, 2 the second port);
+otherwise it applies to both ports.
 For instance, if you only need system pass\-through on the feedback
 port, you might write:
 .IP
@@ -446,8 +477,17 @@ SYSTEM_PASSTHROUGH\ 2
 \f[]
 .fi
 .PP
-Note that all Jack\-related options can only be set at program startup,
-which is the time the Jack backend gets initialized.
+Similarly, to have unrecognized MIDI messages passed through in either
+direction:
+.IP
+.nf
+\f[C]
+PASSTHROUGH
+\f[]
+.fi
+.PP
+Note that all these options can only be set at program startup, which is
+the time the Jack backend gets initialized.
 If you later edit the corresponding directives in the configuration
 file, the changes won't take effect until you restart the program.
 .PP
@@ -477,8 +517,7 @@ specify the priority; the default is 90).
 You should try this option, in particular, if you notice bad latency or
 jitter in MIDI output.
 Using this option, midizap should be able to get down to MIDI latencies
-in the 1 msec ballpark which should be good enough for most purposes
-(YMMV, though).
+in the 1 msec ballpark which should be good enough for most purposes.
 .SH Translation Syntax
 .PP
 The midizap configuration file consists of sections defining translation
@@ -1463,9 +1502,8 @@ and automatically turns them off when switching from one shift status to
 another, so that the keys will be lit properly even if you use multiple
 shift keys in your configuration.
 .PP
-midizap still has a few more tricks up its sleeves which are useful when
-dealing with controller feedback, but they require the use of a special
-kind of data translation, the mod translations.
+midizap still has a few more tricks up its sleeves, but they require the
+use of a special kind of data translation.
 These are a separate topic in their own right, so we'll introduce them
 in the next section.
 .SH Mod Translations
@@ -2281,9 +2319,8 @@ midizap has only been tested on Linux so far, and its keyboard and mouse
 support is tailored to X11, i.e., it's pretty much tied to Unix/X11
 systems right now.
 Native Mac or Windows support certainly seems possible, but it's not
-going to happen until someone who's in the know about suitable Mac and
-Windows replacements for the X11 XTest extension, comes along and ports
-it over.
+going to happen until someone steps in who's in the know about suitable
+Mac and Windows replacements for the X11 XTest extension.
 .SH See Also
 .PP
 midizap is based on a fork (https://github.com/agraef/ShuttlePRO) of
