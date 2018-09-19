@@ -134,6 +134,7 @@ extern int debug_regex, debug_strokes, debug_keys, debug_midi;
 extern int default_debug_regex, default_debug_strokes, default_debug_keys,
   default_debug_midi;
 extern char *config_file_name;
-extern int jack_num_outputs, system_passthrough[2], auto_feedback;
+extern int jack_num_outputs, auto_feedback;
+extern int passthrough[2], system_passthrough[2];
 extern int midi_octave, shift;
 extern char *jack_client_name;

@@ -21,7 +21,8 @@ Display *display;
 
 JACK_SEQ seq;
 int jack_num_outputs = 0, debug_jack = 0;
-int auto_feedback = 1, system_passthrough[2] = {-1, -1};
+int auto_feedback = 1;
+int passthrough[2] = {-1, -1}, system_passthrough[2] = {-1, -1};
 int shift = 0;
 
 void
@@ -787,6 +788,36 @@ static int toggle_msg(uint8_t msg[3])
   return 1;
 }
 
+
+int
+check_strokes(translation *tr, uint8_t portno, int status, int chan, int data)
+{
+  for (int i = 0; i < 2; i++)
+    if (fetch_stroke(tr, portno, status, chan, data, i, 0, 0,0,0,0,0) ||
+	fetch_stroke(tr, portno, status, chan, data, 0, i?1:-1, 0,0,0,0,0))
+      return 1;
+
+  if (jack_num_outputs) {
+    // fall back to default MIDI translation
+    tr = default_midi_translation[portno];
+    for (int i = 0; i < 2; i++)
+      if (fetch_stroke(tr, portno, status, chan, data, i, 0, 0,0,0,0,0) ||
+	  fetch_stroke(tr, portno, status, chan, data, 0, i?1:-1, 0,0,0,0,0))
+	return 1;
+    // Ignore all MIDI input on the second port if no translation was found in
+    // the [MIDI2] section (or the section is missing altogether).
+    if (portno) return 0;
+  }
+
+  // fall back to the default translation
+  tr = default_translation;
+  for (int i = 0; i < 2; i++)
+    if (fetch_stroke(tr, portno, status, chan, data, i, 0, 0,0,0,0,0) ||
+	fetch_stroke(tr, portno, status, chan, data, 0, i?1:-1, 0,0,0,0,0))
+      return 1;
+  return 0;
+}
+
 void
 send_strokes(translation *tr, uint8_t portno, int status, int chan,
 	     int data, int data2, int index, int dir, int depth)
@@ -1345,7 +1376,13 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
     msg[0] = status | chan;
     msg[2] = 0;
   }
-  if (debug_midi) debug_input(portno, status, chan, msg[1], msg[2]);
+  if (debug_midi && depth == 0)
+    debug_input(portno, status, chan, msg[1], msg[2]);
+  if (passthrough[portno] &&
+      !check_strokes(tr, portno, status, chan, status>=0xd0?0:msg[1])) {
+    queue_midi(&seq, msg, portno);
+    return;
+  }
   switch (status) {
   case 0xc0:
     start_debug();
@@ -1579,16 +1616,17 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
 
 void help(char *progname)
 {
-  fprintf(stderr, "Usage: %s [-hkn] [-d[rskmj]] [-os[n]] [-j name] [-P[prio]] [-r rcfile]\n", progname);
+  fprintf(stderr, "Usage: %s [-hkn] [-d[rskmj]] [-ost[n]] [-j name] [-P[prio]] [-r rcfile]\n", progname);
   fprintf(stderr, "-h print this message\n");
   fprintf(stderr, "-d debug (r = regex, s = strokes, k = keys, m = midi, j = jack; default: all)\n");
   fprintf(stderr, "-j jack client name (default: midizap)\n");
   fprintf(stderr, "-k keep track of key status (ignore double on/off messages)\n");
   fprintf(stderr, "-n no automatic feedback from the second port (-o2)\n");
-  fprintf(stderr, "-o set number of MIDI output ports (0-2, default: 1)\n");
+  fprintf(stderr, "-o set number of MIDI output ports (n = 0-2, default: 1)\n");
   fprintf(stderr, "-P set real-time priority (default: 90)\n");
   fprintf(stderr, "-r config file name (default: MIDIZAP_CONFIG_FILE variable or ~/.midizaprc)\n");
-  fprintf(stderr, "-s pass-through of system messages (0-2; default: all ports)\n");
+  fprintf(stderr, "-s pass-through of system messages (n = 0-2; default: all ports)\n");
+  fprintf(stderr, "-t pass-through of untranslated messages (n = 0-2; default: all ports)\n");
 }
 
 uint8_t quit = 0;
@@ -1665,7 +1703,7 @@ main(int argc, char **argv)
   // Start recording the command line to be passed to Jack session management.
   add_command(argv[0], 0);
 
-  while ((opt = getopt(argc, argv, "hkno::d::j:r:P::s::")) != -1) {
+  while ((opt = getopt(argc, argv, "hkno::d::j:r:P::s::t::")) != -1) {
     switch (opt) {
     case 'h':
       help(argv[0]);
@@ -1781,6 +1819,30 @@ main(int argc, char **argv)
 	add_command("-s", 1);
       }
       break;
+    case 't':
+      if (optarg && *optarg) {
+	const char *a = optarg;
+	if (!strcmp(a, "2")) {
+	  passthrough[0] = 0;
+	  passthrough[1] = 1;
+	  add_command("-t2", 1);
+	} else if (!strcmp(a, "1")) {
+	  passthrough[0] = 1;
+	  passthrough[1] = 0;
+	  add_command("-t1", 1);
+	} else if (!strcmp(a, "0")) {
+	  passthrough[0] = passthrough[1] = 0;
+	  add_command("-t0", 1);
+	} else {
+	  fprintf(stderr, "%s: wrong port number (-t), must be 0, 1 or 2\n", argv[0]);
+	  fprintf(stderr, "Try -h for help.\n");
+	  exit(1);
+	}
+      } else {
+	passthrough[0] = passthrough[1] = 1;
+	add_command("-t", 1);
+      }
+      break;
     default:
       fprintf(stderr, "Try -h for help.\n");
       exit(1);
@@ -1811,6 +1873,9 @@ main(int argc, char **argv)
   if (!init_jack(&seq, debug_jack)) {
     exit(1);
   }
+
+  passthrough[0] = jack_num_outputs>0?passthrough[0]>0:0;
+  passthrough[1] = jack_num_outputs>1?passthrough[1]>0:0;
 
   // set real-time scheduling priority if requested
   if (prio) {

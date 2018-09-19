@@ -1935,6 +1935,22 @@ read_config_file(void)
 	}
 	continue;
       }
+      if (!strcmp(tok, "PASSTHROUGH")) { // -t
+	char *a = token(NULL, &delim);
+	int k, n;
+	if (a && *a && *a != '#') {
+	  if (sscanf(a, "%d%n", &k, &n) == 1 && !a[n] && k>=0 && k<=2) {
+	    if (passthrough[0] < 0) passthrough[0] = k==1;
+	    if (passthrough[1] < 0) passthrough[1] = k==2;
+	  } else {
+	    fprintf(stderr, "invalid port number: %s, must be 0, 1 or 2\n", a);
+	  }
+	} else {
+	  if (passthrough[0] < 0) passthrough[0] = 1;
+	  if (passthrough[1] < 0) passthrough[1] = 1;
+	}
+	continue;
+      }
       if (!strcmp(tok, "SYSTEM_PASSTHROUGH")) { // -s
 	char *a = token(NULL, &delim);
 	int k, n;
