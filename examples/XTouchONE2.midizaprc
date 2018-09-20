@@ -41,6 +41,11 @@ F8 SHIFT ^F8 RELEASE SHIFT ^F8
 ^A#4 C5
 ^B4  C#5
 
+# Pass through the shifted SELECT key (needed to add to the current selection
+# in Ardour).
+
+^C2  A#5 C2
+
 # Pass through the shifted cursor keys. This assumes that they're already
 # mapped to something in the DAW; e.g., I have the shifted left/right keys
 # bound to the previous/next marker functions in Ardour.
