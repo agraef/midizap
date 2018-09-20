@@ -293,8 +293,9 @@ A5\-1[U]:\ XK_Down/U\
 \f[]
 .fi
 .PP
-The debugging output tells you exactly what's going on inside midizap,
-and helps you along when you start developing your own configurations.
+The debugging output tells you pretty much everything you need to know
+about what's going on inside midizap, and helps you along when you start
+developing your own configurations.
 The \f[C]\-d\f[] option can be combined with various option characters
 to choose exactly which kinds of debugging output you want; \f[C]r\f[]
 (\[lq]regex\[rq]) prints the matched translation section (if any) along
@@ -396,9 +397,9 @@ option, see the following section for details.
 There are some additional directives (and corresponding command line
 options) to set midizap's Jack client name and the number of input and
 output ports it uses.
-(If both the command line options and directives in the midizaprc file
+If both the command line options and directives in the midizaprc file
 are used, the former take priority, so that it's always possible to
-override the configuration settings from the command line.)
+override the configuration settings from the command line.
 .PP
 Firstly, there's the \f[C]\-j\f[] option and the \f[C]JACK_NAME\f[]
 directive which change the Jack client name from the default
@@ -416,11 +417,8 @@ JACK_NAME\ "client\-name"
 This option is useful, in particular, if you're running multiple
 instances of midizap with different configurations for different
 controllers and/or target applications, and you want to have the
-corresponding Jack clients named appropriately, so that they can be
-identified more easily when wiring them up.
-If you're using a persistent MIDI patchbay, such as the one available in
-QjackCtl, you can then have the right connections automatically set up
-for you whenever you launch midizap with that specific configuration.
+corresponding Jack clients named differently, so that they can be
+identified more easily.
 .PP
 Secondly, we've already seen the \f[C]\-o\f[] option which is used to
 equip the Jack client with an additional output port.
@@ -443,9 +441,25 @@ output enabled by default.
 The second port is typically used to deal with controller feedback from
 the application, see the \f[I]MIDI Feedback\f[] section for details.
 .PP
-Note that at least one output port is needed if you want to output any
-MIDI at all; otherwise MIDI messages on the right\-hand side of
-translations will be silently ignored.
+Not very surprisingly, at least one output port is needed if you want to
+output any MIDI at all; otherwise MIDI messages on the right\-hand side
+of translations will be silently ignored.
+Also note that midizap doesn't provide you with any options to actually
+connect the ports you created to other Jack MIDI clients.
+There already are plenty of excellent utilities specifically designed
+for this purpose, so there's no need to replicate that functionality in
+midizap.
+As already mentioned, we recommend using QjackCtl, which also offers a
+persistent MIDI patchbay, so that you can have the right connections
+automatically set up for you whenever you launch midizap.
+You then use the Jack client name option if you need to distinguish
+multiple midizap instances.
+(The examples folder in the sources contains a QjackCtl patchbay named
+midizap.xml which has been set up to work with any of the included
+examples.
+Use the \[lq]Load\[rq] button in QjackCtl's Patchbay dialog to load it,
+then hit the \[lq]Activate\[rq] button to have QjackCtl actually use
+it.)
 .PP
 If at least one output port is available then it also becomes possible
 to pass through MIDI messages from input to output unchanged.
@@ -453,9 +467,8 @@ Two options are available for this: \f[C]\-t\f[] which passes through
 any ordinary (non\-system) message for which there are no translations
 (not even in the default section), and \f[C]\-s\f[] which passes through
 all system messages.
-The former is useful if the incoming MIDI data only needs to be modified
-in a few places to accommodate for slight variations in the protocol,
-but most of it can be left untouched.
+The former is convenient if the incoming MIDI data only needs to be
+modified in a few places to deal with slight variations in the protocol.
 The latter may be needed when the input data may contain system
 messages; midizap cannot translate these, but it can pass them on
 unchanged when necessary.
@@ -465,45 +478,29 @@ sources.
 The corresponding directives are named \f[C]PASSTHROUGH\f[] and
 \f[C]SYSTEM_PASSTHROUGH\f[], respectively.
 In either case, you can optionally specify which port the pass\-through
-should apply to (0 means none, 1 the first, 2 the second port);
-otherwise it applies to both ports.
+should apply to (0 means none, 1 the first, 2 the second port; if no
+number is given, both ports are used).
 For instance, if you only need system pass\-through on the feedback
-port, you might write:
-.IP
-.nf
-\f[C]
-SYSTEM_PASSTHROUGH\ 2
-\f[]
-.fi
+port, you might write \f[C]SYSTEM_PASSTHROUGH\ 2\f[], or use the
+\f[C]\-s2\f[] option on the command line; and to have unrecognized MIDI
+messages passed through in either direction, simply use
+\f[C]PASSTHROUGH\f[], or \f[C]\-t\f[].
 .PP
-Similarly, to have unrecognized MIDI messages passed through in either
-direction:
-.IP
-.nf
-\f[C]
-PASSTHROUGH
-\f[]
-.fi
-.PP
-Note that all these options can only be set at program startup, which is
-the time the Jack backend gets initialized.
+Note that all these options can only be set at program startup.
 If you later edit the corresponding directives in the configuration
 file, the changes won't take effect until you restart the program.
 .PP
-As a convenience, midizap also supports \f[I]Jack session
-management\f[], which makes it possible to record the options the
-program was invoked with, along with all the MIDI connections.
-This feature can be used with any Jack session management software.
+midizap also supports \f[I]Jack session management\f[], which makes it
+possible to record the options the program was invoked with, along with
+all the MIDI connections.
 QjackCtl has its own built\-in Jack session manager which is available
 in its Session dialog.
 To use this, launch midizap and any other Jack applications you want to
 have in the session, use QjackCtl to set up all the connections as
 needed, and then hit the \[lq]Save\[rq] button in the Session dialog to
 have the session recorded.
-(The \[lq]Save and Quit\[rq] option does the same, but also asks midizap
-and other Jack session clients to quit afterwards.) Now, at any later
-time you can rerun the recorded session with the \[lq]Load\[rq] button
-in the same dialog.
+Now, at any later time you can rerun the recorded session with the
+\[lq]Load\[rq] button in the same dialog.
 Also, your most recent sessions are available in the \[lq]Recent\[rq]
 menu from where they can be launched quickly.
 .PP
@@ -512,11 +509,11 @@ Finally, midizap also offers an option to run the program with
 Jack itself usually does that anyway where needed, but midizap's main
 thread won't unless you run it with the \f[C]\-P\f[] option
 (\f[C]midizap\ \-P\f[], or \f[C]midizap\ \-P80\f[] if you also want to
-specify the priority; the default is 90).
-You should try this option, in particular, if you notice bad latency or
-jitter in MIDI output.
+specify the priority).
 Using this option, midizap should be able to get down to MIDI latencies
 in the 1 msec ballpark which should be good enough for most purposes.
+(Note that there's no need to use this option unless you actually notice
+high latencies or jitter in the MIDI output.)
 .SH Translation Syntax
 .PP
 The midizap configuration file consists of sections defining translation
