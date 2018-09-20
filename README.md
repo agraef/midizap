@@ -14,7 +14,7 @@ midizap [-hkn] [-d[rskmj]] [-j *name*] [-ost[*n*]] [-P[*prio*]] [-r *rcfile*]
 :   Print a short help message and exit.
 
 -d[rskmj]
-:   Enable various debugging options: r = regex (print matched translation sections), s = strokes (print the parsed configuration file in a human-readable format), k = keys (print executed translations), m = midi (MIDI monitor, print all recognizable MIDI input), j = jack (additional Jack debugging output). Just `-d` enables all debugging options. See Section *Basic Usage*.
+:   Enable various debugging options: r = regex (print matched translation sections), s = strokes (print the parsed configuration file in a human-readable format), k = keys (print executed translations), m = midi (MIDI monitor, print all recognizable MIDI input), j = jack (print information about the Jack MIDI backend). Just `-d` enables all debugging options. See Section *Basic Usage*.
 
 -j *name*
 :   Set the Jack client name. This overrides the corresponding directive in the configuration file. Default: "midizap". See Section *Jack-Related Options*.
@@ -100,7 +100,7 @@ To test the waters, you can hook up just about any MIDI keyboard and give it a t
 
 We refer to Section *Translation Syntax* below for a discussion of the syntax being used here, but it should be fairly obvious that these translations map the white keys of the middle octave (MIDI notes `C5` thru `B5`) to some mouse buttons and cursor commands. Switch the keyboard focus to some window with text in it, such as a terminal or an editor window. Pressing the keys C, D and E should click the mouse buttons, while F thru B should perform various cursor movements. Also, moving the modulation wheel (`CC1`) on your keyboard should scroll the window contents up and down.
 
-One useful feature is that you can invoke the program with various debugging options to get more verbose output as the program recognizes events from the device and translates them to corresponding mouse actions or key presses. E.g., try running `midizap -drk` to have the program print the recognized configuration sections and translations as they are executed. Now press some of the keys and move the modulation wheel. You should see something like:
+You can invoke the program with various debugging options to get more verbose output. E.g., try running `midizap -drk` to have the program print the recognized configuration sections and translations as they are executed. Now press some of the keys and move the modulation wheel. You'll see something like:
 
 ~~~
 $ midizap -drk
@@ -114,7 +114,7 @@ A5-1[D]: XK_Down/D
 A5-1[U]: XK_Down/U 
 ~~~
 
-The debugging options will be very helpful when you start developing your own bindings. The `-d` option can be combined with various option characters to choose exactly which kinds of debugging output you want; `r` ("regex") prints the matched translation section (if any) along with the window name and class of the focused window; `s` ("strokes") prints the parsed contents of the configuration file in a human-readable form whenever the file is loaded; `k` ("keys") shows the recognized translations as the program executes them, in the same format as `s`; `m` ("MIDI") prints *any* MIDI input, so that you can figure out which MIDI tokens to use for configuring the translations for your controller; and `j` adds some debugging output from the Jack driver. You can also just use `-d` to enable all debugging output. (Most of these options are also available as directives in the midizaprc file, these are listed in the comments at the beginning of example.midizaprc.)
+The debugging output tells you exactly what's going on inside midizap, and helps you along when you start developing your own configurations. The `-d` option can be combined with various option characters to choose exactly which kinds of debugging output you want; `r` ("regex") prints the matched translation section (if any) along with the window name and class of the focused window; `s` ("strokes") prints the parsed contents of the configuration file in a human-readable form whenever the file is loaded; `k` ("keys") shows the recognized translations as the program executes them, in the same format as `s`; `m` ("MIDI") prints *any* received MIDI input, so that you can figure out which MIDI tokens to use for configuring the translations for your controller; and `j` adds some useful information about the Jack backend, so that you see when the Jack client is ready, and which MIDI ports it gets connected to. You can also just use `-d` to enable all debugging output. Moreover, most of these options are also available as directives in the midizaprc file, so that you can turn them on and off as needed without having to exit the program; please check the comments at the beginning of example.midizaprc for a list of these directives.
 
 Most of the other translations in the distributed midizaprc file assume a Mackie-like device with standard playback controls and a jog wheel. There are also a few more generic examples, like the one above, which will work with almost any kind of MIDI keyboard. The examples are mostly for illustrative and testing purposes, though, to help you get started. You will want to edit them and add translations for your own controllers and favorite applications.
 

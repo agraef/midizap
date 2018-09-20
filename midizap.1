@@ -20,8 +20,8 @@ Print a short help message and exit.
 Enable various debugging options: r = regex (print matched translation
 sections), s = strokes (print the parsed configuration file in a
 human\-readable format), k = keys (print executed translations), m =
-midi (MIDI monitor, print all recognizable MIDI input), j = jack
-(additional Jack debugging output).
+midi (MIDI monitor, print all recognizable MIDI input), j = jack (print
+information about the Jack MIDI backend).
 Just \f[C]\-d\f[] enables all debugging options.
 See Section \f[I]Basic Usage\f[].
 .RS
@@ -272,14 +272,12 @@ thru B should perform various cursor movements.
 Also, moving the modulation wheel (\f[C]CC1\f[]) on your keyboard should
 scroll the window contents up and down.
 .PP
-One useful feature is that you can invoke the program with various
-debugging options to get more verbose output as the program recognizes
-events from the device and translates them to corresponding mouse
-actions or key presses.
+You can invoke the program with various debugging options to get more
+verbose output.
 E.g., try running \f[C]midizap\ \-drk\f[] to have the program print the
 recognized configuration sections and translations as they are executed.
 Now press some of the keys and move the modulation wheel.
-You should see something like:
+You'll see something like:
 .IP
 .nf
 \f[C]
@@ -295,8 +293,8 @@ A5\-1[U]:\ XK_Down/U\
 \f[]
 .fi
 .PP
-The debugging options will be very helpful when you start developing
-your own bindings.
+The debugging output tells you exactly what's going on inside midizap,
+and helps you along when you start developing your own configurations.
 The \f[C]\-d\f[] option can be combined with various option characters
 to choose exactly which kinds of debugging output you want; \f[C]r\f[]
 (\[lq]regex\[rq]) prints the matched translation section (if any) along
@@ -305,14 +303,16 @@ with the window name and class of the focused window; \f[C]s\f[]
 in a human\-readable form whenever the file is loaded; \f[C]k\f[]
 (\[lq]keys\[rq]) shows the recognized translations as the program
 executes them, in the same format as \f[C]s\f[]; \f[C]m\f[]
-(\[lq]MIDI\[rq]) prints \f[I]any\f[] MIDI input, so that you can figure
-out which MIDI tokens to use for configuring the translations for your
-controller; and \f[C]j\f[] adds some debugging output from the Jack
-driver.
+(\[lq]MIDI\[rq]) prints \f[I]any\f[] received MIDI input, so that you
+can figure out which MIDI tokens to use for configuring the translations
+for your controller; and \f[C]j\f[] adds some useful information about
+the Jack backend, so that you see when the Jack client is ready, and
+which MIDI ports it gets connected to.
 You can also just use \f[C]\-d\f[] to enable all debugging output.
-(Most of these options are also available as directives in the midizaprc
-file, these are listed in the comments at the beginning of
-example.midizaprc.)
+Moreover, most of these options are also available as directives in the
+midizaprc file, so that you can turn them on and off as needed without
+having to exit the program; please check the comments at the beginning
+of example.midizaprc for a list of these directives.
 .PP
 Most of the other translations in the distributed midizaprc file assume
 a Mackie\-like device with standard playback controls and a jog wheel.
