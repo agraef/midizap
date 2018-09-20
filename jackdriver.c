@@ -426,6 +426,23 @@ session_callback(jack_session_event_t *event, void *seqq)
   jack_session_event_free (event);
 }
 
+void
+connect_callback(jack_port_id_t a, jack_port_id_t b, int yn, void *seqq)
+{
+  JACK_SEQ* seq = (JACK_SEQ*)seqq;
+  jack_port_t *ap = jack_port_by_id(seq->jack_client, a);
+  jack_port_t *bp = jack_port_by_id(seq->jack_client, b);
+  const char *aname = jack_port_name(ap);
+  const char *bname = jack_port_name(bp);
+  size_t l = strlen(seq->client_name);
+  if (!strncmp(seq->client_name, aname, l))
+    printf("%-*s %s: %s\n", (int)l+10, aname,
+	   (yn ? "connected to" : "disconnected from"), bname);
+  else if (!strncmp(seq->client_name, bname, l))
+    printf("%-*s %s: %s\n", (int)l+10, bname,
+	   (yn ? "connected to" : "disconnected from"), aname);
+}
+
 ////////////////////////////////
 //this is run in the main thread
 ////////////////////////////////
@@ -454,13 +471,11 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
       printf("JACK client name changed to: %s\n", client_name);
     }
 
-    if(verbose)printf("assigning shutdown callback...\n");
     jack_on_shutdown(seq->jack_client, shutdown_callback, (void*)seq);
-
-    if(verbose)printf("assigning session callback...\n");
     jack_set_session_callback(seq->jack_client, session_callback, (void*)seq);
+    if (verbose) jack_set_port_connect_callback(seq->jack_client, connect_callback, (void*)seq);
 
-    if(verbose)printf("assigning process callback...\n");
+    //if(verbose)printf("assigning process callback...\n");
     err = jack_set_process_callback(seq->jack_client, process_callback, (void*)seq);
     if (err)
     {
@@ -474,7 +489,7 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
     if(seq->n_in)
     {
 
-      if(verbose)printf("initializing JACK input: \ncreating ringbuffer...\n");
+      //if(verbose)printf("initializing JACK input: \ncreating ringbuffer...\n");
       seq->ringbuffer_in = calloc(seq->n_in, sizeof(jack_ringbuffer_t*));
       seq->input_port = calloc(seq->n_in, sizeof(jack_port_t*));
       if (!seq->ringbuffer_in || !seq->input_port)
@@ -515,7 +530,7 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
     if(seq->n_out)
     {
 
-      if(verbose)printf("initializing JACK output: \ncreating ringbuffer...\n");
+      //if(verbose)printf("initializing JACK output: \ncreating ringbuffer...\n");
       seq->ringbuffer_out = calloc(seq->n_out, sizeof(jack_ringbuffer_t*));
       seq->output_port = calloc(seq->n_out, sizeof(jack_port_t*));
       if (!seq->ringbuffer_out || !seq->output_port)
