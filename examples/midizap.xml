@@ -1,0 +1,128 @@
+<!DOCTYPE patchbay>
+<patchbay name="midizap2" version="0.5.3">
+ <output-sockets>
+  <socket exclusive="off" name="Ctlra Maschine" client="a2j" type="jack-midi">
+   <plug>Ctlra Maschine Mk3.*</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-Maschine" client="midizap-Maschine" type="jack-midi">
+   <plug>midi_out</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-Maschine 2" client="midizap-Maschine" type="jack-midi">
+   <plug>midi_out2</plug>
+  </socket>
+  <socket exclusive="off" name="Ardour mackie out" client="ardour" type="jack-midi">
+   <plug>mackie control out</plug>
+  </socket>
+  <socket exclusive="off" name="nanoKONTROL2" client="a2j" type="jack-midi">
+   <plug>nanoKONTROL2.* MIDI 1</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-nanoKONTROL 1" client="midizap-nanoKONTROL2" type="jack-midi">
+   <plug>midi_out</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-nanoKONTROL 2" client="midizap-nanoKONTROL2" type="jack-midi">
+   <plug>midi_out2</plug>
+  </socket>
+  <socket exclusive="off" name="X-Touch" client="a2j" type="jack-midi">
+   <plug>.*X-Touch MIDI 1</plug>
+  </socket>
+  <socket exclusive="off" name="X-Touch One" client="a2j" type="jack-midi">
+   <plug>X-Touch One.* MIDI 1</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-XTouchONE 1" client="midizap-XTouchONE" type="jack-midi">
+   <plug>midi_out</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-XTouchONE 2" client="midizap-XTouchONE" type="jack-midi">
+   <plug>midi_out2</plug>
+  </socket>
+  <socket exclusive="off" name="APCmini" client="a2j" type="jack-midi">
+   <plug>APC MINI.* MIDI 1</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-APCmini 1" client="midizap-APCmini" type="jack-midi">
+   <plug>midi_out</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-APCmini 2" client="midizap-APCmini" type="jack-midi">
+   <plug>midi_out2</plug>
+  </socket>
+  <socket exclusive="off" name="MPKmini2" client="a2j" type="jack-midi">
+   <plug>MPKmini2.* MIDI 1</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-MPKmini 1" client="midizap-MPKmini2" type="jack-midi">
+   <plug>midi_out</plug>
+  </socket>
+  <socket exclusive="off" name="shuttlepro" client="shuttlepro" type="jack-midi">
+   <plug>midi_out</plug>
+  </socket>
+ </output-sockets>
+ <input-sockets>
+  <socket exclusive="off" name="midizap-Maschine" client="midizap-Maschine" type="jack-midi">
+   <plug>midi_in</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-Maschine 2" client="midizap-Maschine" type="jack-midi">
+   <plug>midi_in2</plug>
+  </socket>
+  <socket exclusive="off" name="Ctlra Maschine" client="a2j" type="jack-midi">
+   <plug>Ctlra Maschine Mk3.*</plug>
+  </socket>
+  <socket exclusive="off" name="Ardour mackie in" client="ardour" type="jack-midi">
+   <plug>mackie control in</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-nanoKONTROL 1" client="midizap-nanoKONTROL2" type="jack-midi">
+   <plug>midi_in</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-nanoKONTROL 2" client="midizap-nanoKONTROL2" type="jack-midi">
+   <plug>midi_in2</plug>
+  </socket>
+  <socket exclusive="off" name="nanoKONTROL2" client="a2j" type="jack-midi">
+   <plug>nanoKONTROL2.* MIDI 1</plug>
+  </socket>
+  <socket exclusive="off" name="X-Touch" client="a2j" type="jack-midi">
+   <plug>.*X-Touch MIDI 1</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-XTouchONE 1" client="midizap-XTouchONE" type="jack-midi">
+   <plug>midi_in</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-XTouchONE 2" client="midizap-XTouchONE" type="jack-midi">
+   <plug>midi_in2</plug>
+  </socket>
+  <socket exclusive="off" name="X-Touch One" client="a2j" type="jack-midi">
+   <plug>X-Touch One.* MIDI 1</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-APCmini 1" client="midizap-APCmini" type="jack-midi">
+   <plug>midi_in</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-APCmini 2" client="midizap-APCmini" type="jack-midi">
+   <plug>midi_in2</plug>
+  </socket>
+  <socket exclusive="off" name="APCmini" client="a2j" type="jack-midi">
+   <plug>APC MINI.* MIDI 1</plug>
+  </socket>
+  <socket exclusive="off" name="midizap-MPKmini 1" client="midizap-MPKmini2" type="jack-midi">
+   <plug>midi_in</plug>
+  </socket>
+ </input-sockets>
+ <slots/>
+ <cables>
+  <cable output="Ctlra Maschine" input="midizap-Maschine" type="jack-midi"/>
+  <cable output="midizap-Maschine" input="Ardour mackie in" type="jack-midi"/>
+  <cable output="midizap-Maschine 2" input="Ctlra Maschine" type="jack-midi"/>
+  <cable output="Ardour mackie out" input="midizap-Maschine 2" type="jack-midi"/>
+  <cable output="Ardour mackie out" input="X-Touch" type="jack-midi"/>
+  <cable output="Ardour mackie out" input="midizap-APCmini 2" type="jack-midi"/>
+  <cable output="Ardour mackie out" input="midizap-XTouchONE 2" type="jack-midi"/>
+  <cable output="Ardour mackie out" input="midizap-nanoKONTROL 2" type="jack-midi"/>
+  <cable output="X-Touch" input="Ardour mackie in" type="jack-midi"/>
+  <cable output="X-Touch One" input="midizap-XTouchONE 1" type="jack-midi"/>
+  <cable output="nanoKONTROL2" input="midizap-nanoKONTROL 1" type="jack-midi"/>
+  <cable output="APCmini" input="midizap-APCmini 1" type="jack-midi"/>
+  <cable output="midizap-APCmini 1" input="Ardour mackie in" type="jack-midi"/>
+  <cable output="midizap-APCmini 2" input="APCmini" type="jack-midi"/>
+  <cable output="MPKmini2" input="midizap-MPKmini 1" type="jack-midi"/>
+  <cable output="midizap-MPKmini 1" input="Ardour mackie in" type="jack-midi"/>
+  <cable output="shuttlepro" input="Ardour mackie in" type="jack-midi"/>
+  <cable output="midizap-XTouchONE 1" input="Ardour mackie in" type="jack-midi"/>
+  <cable output="midizap-XTouchONE 2" input="X-Touch One" type="jack-midi"/>
+  <cable output="midizap-nanoKONTROL 1" input="Ardour mackie in" type="jack-midi"/>
+  <cable output="midizap-nanoKONTROL 2" input="nanoKONTROL2" type="jack-midi"/>
+ </cables>
+</patchbay>
+
