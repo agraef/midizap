@@ -1,7 +1,7 @@
 
 # The nanoKONTROL2 has no plain Mackie emulation. Its Cubase mode comes close,
-# except for the MARKER keys. This config patches them up a bit so that they
-# do something useful.
+# but has the MARKER keys set up in a Cubase-specific way. This config patches
+# them up a bit so that they do something useful on Linux, at least in Ardour.
 
 # Copyright (c) 2018 Albert Graef <aggraef@gmail.com>
 
@@ -15,20 +15,37 @@ JACK_PORTS 2
 
 # Pass everything through (including feedback), except for the mappings below.
 PASSTHROUGH
-SYSTEM_PASSTHROUGH
 
-# NOTE: This assumes that you run the nanoKONTROL2 in Cubase mode.
+# NOTE: This assumes that you run the nanoKONTROL2 in Cubase mode. Use Korg's
+# editor application to enter that mode, or hold the SET and << keys when
+# plugging in the device.
+
+[Ardour] ^ardour_ardour$
+
+# AFAICT, the "Prev/Next Marker" functions have no dedicated keys on the MCU.
+# In Ardour, they can be accessed with the Q and W keys.
+
+E7  "q"  # MARKER <
+F#7 "w"  # MARKER >
 
 [MIDI]
 
-F7  C7   # "SET" -> MARKER
+# Here's another way to access the "Prev/Next Marker" functions which doesn't
+# rely on keyboard shortcuts of the application. Instead, it assumes that you
+# assign an MCU key combination to these functions in your DAW. I have Ardour
+# set up so that SHIFT + the left and right cursor keys on the MCU jumps to
+# the previous and next marker, respectively. Of course, you can change this
+# to whatever is convenient for you.
 
-# AFAICT, the "Prev/Next Marker" functions have no standard representation in
-# MCP. In Ardour, they can be accessed with the Q and W keys, but we don't
-# want to depend on "real" keyboard bindings here. Instead, we assume that you
-# have bound these operations to some MCP function keys in your DAW. The
-# bindings below use the shifted cursor keys, but you can use whatever is
-# convenient.
+E7  A#5 D8   # MCU SHIFT <-
+F#7 A#5 D#8  # MCU SHIFT ->
 
-E7  A#5 D8  # SHIFT <-
-F#7 A#5 D#8 # SHIFT ->
+# Ardour uses the MCU's MARKER key to set a marker, so that's what we assign
+# the SET button to.
+
+F7 C7  # SET -> MARKER
+
+# Of course, you can set the key to whatever you want. E.g., to map it to the
+# SHIFT key:
+
+#F7 A#5

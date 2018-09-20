@@ -1,0 +1,63 @@
+
+# This is an alternative configuration for the X-Touch ONE which sets up an
+# internal SHIFT key instead. This lets you provide your own shifted
+# translations for the keys of the device in midizap, instead of having to
+# rely on your DAW's abilities to configure such bindings.
+
+# Copyright (c) 2018 Albert Graef <aggraef@gmail.com>
+
+# Copying and distribution of this file, with or without modification, are
+# permitted in any medium without royalty provided the copyright notice and
+# this notice are preserved.  This file is offered as-is, without any
+# warranty.
+
+JACK_NAME "midizap-XTouchONE"
+JACK_PORTS 2
+
+# Pass everything through, except for the mappings below.
+PASSTHROUGH
+SYSTEM_PASSTHROUGH
+
+# NOTE: This assumes that you use the default Mackie mode of the ONE.
+# Otherwise you'll have to adjust the key mapping accordingly. I use the
+# SCRUB key as a replacement (F8 in MC mode), because Ardour doesn't use
+# it. If you do need that key, use another one that you can spare.
+
+[MIDI]
+
+F8 SHIFT ^F8 RELEASE SHIFT ^F8
+
+# Remap the shifted F1 .. F4 keys to do something useful. E.g., I have them
+# bound to the utility keys here, but of course you can change them to
+# anything you want.
+
+^F#4 G#6  # Save
+^G4  A6   # Undo
+^G#4 A#6  # Cancel
+^A4  B6   # Enter
+
+# Remap the shifted F5 and F6 keys to F7 and F8 which are missing on the ONE.
+
+^A#4 C5
+^B4  C#5
+
+# Pass through the shifted cursor keys. This assumes that they're already
+# mapped to something in the DAW; e.g., I have the shifted left/right keys
+# bound to the previous/next marker functions in Ardour.
+
+^C8  A#5 C8   # Up
+^C#8 A#5 C#8  # Down
+^D8  A#5 D8   # Left
+^D#8 A#5 D#8  # Right
+
+# Add any other shifted bindings that you want/need ...
+
+[MIDI2]
+
+# feedback for the shifted F1 .. F6 bindings
+^G#6 F#4
+^A6  G4
+^A#6 G#4
+^B6  A4
+^C5  A#4
+^C#5 B4
