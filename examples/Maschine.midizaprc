@@ -84,15 +84,24 @@ D#2  D8  # Left
 C#2  D#8 # Right
 C2   E8  # Zoom
 
+# These can also be shifted, so that you can bind them in the DAW if you
+# want. E.g., I have the previous/next marker functions on the shifted cursor
+# left/right keys in Ardour.
+
+^D2  A#5 C8   # Up
+^E2  A#5 C#8  # Down
+^D#2 A#5 D8   # Left
+^C#2 A#5 D#8  # Right
+^C2  A#5 E8   # Zoom
+
 # The Mk3 has one row of dedicated "channel buttons" at the top, right above
 # the display. Since we'd also like to use these for the channel-based
 # rec/solo/mute functions, we combine them with the SELECT, SOLO and MUTE
-# buttons as additional shift keys. These are "Caps Lock"-style keys which
-# stay on until pressed again.
+# buttons as additional shift keys.
 
-F#4 SHIFT2 ^F#4
-G4  SHIFT3 ^G4
-G#4 SHIFT4 ^G#4
+F#4 SHIFT2 ^F#4 RELEASE SHIFT2 ^F#4
+G4  SHIFT3 ^G4  RELEASE SHIFT3 ^G4
+G#4 SHIFT4 ^G#4 RELEASE SHIFT4 ^G#4
 
 # top row, unshifted: track select
 G6  C2
@@ -183,7 +192,7 @@ C#3 PC7-10
 # big encoder assigned to MCP jog wheel
 CC0~ CC60~
 
-# encoders mapped to MCP channel faders
+# encoders are mapped to the MCP channel faders
 # (MC uses pitch bends here, use 129 as step size to get full range)
 CC1~ PB[129]-1
 CC2~ PB[129]-2
@@ -206,7 +215,7 @@ CC9[] PB[129]-9
 ^CC7~ CC22~
 ^CC8~ CC23~
 
-# encoder touches
+# encoder touches = fader touches
 E7  G#8
 F7  A8
 F#7 A#8
@@ -216,6 +225,18 @@ A7  C#9
 A#7 D9
 B7  D#9
 D#7 E9
+
+# SELECT + encoder touches = push encoders -- we can't use SHIFT here since
+# touches might easily get triggered when the encoders are moved
+2^E7  G#2
+2^F7  A2
+2^F#7 A#2
+2^G7  B2
+2^G#7 C3
+2^A7  C#3
+2^A#7 D3
+2^B7  D#3
+2^D#7 E3
 
 # feedback section ########################################################
 
