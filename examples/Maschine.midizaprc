@@ -13,9 +13,17 @@ JACK_PORTS 2
 SYSTEM_PASSTHROUGH # pass through MCP feedback
 
 # NOTE: At present, this controller isn't properly supported by ALSA, but it
-# can be made to work in Linux with Harry van Haaren's Ctlra software. Use
-# this version: https://github.com/agraef/openAV-Ctlra/tree/mapping_v1-ag
-# Run ctlra_daemon -fnm alongside with midizap, and connect the ports as
+# can be made to work in Linux with Harry van Haaren's Ctlra software.
+# Specifically, you'll need the ctlra_daemonx program from the
+# mapping_v1-daemonx branch which isn't in Harry's repository yet, but for the
+# time being can be found here:
+# https://github.com/agraef/openAV-Ctlra/tree/mapping_v1-daemonx
+
+# After cloning the repository and switching to the mapping_v1-daemonx
+# branch, you can run the following to install the libctlra library along with
+# ctlra_daemonx: meson build && cd build && ninja && sudo ninja install
+
+# Then run ctlra_daemonx -fnm alongside with midizap, and connect the ports as
 # follows: Ctlra Maschine Mk3 -> midizap midi_in / midi_out -> Ardour mackie
 # control in / mackie control out -> midizap midi_in2 / midi_out2 -> Ctlra
 # Maschine Mk3.
