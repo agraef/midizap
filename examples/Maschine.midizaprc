@@ -15,8 +15,7 @@ SYSTEM_PASSTHROUGH # pass through MCP feedback
 # NOTE: At present, this controller isn't properly supported by ALSA, but it
 # can be made to work in Linux with Harry van Haaren's Ctlra software.
 # Specifically, you'll need the ctlra_daemonx program from the
-# mapping_v1-daemonx branch which isn't in Harry's repository yet, but for the
-# time being can be found here:
+# mapping_v1-daemonx branch which for the time being can be found here:
 # https://github.com/agraef/openAV-Ctlra/tree/mapping_v1-daemonx
 
 # After cloning the repository and switching to the mapping_v1-daemonx
@@ -27,6 +26,37 @@ SYSTEM_PASSTHROUGH # pass through MCP feedback
 # follows: Ctlra Maschine Mk3 -> midizap midi_in / midi_out -> Ardour mackie
 # control in / mackie control out -> midizap midi_in2 / midi_out2 -> Ctlra
 # Maschine Mk3.
+
+# Usage (executive summary):
+
+# - SHIFT, SELECT, SOLO and MUTE are used as shift buttons which change the
+#   functions of the encoders and some keys
+
+# - The transport section (bottom/left) mostly does what you'd expect it to.
+#   PLAY, REC, STOP and RESTART/Loop all work as advertized. The two keys
+#   above REC and STOP are used as REWIND and FAST FWD.
+
+# - The eight buttons at the top select a channel, or engage Channel
+#   Rec/Solo/Mute when combined with SELECT, SOLO and MUTE, respectively.
+
+# - The eight small encoders function as the volume faders, or as encoders
+#   (usually pan) when combined with SHIFT. Touching the encoders means
+#   touching the faders, or pushing the encoders when combined with SELECT.
+
+# - The big encoder emulates the jog wheel. Pushing this encoder left, right,
+#   up and down emulates the cursor keys, pressing it engages the Zoom
+#   function (which also lights up all four LEDs around the encoder).
+
+# - The touchstrip is used as the master fader. The four buttons above it
+#   emulate the MCP shift keys (SHIFT, CTRL, OPTION, ALT/CMD).
+
+# - The left and right arrow keys in the top/left button group are used to
+#   change banks, or move by single channels when combined with SHIFT.
+
+# These are just the most important mappings; there's a bunch of other
+# bindings, but I'll leave you to discover them on your own (see below for all
+# the gory details). There are so many keys on this device, many of them are
+# still unused right now, so you can easily add more bindings if you want. :)
 
 [MIDI]
 
