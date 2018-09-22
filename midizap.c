@@ -1411,16 +1411,8 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
 	inccdown[portno][chan][msg[1]] = 0;
       }
     }
-    // This is a bit of a kludge, since controllers can be used in two
-    // different ways. It may happen that we haven't got any translations for
-    // the pressed/released state, and that because of a step size >1 the
-    // incremental controllers also fail to generate a single stroke. In such
-    // a case, we want to pretend that we haven't actually seen any input at
-    // all, to prevent spurios section matches when regex debugging is in
-    // effect. So we reset the debug counter here, which keeps track of the
-    // number of generated strokes.
-    debug_count = 0;
     if (check_incr(tr, portno, chan, msg[1])) {
+      debug_count = 0;
       // Incremental controller a la MCU. NB: This assumes a signed bit
       // representation (values above 0x40 indicate counter-clockwise
       // rotation), which seems to be what most DAWs expect nowadays.
@@ -1445,6 +1437,7 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
       }
     } else if (check_ccs(tr, portno, chan, msg[1]) &&
 	       inccvalue[portno][chan][msg[1]] != msg[2]) {
+      debug_count = 0;
       int dir = inccvalue[portno][chan][msg[1]] > msg[2] ? -1 : 1;
       int step = get_cc_step(tr, portno, chan, msg[1], dir);
       if (step) {
@@ -1479,9 +1472,9 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
 	innotedown[portno][chan][msg[1]] = 0;
       }
     }
-    debug_count = 0;
     if (check_notes(tr, portno, chan, msg[1]) &&
 	innotevalue[portno][chan][msg[1]] != msg[2]) {
+      debug_count = 0;
       int dir = innotevalue[portno][chan][msg[1]] > msg[2] ? -1 : 1;
       int step = get_note_step(tr, portno, chan, msg[1], dir);
       if (step) {
@@ -1516,9 +1509,9 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
 	inkpdown[portno][chan][msg[1]] = 0;
       }
     }
-    debug_count = 0;
     if (check_kps(tr, portno, chan, msg[1]) &&
 	inkpvalue[portno][chan][msg[1]] != msg[2]) {
+      debug_count = 0;
       int dir = inkpvalue[portno][chan][msg[1]] > msg[2] ? -1 : 1;
       int step = get_kp_step(tr, portno, chan, msg[1], dir);
       if (step) {
@@ -1553,9 +1546,9 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
 	incpdown[portno][chan] = 0;
       }
     }
-    debug_count = 0;
     if (check_cps(tr, portno, chan) &&
 	incpvalue[portno][chan] != msg[1]) {
+      debug_count = 0;
       int dir = incpvalue[portno][chan] > msg[1] ? -1 : 1;
       int step = get_cp_step(tr, portno, chan, dir);
       if (step) {
@@ -1591,8 +1584,8 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
 	inpbdown[portno][chan] = 0;
       }
     }
-    debug_count = 0;
     if (check_pbs(tr, portno, chan) && inpbvalue[portno][chan] - 8192 != bend) {
+      debug_count = 0;
       int dir = inpbvalue[portno][chan] - 8192 > bend ? -1 : 1;
       int step = get_pb_step(tr, portno, chan, dir);
       if (step) {
