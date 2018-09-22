@@ -545,17 +545,18 @@ special.
 Each such line introduces a translation class \f[I]name\f[], which may
 be followed by an extended regular expression \f[I]regex\f[] (see the
 regex(7) manual page) to be matched against window class and title.
-Note that \f[I]everything\f[] following the
-\f[C][\f[]\f[I]name\f[]\f[C]]\f[] header on the same line is taken
-verbatim; the \f[I]regex\f[] part is the entire rest of the line,
-ignoring leading and trailing whitespace, but including embedded
-whitespace and \f[C]#\f[] characters (so you can't place a comment on
-such lines).
+A \f[C]CLASS\f[] or \f[C]TITLE\f[] token may precede \f[I]regex\f[] to
+indicate that \f[I]only\f[] the class or title is to be matched,
+respectively; otherwise both are matched.
+Note that the \f[I]regex\f[] part is always taken verbatim, ignoring
+leading and trailing whitespace, but including embedded whitespace and
+\f[C]#\f[] characters (so you can't place a comment on such lines).
 .PP
-To find a set of eligible translations, midizap matches class and title
-of the window with the keyboard focus against each section, in the order
-in which they are listed in the configuration file.
-For each section, midizap first tries to match the window class (the
+To find a set of eligible translations, midizap matches class and/or
+title of the window with the keyboard focus against each section, in the
+order in which they are listed in the configuration file.
+If neither \f[C]CLASS\f[] nor \f[C]TITLE\f[] is specified, then both are
+tried; in this case, midizap first tries to match the window class (the
 \f[C]WM_CLASS\f[] property), then the window title (the \f[C]WM_NAME\f[]
 property).
 The first section which matches determines the translations to be used
@@ -596,13 +597,33 @@ Here, the class name is \[lq]ardour_ardour\[rq] and the window title
 \[lq]mysession \- Ardour\[rq].
 Either can be used for the regular expression, but the class name
 usually provides the more specific clues for identifying an application.
-So we might write:
+So we might begin a translation section for Ardour as follows:
 .IP
 .nf
 \f[C]
-[Ardour]\ ^ardour_ardour$
+[Ardour]\ CLASS\ ^ardour_ardour$
 \f[]
 .fi
+.PP
+Here we explicitly specified that only the window class is to be matched
+and we employed the \f[C]^\f[] and \f[C]$\f[] anchors to ensure that the
+entire string is matched, so this section will match precisely Ardour
+windows and nothing else.
+We could also write, rather sloppily:
+.IP
+.nf
+\f[C]
+[Ardour]\ [Aa]rdour
+\f[]
+.fi
+.PP
+This will match any window which has the string \[lq]Ardour\[rq] or
+\[lq]ardour\[rq] \f[I]anywhere\f[] in its class or title, so it will
+match Ardour windows, but also, say, the window of a text editor which
+happens to have a file named \[lq]Ardour.txt\[rq] loaded.
+So while regular expressions give you a lot of leeway in identifying
+windows, it's always a good idea to be as specific with the regex as
+possible.
 .PP
 The header is followed by a list of translations which define what
 output should be produced for the given MIDI input.
@@ -634,7 +655,7 @@ Example:
 .IP
 .nf
 \f[C]
-[Terminal]\ ^.*\-terminal.*|konsole|xterm$\ 
+[Terminal]\ CLASS\ ^.*\-terminal.*|konsole|xterm$
 \ F5\ \ \ \ XK_Up
 \ F#5\ \ \ "pwd"
 \ G5\ \ \ \ XK_Down
@@ -1822,8 +1843,8 @@ CC1=\ CC1[\-1]
 .PP
 As mentioned, this rule requires that you first move the controller up
 to its maximum position to make it work.
-The corresponding mod translation uses absolute values and thus doesn't
-have this defect; it just works without jumping through any such hoops.
+The mod translation above uses absolute values and thus doesn't have
+this defect.
 .PP
 The values in a list may be in any order, and you can throw in any
 combination of singleton values, enumerations and repetitions.
@@ -1867,9 +1888,9 @@ C0[]\ C0{\-1,127}
 \f[]
 .fi
 .PP
-This translation may look a bit odd, but can be useful at times if the
-application interprets note inputs, e.g., as radio or toggle buttons,
-and may get confused by note\-off messages.
+This kind of translation may look a bit odd, but can be useful at times
+if the application interprets note inputs, e.g., as radio or toggle
+buttons, and may get confused by note\-off messages.
 Note that it's impossible to do this kind of mapping with key or
 incremental data translations, because these don't allow you to suppress
 the note\-off messages.
@@ -2211,9 +2232,9 @@ The value lists in the definition of \f[C]M0\f[] are then used to filter
 these values and call the appropriate macro which handles the key
 output: \f[C]M1\f[] for value 0, \f[C]M2\f[] for value 2.
 .PP
-Kicking the pitch wheel around just to move the cursor left and right
-isn't much fun after a while, but it's easy to adjust the \f[C]M1\f[]
-and \f[C]M2\f[] macros for more sensible purposes.
+Flipping the pitch wheel just to move the cursor left and right isn't
+much fun after a while, but it's easy to adjust the \f[C]M1\f[] and
+\f[C]M2\f[] macros for more sensible purposes.
 E.g., we might output the keyboard shortcuts for \[lq]Rewind\[rq] and
 \[lq]Fast Forward\[rq] for a video editor like Kdenlive or Shotcut:
 .IP
@@ -2245,8 +2266,9 @@ Empty lines and lines containing nothing but whitespace are generally
 ignored, as are comments, which are introduced with \f[C]#\f[] at the
 beginning of a line or after whitespace, and continue until the end of
 the line.
-The only exception are header lines which are always taken verbatim, so
-whitespace and \f[C]#\f[] have no special meaning there.
+(The section name and regex in header lines is always taken verbatim,
+though, so whitespace and \f[C]#\f[] have no special significance
+there.)
 .PP
 Section names may contain any character but \f[C]]\f[] and newline,
 regular expressions any character but newline.
@@ -2260,7 +2282,7 @@ Numbers are always decimal integers.
 .nf
 \f[C]
 config\ \ \ \ \ \ ::=\ {\ directive\ |\ header\ |\ translation\ }
-header\ \ \ \ \ \ ::=\ "["\ name\ "]"\ regex
+header\ \ \ \ \ \ ::=\ "["\ name\ "]"\ [\ "CLASS"\ |\ "TITLE"\ ]\ regex
 translation\ ::=\ midi\-token\ {\ key\-token\ |\ midi\-token\ }
 
 directive\ \ \ ::=\ "DEBUG_REGEX"\ |\ "DEBUG_STROKES"\ |\ "DEBUG_KEYS"\ |
@@ -2302,17 +2324,17 @@ decided to keep them for backward compatibility.
 .PP
 midizap tries to keep things simple, which implies that it has its
 limitations.
-In particular, midizap lacks support for translating system messages and
-some more interesting ways of mapping, filtering and recombining MIDI
-data right now.
-There are other, more powerful utilities which do these things, but they
-are also more complicated and usually require programming skills.
+In particular, it lacks support for translating system messages and
+other advanced ways of manipulating MIDI data, and its macro programming
+capabilities are also rather basic.
+There are other, more powerful utilities which offer these things, but
+they are also more complicated and usually require programming skills.
 Fortunately, midizap often does the job reasonably well for simple
 mapping tasks (and even some rather complicated ones, such as the
 APCmini Mackie emulation included in the distribution).
-But if things start getting too fiddly then you should consider using a
-more comprehensive tool with real programming capabilities such as
-Pd (http://puredata.info/) instead.
+But if things start getting too fiddly then you should really consider
+using a more comprehensive tool such as Pd (http://puredata.info/)
+instead.
 .PP
 midizap has only been tested on Linux so far, and its keyboard and mouse
 support is tailored to X11, i.e., it's pretty much tied to Unix/X11

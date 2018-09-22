@@ -189,9 +189,9 @@ PB output                 # pitch bend
 
 The `#` character at the beginning of a line and after whitespace is special; it indicates that the rest of the line is a comment, which is skipped by the parser. Empty lines and lines containing nothing but whitespace are also ignored.
 
-Lines beginning with a `[`*name*`]` header are also special. Each such line introduces a translation class *name*, which may be followed by an extended regular expression *regex* (see the regex(7) manual page) to be matched against window class and title. Note that *everything* following the `[`*name*`]` header on the same line is taken verbatim; the *regex* part is the entire rest of the line, ignoring leading and trailing whitespace, but including embedded whitespace and `#` characters (so you can't place a comment on such lines).
+Lines beginning with a `[`*name*`]` header are also special. Each such line introduces a translation class *name*, which may be followed by an extended regular expression *regex* (see the regex(7) manual page) to be matched against window class and title. A `CLASS` or `TITLE` token may precede *regex* to indicate that *only* the class or title is to be matched, respectively; otherwise both are matched. Note that the *regex* part is always taken verbatim, ignoring leading and trailing whitespace, but including embedded whitespace and `#` characters (so you can't place a comment on such lines).
 
-To find a set of eligible translations, midizap matches class and title of the window with the keyboard focus against each section, in the order in which they are listed in the configuration file. For each section, midizap first tries to match the window class (the `WM_CLASS` property), then the window title (the `WM_NAME` property). The first section which matches determines the translations to be used for that window. An empty *regex* for the last class will always match, allowing default translations. If a translation cannot be found in the matched section, it will be loaded from the default section if possible. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the given *name* is only used for debugging output and diagnostics, and needn't be unique.
+To find a set of eligible translations, midizap matches class and/or title of the window with the keyboard focus against each section, in the order in which they are listed in the configuration file. If neither `CLASS` nor `TITLE` is specified, then both are tried; in this case, midizap first tries to match the window class (the `WM_CLASS` property), then the window title (the `WM_NAME` property). The first section which matches determines the translations to be used for that window. An empty *regex* for the last class will always match, allowing default translations. If a translation cannot be found in the matched section, it will be loaded from the default section if possible. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the given *name* is only used for debugging output and diagnostics, and needn't be unique.
 
 This means that when you start writing a section for a new application, the first thing you'll have to do is determine its window class and title, so that you can figure out a regular expression to use in the corresponding section header. The easiest way to do this is to run midizap with the `-dr` option. Make sure that your controller is hooked up to midizap, click on the window and wiggle any control on your device. You'll get a message like the following, telling you both the title and the class name of the window (as well as the name of the translation class if the window is already recognized):
 
@@ -199,11 +199,19 @@ This means that when you start writing a section for a new application, the firs
 translation: Default for mysession - Ardour (class ardour_ardour)
 ~~~
 
-Here, the class name is "ardour_ardour" and the window title "mysession - Ardour". Either can be used for the regular expression, but the class name usually provides the more specific clues for identifying an application. So we might write:
+Here, the class name is "ardour_ardour" and the window title "mysession - Ardour". Either can be used for the regular expression, but the class name usually provides the more specific clues for identifying an application. So we might begin a translation section for Ardour as follows:
 
 ~~~
-[Ardour] ^ardour_ardour$
+[Ardour] CLASS ^ardour_ardour$
 ~~~
+
+Here we explicitly specified that only the window class is to be matched and we employed the `^` and `$` anchors to ensure that the entire string is matched, so this section will match precisely Ardour windows and nothing else. We could also write, rather sloppily:
+
+~~~
+[Ardour] [Aa]rdour
+~~~
+
+This will match any window which has the string "Ardour" or "ardour" *anywhere* in its class or title, so it will match Ardour windows, but also, say, the window of a text editor which happens to have a file named "Ardour.txt" loaded. So while regular expressions give you a lot of leeway in identifying windows, it's always a good idea to be as specific with the regex as possible.
 
 The header is followed by a list of translations which define what output should be produced for the given MIDI input. Each translation must be on a line by itself. The left-hand side (first token) of the translation denotes the MIDI message to be translated. The corresponding right-hand side (the rest of the line) is a sequence of zero or more tokens, separated by whitespace, indicating MIDI and X11 keyboard and mouse events to be output. The output sequence may be empty, or just the special token `NOP` (which doesn't produce any output), to indicate that the translation outputs nothing at all; this suppresses the default translation for this input. Translation classes may be empty as well (i.e., not provide any translations), in which case *only* the default translations are active, even if a later non-default section matches the same window.
 
@@ -212,7 +220,7 @@ The header is followed by a list of translations which define what output should
 Example:
 
 ~~~
-[Terminal] ^.*-terminal.*|konsole|xterm$ 
+[Terminal] CLASS ^.*-terminal.*|konsole|xterm$
  F5    XK_Up
  F#5   "pwd"
  G5    XK_Down
@@ -659,7 +667,7 @@ Contrast this with the *incremental* reversed controller rule that we've seen ea
 CC1= CC1[-1]
 ~~~
 
-As mentioned, this rule requires that you first move the controller up to its maximum position to make it work. The corresponding mod translation uses absolute values and thus doesn't have this defect; it just works without jumping through any such hoops.
+As mentioned, this rule requires that you first move the controller up to its maximum position to make it work. The mod translation above uses absolute values and thus doesn't have this defect.
 
 The values in a list may be in any order, and you can throw in any combination of singleton values, enumerations and repetitions. For instance:
 
@@ -681,7 +689,7 @@ This rule will translate a zero velocity to -1, which isn't in the valid range, 
 C0[] C0{-1,127}
 ~~~
 
-This translation may look a bit odd, but can be useful at times if the application interprets note inputs, e.g., as radio or toggle buttons, and may get confused by note-off messages. Note that it's impossible to do this kind of mapping with key or incremental data translations, because these don't allow you to suppress the note-off messages.
+This kind of translation may look a bit odd, but can be useful at times if the application interprets note inputs, e.g., as radio or toggle buttons, and may get confused by note-off messages. Note that it's impossible to do this kind of mapping with key or incremental data translations, because these don't allow you to suppress the note-off messages.
 
 Last but not least, you can also use a modulus of 1 to cancel the *remainder* instead, if you want to use the input value solely as an offset. For instance, here's how you can map controller values to note *numbers* (rather than velocities):
 
@@ -840,7 +848,7 @@ M2[] XK_Right
 
 Note that the `M0` macro will be invoked with a value of 0, 1 and 2 if the pitch wheel is down, centered, and up, respectively. Also, we use the change flag here, so the `M0` macro is only invoked when this value actually changes. The value lists in the definition of `M0` are then used to filter these values and call the appropriate macro which handles the key output: `M1` for value 0, `M2` for value 2.
 
-Kicking the pitch wheel around just to move the cursor left and right isn't much fun after a while, but it's easy to adjust the `M1` and `M2` macros for more sensible purposes. E.g., we might output the keyboard shortcuts for "Rewind" and "Fast Forward" for a video editor like Kdenlive or Shotcut:
+Flipping the pitch wheel just to move the cursor left and right isn't much fun after a while, but it's easy to adjust the `M1` and `M2` macros for more sensible purposes. E.g., we might output the keyboard shortcuts for "Rewind" and "Fast Forward" for a video editor like Kdenlive or Shotcut:
 
 ~~~
 M1[] "j"
@@ -856,13 +864,13 @@ M2[] G#7[127] # Fast Forward
 
 # Configuration Language Grammar
 
-The following EBNF grammar summarizes the syntax of the configuration language. The character set is 7 bit ASCII (arbitrary UTF-8 characters are permitted in comments, however). The language is line-oriented; each directive, section header, and translation must be on a separate line. Empty lines and lines containing nothing but whitespace are generally ignored, as are comments, which are introduced with `#` at the beginning of a line or after whitespace, and continue until the end of the line. The only exception are header lines which are always taken verbatim, so whitespace and `#` have no special meaning there.
+The following EBNF grammar summarizes the syntax of the configuration language. The character set is 7 bit ASCII (arbitrary UTF-8 characters are permitted in comments, however). The language is line-oriented; each directive, section header, and translation must be on a separate line. Empty lines and lines containing nothing but whitespace are generally ignored, as are comments, which are introduced with `#` at the beginning of a line or after whitespace, and continue until the end of the line. (The section name and regex in header lines is always taken verbatim, though, so whitespace and `#` have no special significance there.)
 
 Section names may contain any character but `]` and newline, regular expressions any character but newline. The latter must follow the usual syntax for extended regular expressions, see regex(7) for details. In a directive or translation line, tokens are delimited by whitespace. Strings are delimited by double quotes and may contain any printable ASCII character except newline and double quotes. Numbers are always decimal integers.
 
 ~~~
 config      ::= { directive | header | translation }
-header      ::= "[" name "]" regex
+header      ::= "[" name "]" [ "CLASS" | "TITLE" ] regex
 translation ::= midi-token { key-token | midi-token }
 
 directive   ::= "DEBUG_REGEX" | "DEBUG_STROKES" | "DEBUG_KEYS" |
@@ -895,7 +903,7 @@ There probably are some. Please submit bug reports and pull requests at the midi
 
 The names of some of the debugging options are rather idiosyncratic. midizap inherited them from Eric Messick's ShuttlePRO program, and we decided to keep them for backward compatibility.
 
-midizap tries to keep things simple, which implies that it has its limitations. In particular, midizap lacks support for translating system messages and some more interesting ways of mapping, filtering and recombining MIDI data right now. There are other, more powerful utilities which do these things, but they are also more complicated and usually require programming skills. Fortunately, midizap often does the job reasonably well for simple mapping tasks (and even some rather complicated ones, such as the APCmini Mackie emulation included in the distribution). But if things start getting too fiddly then you should consider using a more comprehensive tool with real programming capabilities such as [Pd][] instead.
+midizap tries to keep things simple, which implies that it has its limitations. In particular, it lacks support for translating system messages and other advanced ways of manipulating MIDI data, and its macro programming capabilities are also rather basic. There are other, more powerful utilities which offer these things, but they are also more complicated and usually require programming skills. Fortunately, midizap often does the job reasonably well for simple mapping tasks (and even some rather complicated ones, such as the APCmini Mackie emulation included in the distribution). But if things start getting too fiddly then you should really consider using a more comprehensive tool such as [Pd][] instead.
 
 midizap has only been tested on Linux so far, and its keyboard and mouse support is tailored to X11, i.e., it's pretty much tied to Unix/X11 systems right now. Native Mac or Windows support certainly seems possible, but it's not going to happen until someone steps in who's in the know about suitable Mac and Windows replacements for the X11 XTest extension.
 
