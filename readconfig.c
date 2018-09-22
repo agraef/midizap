@@ -153,17 +153,20 @@ static translation *last_translation_section = NULL;
 translation *default_translation, *default_midi_translation[2];
 
 translation *
-new_translation_section(char *name, char *regex)
+new_translation_section(char *name, int mode, char *regex)
 {
   translation *ret = (translation *)allocate(sizeof(translation));
   int err;
 
   memset(ret, 0, sizeof(translation));
   if (debug_strokes) {
-    printf("------------------------\n[%s] %s\n\n", name, regex);
+    printf("------------------------\n[%s] %s%s\n\n", name,
+	   mode==1?"TITLE ":mode==2?"CLASS ":"",
+	   regex);
   }
   ret->next = NULL;
   ret->name = alloc_strcat(name, NULL);
+  ret->mode = mode;
   if (regex == NULL || *regex == '\0') {
     ret->is_default = 1;
     if (!strcmp(name, "MIDI"))
@@ -1864,6 +1867,7 @@ read_config_file(void)
       }
       if (*s == '[') {
 	//  [name] regex\n
+	int mode = 0;
 	name = ++s;
 	while (*s && *s != ']') {
 	  s++;
@@ -1872,6 +1876,16 @@ read_config_file(void)
 	if (*s) {
 	  *s = '\0';
 	  s++;
+	  while (*s && isspace(*s)) {
+	    s++;
+	  }
+	  if (!strncmp(s, "TITLE", 5)) {
+	    mode = 1;
+	    s += 5;
+	  } else if (!strncmp(s, "CLASS", 5)) {
+	    mode = 2;
+	    s += 5;
+	  }
 	  while (*s && isspace(*s)) {
 	    s++;
 	  }
@@ -1886,7 +1900,7 @@ read_config_file(void)
 	  s[1] = '\0';
 	}
 	finish_translation_section(tr);
-	tr = new_translation_section(name, regex);
+	tr = new_translation_section(name, mode, regex);
 	continue;
       }
 
@@ -2059,11 +2073,11 @@ get_translation(char *win_title, char *win_class)
     if (!tr->is_default) {
       // AG: We first try to match the class name, since it usually provides
       // better identification clues.
-      if (win_class && *win_class &&
+      if ((tr->mode == 0 || tr->mode == 2) && win_class && *win_class &&
 	  regexec(&tr->regex, win_class, 0, NULL, 0) == 0) {
 	return tr;
       }
-      if (win_title && *win_title &&
+      if ((tr->mode == 0 || tr->mode == 1) && win_title && *win_title &&
 	  regexec(&tr->regex, win_title, 0, NULL, 0) == 0) {
 	return tr;
       }

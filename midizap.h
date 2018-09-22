@@ -99,7 +99,7 @@ typedef struct _stroke_data {
 typedef struct _translation {
   struct _translation *next;
   char *name;
-  int is_default;
+  int mode, is_default;
   regex_t regex;
   uint8_t portno;
   // these are indexed by shift status
