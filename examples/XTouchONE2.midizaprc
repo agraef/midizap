@@ -19,9 +19,10 @@ PASSTHROUGH
 SYSTEM_PASSTHROUGH
 
 # NOTE: This assumes that you use the default Mackie mode of the ONE.
-# Otherwise you'll have to adjust the key mapping accordingly. I use the
-# SCRUB key as a replacement (F8 in MC mode), because Ardour doesn't use
-# it. If you do need that key, use another one that you can spare.
+# Otherwise you may have to adjust the key mapping accordingly. I use the
+# SCRUB key as a replacement (F8 in MC mode), because I don't need that
+# function (it's not available in Ardour). If you do need that function, use
+# another one that you can spare.
 
 [MIDI]
 
@@ -54,6 +55,17 @@ F8 SHIFT ^F8 RELEASE SHIFT ^F8
 ^C#8 A#5 C#8  # Down
 ^D8  A#5 D8   # Left
 ^D#8 A#5 D#8  # Right
+
+# Since the X-Touch ONE is a single-channel controller, I find it convenient
+# to have the bank and channel switches linked up with the channel SELECT
+# switch, so that the first channel in the current bank is also selected in
+# the DAW. Therefore I have bound these functions to the shifted bank and
+# channel switches here.
+
+^A#3 A#3 C2   # BANK< SELECT
+^B3  B3  C2   # BANK> SELECT
+^C4  C4  C2   # CHAN< SELECT
+^C#4 C#4 C2   # CHAN> SELECT
 
 # Add any other shifted bindings that you want/need ...
 
