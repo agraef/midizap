@@ -42,11 +42,6 @@ F8 SHIFT ^F8 RELEASE SHIFT ^F8
 ^A#4 C5
 ^B4  C#5
 
-# Pass through the shifted SELECT key (needed to add to the current selection
-# in Ardour).
-
-^C2  A#5 C2
-
 # Pass through the shifted cursor keys. This assumes that they're already
 # mapped to something in the DAW; e.g., I have the shifted left/right keys
 # bound to the previous/next marker functions in Ardour.
@@ -67,7 +62,22 @@ F8 SHIFT ^F8 RELEASE SHIFT ^F8
 ^C4  C4  C2   # CHAN< SELECT
 ^C#4 C#4 C2   # CHAN> SELECT
 
-# Add any other shifted bindings that you want/need ...
+# Other shifted keys in the CHANNEL and TRANSPORT sections are simply passed
+# through along with the SHIFT key. You can either assign these combinations
+# in the DAW, or edit them below as needed.
+
+^C0  A#5 C0  # SHIFT REC
+^G#0 A#5 G#0 # SHIFT SOLO
+^E1  A#5 E1  # SHIFT MUTE
+^C2  A#5 C2  # SHIFT SELECT
+
+^C7  A#5 C7  # SHIFT MARKER
+^C#7 A#5 C#7 # SHIFT NUDGE
+^D7  A#5 D7  # SHIFT CYCLE
+^D#7 A#5 D#7 # SHIFT DROP
+^E7  A#5 E7  # SHIFT REPLACE
+^F7  A#5 F7  # SHIFT CLICK
+^F#7 A#5 F#7 # SHIFT SOLO
 
 [MIDI2]
 
