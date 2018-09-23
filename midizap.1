@@ -1061,14 +1061,26 @@ For instance, the sequence \f[C]C5\-2\ E5\-2\ G5\-2\f[], which outputs a
 C major chord on MIDI channel 2, can also be abbreviated as
 \f[C]CH2\ C5\ E5\ G5\f[].
 .PP
-For key mode inputs, the corresponding \[lq]on\[rq] or \[lq]off\[rq]
-event is generated for all MIDI messages in the output sequence, where
-the \[lq]on\[rq] value defaults to the maximum value (127 for controller
-values, 8191 for pitch bends).
-Thus, e.g., the following rule outputs a \f[C]CC64\f[] (hold pedal)
-message with controller value 127 each time \f[C]C3\f[] is pressed (and
+Key mode is a lot simpler for MIDI output than with key events; there is
+no magic involving \[lq]held\[rq] keys here, and no \f[C]/D\f[],
+\f[C]/U\f[] or \f[C]/H\f[] flags (these are only valid with keyboard
+output).
+By default, the press and release sequences will have exactly the same
+\[lq]on\[rq] and \[lq]off\[rq] MIDI messages, in the same order as they
+appear in the given output sequence.
+If there's an explicit \f[C]RELEASE\f[] section, however, then the
+\[lq]off\[rq] messages in this sequence will be output for the release
+sequence instead.
+This allows you to output the \[lq]off\[rq] messages in a different
+order, or output a completely different release sequence if you want.
+(This case arises rarely, though; usually you'll just specify the press
+sequence and be done with it.) In either case, the messages will be
+output exactly as written.
+.PP
+For instance, the following rule outputs a \f[C]CC64\f[] (hold pedal)
+message with controller value 127 each time \f[C]C3\f[] is pressed, and
 another \f[C]CC64\f[] message with value 0 when the note is released
-again):
+again:
 .IP
 .nf
 \f[C]
@@ -2270,14 +2282,12 @@ the line.
 though, so whitespace and \f[C]#\f[] have no special significance
 there.)
 .PP
-Section names may contain any character but \f[C]]\f[] and newline,
-regular expressions any character but newline.
-The latter must follow the usual syntax for extended regular
+Regular expressions must follow the usual syntax for extended regular
 expressions, see regex(7) for details.
 In a directive or translation line, tokens are delimited by whitespace.
 Strings are delimited by double quotes and may contain any printable
 ASCII character except newline and double quotes.
-Numbers are always decimal integers.
+Numbers are always integers written in decimal notation.
 .IP
 .nf
 \f[C]

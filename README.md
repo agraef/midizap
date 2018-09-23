@@ -354,7 +354,9 @@ The output sequence can involve as many MIDI messages as you want, and these can
 
 There is one special MIDI token `CH` which can only be used on the output side. It is always followed by a MIDI channel number in the range 1..16. This token doesn't actually generate any MIDI message, but merely sets the default MIDI channel for subsequent MIDI messages in the same output sequence, which is convenient if multiple messages are output to the same MIDI channel. For instance, the sequence `C5-2 E5-2 G5-2`, which outputs a C major chord on MIDI channel 2, can also be abbreviated as `CH2 C5 E5 G5`.
 
-For key mode inputs, the corresponding "on" or "off" event is generated for all MIDI messages in the output sequence, where the "on" value defaults to the maximum value (127 for controller values, 8191 for pitch bends). Thus, e.g., the following rule outputs a `CC64` (hold pedal) message with controller value 127 each time `C3` is pressed (and another `CC64` message with value 0 when the note is released again):
+Key mode is a lot simpler for MIDI output than with key events; there is no magic involving "held" keys here, and no `/D`, `/U` or `/H` flags (these are only valid with keyboard output). By default, the press and release sequences will have exactly the same "on" and "off" MIDI messages, in the same order as they appear in the given output sequence. If there's an explicit `RELEASE` section, however, then the "off" messages in this sequence will be output for the release sequence instead. This allows you to output the "off" messages in a different order, or output a completely different release sequence if you want. (This case arises rarely, though; usually you'll just specify the press sequence and be done with it.) In either case, the messages will be output exactly as written.
+
+For instance, the following rule outputs a `CC64` (hold pedal) message with controller value 127 each time `C3` is pressed, and another `CC64` message with value 0 when the note is released again:
 
 ~~~
 C3 CC64 # hold pedal on/off
@@ -866,7 +868,7 @@ M2[] G#7[127] # Fast Forward
 
 The following EBNF grammar summarizes the syntax of the configuration language. The character set is 7 bit ASCII (arbitrary UTF-8 characters are permitted in comments, however). The language is line-oriented; each directive, section header, and translation must be on a separate line. Empty lines and lines containing nothing but whitespace are generally ignored, as are comments, which are introduced with `#` at the beginning of a line or after whitespace, and continue until the end of the line. (The section name and regex in header lines is always taken verbatim, though, so whitespace and `#` have no special significance there.)
 
-Section names may contain any character but `]` and newline, regular expressions any character but newline. The latter must follow the usual syntax for extended regular expressions, see regex(7) for details. In a directive or translation line, tokens are delimited by whitespace. Strings are delimited by double quotes and may contain any printable ASCII character except newline and double quotes. Numbers are always decimal integers.
+Regular expressions must follow the usual syntax for extended regular expressions, see regex(7) for details. In a directive or translation line, tokens are delimited by whitespace. Strings are delimited by double quotes and may contain any printable ASCII character except newline and double quotes. Numbers are always integers written in decimal notation.
 
 ~~~
 config      ::= { directive | header | translation }
