@@ -85,6 +85,23 @@ F8 SHIFT ^F8 RELEASE SHIFT ^F8
 ^F7  A#5 F7  RELEASE F7  A#5 # SHIFT CLICK
 ^F#7 A#5 F#7 RELEASE F#7 A#5 # SHIFT SOLO
 
+^G7  A#5 G7  RELEASE G7  A#5 # SHIFT REW
+^G#7 A#5 G#7 RELEASE G#7 A#5 # SHIFT FFWD
+^A7  A#5 A7  RELEASE A7  A#5 # SHIFT STOP
+^A#7 A#5 A#7 RELEASE A#7 A#5 # SHIFT PLAY
+^B7  A#5 B7  RELEASE B7  A#5 # SHIFT REC
+
+# Experiment with shifted controls. This remaps the shifted fader, encoder and
+# jog wheel on the ONE to CC1..CC3. As these controls aren't used by MCP, they
+# can be assigned freely, e.g., to some plugin parameters using MIDI learn.
+# NOTE: Touching the fader also emits a note message (G#8), which will get in
+# the way with MIDI learn, so we disable it here.
+
+^G#8 NOP
+^PB[128]{0} CC1'
+^CC16~ CC2
+^CC60~ CC3
+
 [MIDI2]
 
 # feedback for the shifted F1 .. F6 bindings
