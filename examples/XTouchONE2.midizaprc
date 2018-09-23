@@ -42,15 +42,6 @@ F8 SHIFT ^F8 RELEASE SHIFT ^F8
 ^A#4 C5
 ^B4  C#5
 
-# Pass through the shifted cursor keys. This assumes that they're already
-# mapped to something in the DAW; e.g., I have the shifted left/right keys
-# bound to the previous/next marker functions in Ardour.
-
-^C8  A#5 C8   # Up
-^C#8 A#5 C#8  # Down
-^D8  A#5 D8   # Left
-^D#8 A#5 D#8  # Right
-
 # Since the X-Touch ONE is a single-channel controller, I find it convenient
 # to have the bank and channel switches linked up with the channel SELECT
 # switch, so that the first channel in the current bank is also selected in
@@ -62,22 +53,37 @@ F8 SHIFT ^F8 RELEASE SHIFT ^F8
 ^C4  C4  C2   # CHAN< SELECT
 ^C#4 C#4 C2   # CHAN> SELECT
 
-# Other shifted keys in the CHANNEL and TRANSPORT sections are simply passed
-# through along with the SHIFT key. You can either assign these combinations
-# in the DAW, or edit them below as needed.
+# Pass through the shifted cursor keys. This assumes that they're already
+# mapped to something in the DAW; e.g., I have the shifted left/right keys
+# bound to the previous/next marker functions in Ardour.
 
-^C0  A#5 C0  # SHIFT REC
-^G#0 A#5 G#0 # SHIFT SOLO
-^E1  A#5 E1  # SHIFT MUTE
-^C2  A#5 C2  # SHIFT SELECT
+# NOTE: We use an explicit RELEASE sequence here, so that the SHIFT key (A#5)
+# is released last. By default, midizap will release MIDI key events in the
+# same order in which they are pressed, which may not work in some key
+# combinations, since the SHIFT key gets released too early. (At least I found
+# that this confuses Ardour in some cases, YMMV.)
 
-^C7  A#5 C7  # SHIFT MARKER
-^C#7 A#5 C#7 # SHIFT NUDGE
-^D7  A#5 D7  # SHIFT CYCLE
-^D#7 A#5 D#7 # SHIFT DROP
-^E7  A#5 E7  # SHIFT REPLACE
-^F7  A#5 F7  # SHIFT CLICK
-^F#7 A#5 F#7 # SHIFT SOLO
+^C8  A#5 C8  RELEASE C8  A#5 # Up
+^C#8 A#5 C#8 RELEASE C#8 A#5 # Down
+^D8  A#5 D8  RELEASE D8  A#5 # Left
+^D#8 A#5 D#8 RELEASE D#8 A#5 # Right
+
+# By default, other shifted keys in the CHANNEL and TRANSPORT sections are
+# simply passed through along with the SHIFT key as well. You can either
+# assign these combinations in the DAW, or edit them below as needed.
+
+^C0  A#5 C0  RELEASE C0  A#5 # SHIFT REC
+^G#0 A#5 G#0 RELEASE G#0 A#5 # SHIFT SOLO
+^E1  A#5 E1  RELEASE E1  A#5 # SHIFT MUTE
+^C2  A#5 C2  RELEASE C2  A#5 # SHIFT SELECT
+
+^C7  A#5 C7  RELEASE C7  A#5 # SHIFT MARKER
+^C#7 A#5 C#7 RELEASE C#7 A#5 # SHIFT NUDGE
+^D7  A#5 D7  RELEASE D7  A#5 # SHIFT CYCLE
+^D#7 A#5 D#7 RELEASE D#7 A#5 # SHIFT DROP
+^E7  A#5 E7  RELEASE E7  A#5 # SHIFT REPLACE
+^F7  A#5 F7  RELEASE F7  A#5 # SHIFT CLICK
+^F#7 A#5 F#7 RELEASE F#7 A#5 # SHIFT SOLO
 
 [MIDI2]
 

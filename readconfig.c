@@ -823,7 +823,8 @@ stroke **first_stroke;
 stroke *last_stroke;
 stroke **press_first_stroke;
 stroke **release_first_stroke;
-int is_keystroke, is_bidirectional, is_midi, is_nop, mode;
+int is_keystroke, is_bidirectional, is_nop, midi_release, explicit_release;
+int mode;
 char *current_translation;
 char *key_name;
 int first_release_stroke; // is this the first stroke of a release?
@@ -909,7 +910,7 @@ append_midi(int status, int data, int step, int n_steps, int *steps,
     *first_stroke = s;
   }
   last_stroke = s;
-  is_midi = 1;
+  midi_release = 1;
 }
 
 // s->press values in modifiers_down:
@@ -1427,7 +1428,8 @@ start_translation(translation *tr, char *which_key)
   }
   current_translation = tr->name;
   key_name = which_key;
-  is_keystroke = is_bidirectional = is_midi = is_nop = anyshift = 0;
+  is_keystroke = is_bidirectional = is_nop = anyshift = 0;
+  midi_release = explicit_release = 0;
   first_release_stroke = 0;
   regular_key_down = 0;
   modifier_count = 0;
@@ -1665,15 +1667,17 @@ add_release(int all_keys)
   if (!all_keys) {
     if (!*first_stroke) append_nop();
     first_stroke = release_first_stroke;
-    if (is_midi) {
+    if (midi_release) {
       // walk the list of "press" strokes, find all "dirty" (as yet unhandled)
-      // MIDI events in there and add them to the "release" strokes
+      // MIDI events in there and add them to the "release" strokes (unless
+      // there's an explicit release sequence in which case we output nothing)
       stroke *s = *press_first_stroke;
       while (s) {
 	if (!s->keysym && !s->shift && s->dirty) {
-	  append_midi(s->status, s->data,
-		      s->step, s->n_steps, s->steps,
-		      s->swap, s->change, s->incr, s->recursive, s->feedback);
+	  if (!explicit_release)
+	    append_midi(s->status, s->data,
+			s->step, s->n_steps, s->steps,
+			s->swap, s->change, s->incr, s->recursive, s->feedback);
 	  s->dirty = 0;
 	}
 	s = s->next;
@@ -2009,9 +2013,12 @@ read_config_file(void)
 	case '\t':
 	case '\n':
 	case '\0': // no newline at eof
-	  if (!strcmp(tok, "RELEASE"))
+	  if (!strcmp(tok, "RELEASE")) {
+	    // Suppress the default MIDI release sequence if there's an
+	    // explicit release sequence.
+	    explicit_release = 1;
 	    add_keystroke(tok, PRESS_RELEASE);
-	  else if (!strncmp(tok, "SHIFT", 5)) {
+	  } else if (!strncmp(tok, "SHIFT", 5)) {
 	    int shift = isdigit(tok[5])?tok[5]-'0':1;
 	    if ((tok[5] == 0 || (isdigit(tok[5]) && tok[6] == 0)) &&
 		shift >= 1 && shift <= N_SHIFTS)
