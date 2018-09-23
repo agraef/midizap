@@ -124,7 +124,7 @@ B5  G2
 ^F5  B3  # Bank Right
 ^F#5 C4  # Channel Left
 ^G5  C#4 # Channel Right
-# NOTE: Only Pan and Send appear to be supported in Ardour.
+# NOTE: Instr appears to be unsupported in Ardour.
 ^G#5 E3  # Track (Volume)
 ^A5  F#3 # Pan
 ^A#5 F3  # Send
