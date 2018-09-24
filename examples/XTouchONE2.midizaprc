@@ -37,6 +37,12 @@ F8 SHIFT ^F8 RELEASE SHIFT ^F8
 ^G#4 F3   # Send
 ^A4  A3   # Instr (not supported by Ardour)
 
+# If you're using the bindings above, then most likely you also need the FLIP
+# button which swaps fader and encoder; we (rather arbitrarily) assign it to
+# the shifted SOLO button in the TRANSPORT section.
+
+^F#7 D4   # Flip
+
 # Here's an alternative binding to the utility keys which you may find useful.
 # Uncomment these lines (and comment out the encoder assignment section above)
 # to use these instead.
@@ -81,9 +87,10 @@ F8 SHIFT ^F8 RELEASE SHIFT ^F8
 ^D8  A#5 D8  RELEASE D8  A#5 # Left
 ^D#8 A#5 D#8 RELEASE D#8 A#5 # Right
 
-# With the translations below, other shifted keys in the CHANNEL and TRANSPORT
-# sections are simply passed through along with the SHIFT key as well. You can
-# either assign these combinations in the DAW, or edit the bindings below.
+# With the translations below, most other shifted keys in the CHANNEL and
+# TRANSPORT sections are simply passed through along with the SHIFT key as
+# well. You can either assign these combinations in the DAW, or edit the
+# bindings below.
 
 ^C0  A#5 C0  RELEASE C0  A#5 # SHIFT REC
 ^G#0 A#5 G#0 RELEASE G#0 A#5 # SHIFT SOLO
@@ -96,7 +103,6 @@ F8 SHIFT ^F8 RELEASE SHIFT ^F8
 ^D#7 A#5 D#7 RELEASE D#7 A#5 # SHIFT DROP
 ^E7  A#5 E7  RELEASE E7  A#5 # SHIFT REPLACE
 ^F7  A#5 F7  RELEASE F7  A#5 # SHIFT CLICK
-^F#7 A#5 F#7 RELEASE F#7 A#5 # SHIFT SOLO
 
 ^G7  A#5 G7  RELEASE G7  A#5 # SHIFT REW
 ^G#7 A#5 G#7 RELEASE G#7 A#5 # SHIFT FFWD
@@ -123,6 +129,8 @@ E3  F#4
 F#3 G4
 F3  G#4
 A3  A4
+
+D4  F#7 # FLIP -> SOLO
 
 #G#6 F#4
 #A6  G4
