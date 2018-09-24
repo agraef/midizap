@@ -118,17 +118,17 @@ A#5 F#2
 B5  G2
 
 # shifted bottom row
-# We have these assigned to the bank/channel and track/pan/send/instr controls,
-# but you may want to remap some or all of these as needed.
+# We have these assigned to the bank/channel and track/pan/send/plugin
+# controls, but you may want to remap some or all of these as needed.
 ^E5  A#3 # Bank Left
 ^F5  B3  # Bank Right
 ^F#5 C4  # Channel Left
 ^G5  C#4 # Channel Right
-# NOTE: Instr appears to be unsupported in Ardour.
+# NOTE: Plugin appears to be unsupported in Ardour.
 ^G#5 E3  # Track (Volume)
 ^A5  F#3 # Pan
 ^A#5 F3  # Send
-^B5  A3  # Instr (Device)
+^B5  G3  # Plugin (Device)
 
 # faders (MC uses pitch bends here, use 129 as step size to get full range)
 CC48[] PB[129]-1

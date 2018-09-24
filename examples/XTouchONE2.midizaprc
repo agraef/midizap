@@ -35,7 +35,7 @@ F8 SHIFT ^F8 RELEASE SHIFT ^F8
 ^F#4 E3   # Track (Trim)
 ^G4  F#3  # Pan
 ^G#4 F3   # Send
-^A4  A3   # Instr (not supported by Ardour)
+^A4  G3   # Plugin (not supported by Ardour)
 
 # If you're using the bindings above, then most likely you also need the FLIP
 # button which swaps fader and encoder; we (rather arbitrarily) assign it to

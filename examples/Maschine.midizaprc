@@ -94,12 +94,12 @@ G#5  A6  # Undo   (SETTINGS key)
 F#6  A#6 # Cancel (AUTO key)
 G5   B6  # Enter  (MACRO/Set key)
 
-# Track/Pan/Send/Instr (4 buttons right above the grid)
-# NOTE: Only Pan and Send appear to be supported in Ardour.
+# Track/Pan/Send/Plugin (4 buttons right above the grid)
+# NOTE: Plugin appears to be unsupported in Ardour.
 G#3  E3  # Track  (PAD MODE key)
 A3   F#3 # Pan    (KEYBOARD key)
 A#3  F3  # Send   (CHORDS key)
-B3   A3  # Instr  (STEPS key)
+B3   G3  # Plugin (STEPS key)
 
 # the four buttons right above the touchstrip are used for the MC shift keys
 A4   A#5 # Shift   (PITCH key)
@@ -291,11 +291,11 @@ F4   C#6
 C4  E6
 C#4 A5
 
-# row above grid (track/pan/send/instr)
+# row above grid (track/pan/send/plugin)
 E3   G#3
 F#3  A3
 F3   A#3
-A3   B3
+G3   B3
 
 # feedback for the MC shift keys
 A#5  A4  # Shift
