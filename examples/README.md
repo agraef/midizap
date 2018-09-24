@@ -13,13 +13,13 @@ This folder contains a couple of sample midizap configurations for different con
 
 - [XTouchONE.midizaprc](XTouchONE.midizaprc): map the SCRUB key to the more important SHIFT key which the X-Touch ONE lacks
 
-- [XTouchONE2.midizaprc](XTouchONE2.midizaprc): an improved config for the X-Touch ONE which turns the SCRUB key into an internal shift key, showing how to assign arbitrary MCP key combinations to the shifted keys
+- [XTouchONE2.midizaprc](XTouchONE2.midizaprc): an improved config for the X-Touch ONE which turns the SCRUB key into an internal shift key, and offers more advanced configuration options
 
 Other interesting items:
 
 - [midizap.xml](midizap.xml): ready-to-use QjackCtl patchbay for all the sample configurations, auto-connects to Ardour
 
-	Installation: Open QjackCtl's Patchbay dialog, load the midizap.xml file and activate the patchbay.
+	Installation: Open QjackCtl's Patchbay dialog, load the midizap.xml file and activate the patchbay. To connect with Ardour, you also need to enable the Mackie control surface in Ardour's preferences dialog.
 
 - [x-touch-one.device](x-touch-one.device): X-Touch ONE device description for Ardour 5.12 (this is basically the X-Touch description with a bank size of 1, so that all tracks become accessible)
 

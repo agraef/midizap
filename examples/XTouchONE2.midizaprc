@@ -63,9 +63,9 @@ F8 SHIFT ^F8 RELEASE SHIFT ^F8
 # bound these functions to the shifted bank and channel keys here, but of
 # course you can change them to anything you want.
 
-# NOTE: You should configure a bank size of 1 for the ONE, so that all tracks
-# become accessible. At least that's necessary in Ardour; a suitable device
-# description for Ardour is included (see x-touch-one.device).
+# NOTE: You might have to configure a bank size of 1 for the ONE, so that all
+# tracks become accessible. A suitable device description for Ardour is
+# included (see x-touch-one.device).
 
 ^A#3 A#3 C2   # BANK< SELECT
 ^B3  B3  C2   # BANK> SELECT
@@ -113,6 +113,8 @@ F8 SHIFT ^F8 RELEASE SHIFT ^F8
 # Experiment with shifted controls. This remaps the shifted fader, encoder and
 # jog wheel on the ONE to CC1..CC3. As these controls aren't used by MCP, they
 # can be assigned freely, e.g., to some plugin parameters, using MIDI learn.
+# (To make this work in Ardour, you have to connect midizap's midi_out port to
+# Ardour's MIDI control in port, in addition to the Mackie control in port.)
 
 # NOTE: Touching the fader also emits a note message (G#8), which will get in
 # the way with MIDI learn, so we disable it here.

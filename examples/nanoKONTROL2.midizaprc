@@ -16,9 +16,11 @@ JACK_PORTS 2
 # Pass everything through (including feedback), except for the mappings below.
 PASSTHROUGH
 
-# NOTE: This assumes that you run the nanoKONTROL2 in Cubase mode. Use Korg's
-# editor application to enter that mode, or hold the SET and << keys when
-# plugging in the device.
+# NOTE: This assumes that you run the nanoKONTROL2 in *Cubase* mode. Use
+# Korg's editor application to enter that mode, or hold the SET and << keys
+# when plugging in the device. (Note that Ardour also has support for the
+# nanoKONTROL2 as a generic MIDI device, in which case you can leave the
+# device in its default CC mode and midizap isn't required.)
 
 [Ardour] ^ardour_ardour$
 
