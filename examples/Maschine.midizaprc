@@ -321,7 +321,7 @@ G2  D7
 # no feedback for encoders, only touchstrip
 PB[128]{0}-9 CC9'
 
-# MCP feedback (simply passed through, ctlra_daemon handles these
+# MCP feedback (simply passed through, ctlra_daemonx handles these
 # automagically).
 
 # rec/solo/mute
