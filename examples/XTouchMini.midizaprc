@@ -1,0 +1,99 @@
+
+# Mapping for the X-Touch Mini in MC mode which takes care of the most glaring
+# issues with this (rather nice) device: (1) no bank change keys, (2) no
+# channel selection, and (3) no faders (except for the master fader).
+
+# Copyright (c) 2018 Albert Graef <aggraef@gmail.com>
+
+# Copying and distribution of this file, with or without modification, are
+# permitted in any medium without royalty provided the copyright notice and
+# this notice are preserved.  This file is offered as-is, without any
+# warranty.
+
+JACK_NAME "midizap-XTouchMini"
+JACK_PORTS 2
+
+# Pass everything through, except for the translations below.
+
+PASSTHROUGH
+SYSTEM_PASSTHROUGH
+
+# The idea of this mapping is to leave the original bindings mostly untouched,
+# and just add few things on top of it. Note that the device, besides the
+# encoders and the master faders, has two rows of 8 buttons and 2 buttons on
+# the right which are laid out in MC mode as follows:
+
+# [CLICK]  [SOLO]    [TRACK] [SEND] [PAN]  [PLUGIN] [EQ]   [INST]  [MARKER]
+# [DROP]   [REPLACE] [REW]   [FFWD] [LOOP] [STOP]   [PLAY] [REC]   [NUDGE]
+
+# We turn the MC/DROP key into an internal SHIFT key and remap the other keys
+# as follows (with the shifted bindings given above and below in parentheses;
+# these become active when holding down the MC/SHIFT key):
+
+# (SELECT) ...                                                     (MARKER)
+# [CLICK]  [SOLO]    [TRACK] [SEND] [PAN]  [PLUGIN] [EQ]   [INST]  [BANK LEFT]
+# [SHIFT]  [REPLACE] [REW]   [FFWD] [LOOP] [STOP]   [PLAY] [REC]   [BANK RIGHT]
+#          (DROP)                                                  (NUDGE)
+
+# That is, the shifted REPLACE key makes up for the remapped DROP key, and the
+# MARKER and NUDGE keys must now be shifted to get these functions, while the
+# unshifted keys are used to change banks. In addition, the eight buttons in
+# the top row, when shifted, select the corresponding channel. And last but
+# not least, the encoders, when operated while holding down the MC/SHIFT key,
+# become the missing faders.
+
+[MIDI]
+
+# MC = shift button, with direct feedback
+D#7 SHIFT ^D#7 RELEASE SHIFT ^D#7
+
+# A/B buttons on the right = bank left/right
+C7   A#3 # bank left
+C#7  B3  # bank right
+
+# shifted A/B buttons = MARKER/NUDGE
+^C7  C7
+^C#7 C#7
+
+# shifted REPLACE button = DROP
+^E7  D#7
+
+# shifted top row = SELECT
+^F7  C2
+^F#7 C#2
+^E3  D2
+^F3  D#2
+^F#3 E2
+^G3  F2
+^G#3 F#2
+^A3  G2
+
+# shifted encoders = channel faders
+^CC16~ PB[129]-1
+^CC17~ PB[129]-2
+^CC18~ PB[129]-3
+^CC19~ PB[129]-4
+^CC20~ PB[129]-5
+^CC21~ PB[129]-6
+^CC22~ PB[129]-7
+^CC23~ PB[129]-8
+
+[MIDI2]
+
+# feedback for the BANK LEFT/RIGHT buttons
+A#3  C7
+B3   C#7
+
+# NOTE: We might also want to provide some actual feedback for the *shifted*
+# faders here in the future, so that the current values are shown in the LED
+# rings of the encoders while the faders are being operated.
+
+# dummy feedback for the faders, to take advantage of automatic feedback
+PB[129]-1 NOP
+PB[129]-2 NOP
+PB[129]-3 NOP
+PB[129]-4 NOP
+PB[129]-5 NOP
+PB[129]-6 NOP
+PB[129]-7 NOP
+PB[129]-8 NOP
