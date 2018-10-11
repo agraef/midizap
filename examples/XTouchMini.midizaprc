@@ -89,11 +89,11 @@ B3   C#7
 # rings of the encoders while the faders are being operated.
 
 # dummy feedback for the faders, to take advantage of automatic feedback
-PB[129]-1 NOP
-PB[129]-2 NOP
-PB[129]-3 NOP
-PB[129]-4 NOP
-PB[129]-5 NOP
-PB[129]-6 NOP
-PB[129]-7 NOP
-PB[129]-8 NOP
+PB[]-1 NOP
+PB[]-2 NOP
+PB[]-3 NOP
+PB[]-4 NOP
+PB[]-5 NOP
+PB[]-6 NOP
+PB[]-7 NOP
+PB[]-8 NOP
