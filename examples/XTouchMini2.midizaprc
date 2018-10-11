@@ -1,0 +1,83 @@
+
+# This is essentially the same as XTouchMini.midizaprc, but does away with the
+# MARKER and NUDGE keys and assigns these to channel left/right when shifted.
+# It also binds the fader to the first channel fader (master fader when
+# shifted), so that the device can be operated in a manner similar to the
+# X-Touch ONE.
+
+# Copyright (c) 2018 Albert Graef <aggraef@gmail.com>
+
+# Copying and distribution of this file, with or without modification, are
+# permitted in any medium without royalty provided the copyright notice and
+# this notice are preserved.  This file is offered as-is, without any
+# warranty.
+
+JACK_NAME "midizap-XTouchMini"
+JACK_PORTS 2
+
+# Pass everything through, except for the translations below.
+
+PASSTHROUGH
+SYSTEM_PASSTHROUGH
+
+[MIDI]
+
+# MC = shift button, with direct feedback
+D#7 SHIFT ^D#7 RELEASE SHIFT ^D#7
+
+# A/B buttons on the right = bank left/right
+C7   A#3 # bank left
+C#7  B3  # bank right
+
+# shifted A/B buttons = channel left/right
+^C7  C4  # channel left
+^C#7 C#4 # channel right
+
+# shifted REPLACE button = DROP
+^E7  D#7
+
+# shifted top row = SELECT
+^F7  C2
+^F#7 C#2
+^E3  D2
+^F3  D#2
+^F#3 E2
+^G3  F2
+^G#3 F#2
+^A3  G2
+
+# shifted encoders = channel faders
+^CC16~ PB[129]-1
+^CC17~ PB[129]-2
+^CC18~ PB[129]-3
+^CC19~ PB[129]-4
+^CC20~ PB[129]-5
+^CC21~ PB[129]-6
+^CC22~ PB[129]-7
+^CC23~ PB[129]-8
+
+# fader goes to first channel in bank
+PB[]-9  PB-1
+
+# shifted fader is the master fader
+^PB[]-9 PB-9
+
+[MIDI2]
+
+# feedback for the BANK LEFT/RIGHT buttons
+A#3  C7
+B3   C#7
+
+# NOTE: We might also want to provide some actual feedback for the *shifted*
+# faders here in the future, so that the current values are shown in the LED
+# rings of the encoders while the faders are being operated.
+
+# dummy feedback for the faders, to take advantage of automatic feedback
+PB[]-1 NOP
+PB[]-2 NOP
+PB[]-3 NOP
+PB[]-4 NOP
+PB[]-5 NOP
+PB[]-6 NOP
+PB[]-7 NOP
+PB[]-8 NOP
