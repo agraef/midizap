@@ -22,9 +22,9 @@ SYSTEM_PASSTHROUGH
 
 # NOTE: This assumes that you use the default Mackie mode of the ONE.
 # Otherwise you will have to adjust the mapping accordingly. I use the SCRUB
-# key as a replacement (F8 in MC mode), because I don't need that function
-# (it's not available in Ardour yet). If you need that key, you'll have to use
-# another one that you can spare.
+# key (F8 in MC mode) as a SHIFT key replacement, because I don't need that
+# function (it's not available in Ardour yet). If you need that key, you'll
+# have to use another one that you can spare.
 
 F8 SHIFT ^F8 RELEASE SHIFT ^F8
 
