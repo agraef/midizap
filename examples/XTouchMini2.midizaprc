@@ -1,9 +1,8 @@
 
 # This is essentially the same as XTouchMini.midizaprc, but does away with the
 # MARKER and NUDGE keys and assigns these to channel left/right when shifted.
-# It also binds the fader to the first channel fader (master fader when
-# shifted), so that the device can be operated in a manner similar to the
-# X-Touch ONE.
+# It also binds the fader to the first channel by default (becomes the master
+# fader again when shifted).
 
 # Copyright (c) 2018 Albert Graef <aggraef@gmail.com>
 
@@ -19,6 +18,14 @@ JACK_PORTS 2
 
 PASSTHROUGH
 SYSTEM_PASSTHROUGH
+
+# [MC] is the shift key, holding it while pressing the second key (REPLACE) is
+# assigned to DROP instead. The other buttons are assigned as usual in
+# unshifted state, except that the A/B keys switch banks (left/right). When
+# shifted, the A/B keys shift the current bank by channels (left/right), and
+# the upper button row selects a channel. The master fader is assigned to the
+# first channel instead, like on the X-Touch ONE. When shifted, it becomes the
+# master fader again, and the encoders become the channel faders.
 
 [MIDI]
 
@@ -56,10 +63,8 @@ C#7  B3  # bank right
 ^CC22~ PB[129]-7
 ^CC23~ PB[129]-8
 
-# fader goes to first channel in bank
-PB[]-9  PB-1
-
-# shifted fader is the master fader
+# fader goes to first channel in bank, master fader when shifted
+ PB[]-9 PB-1
 ^PB[]-9 PB-9
 
 [MIDI2]
@@ -68,16 +73,21 @@ PB[]-9  PB-1
 A#3  C7
 B3   C#7
 
-# NOTE: We might also want to provide some actual feedback for the *shifted*
-# faders here in the future, so that the current values are shown in the LED
-# rings of the encoders while the faders are being operated.
+# We also provide feedback for the *faders* here, so that the current values
+# are shown on the LED rings of the encoders while the faders are being
+# operated. Note that the fader values are shown in "fan" mode (arc from zero
+# to the current value) so that they're distinguishable from pan values which
+# will be shown in "pan" mode (single tick indicating left/right position).
 
-# dummy feedback for the faders, to take advantage of automatic feedback
-PB[]-1 NOP
-PB[]-2 NOP
-PB[]-3 NOP
-PB[]-4 NOP
-PB[]-5 NOP
-PB[]-6 NOP
-PB[]-7 NOP
-PB[]-8 NOP
+# NOTE: This is still experimental. Overloading the encoders in this manner is
+# convenient and seems to work reasonably well in Ardour at least, but having
+# some encoders display pan and others volume may be confusing at times.
+
+PB[1536]{0}-1 CC48{33-43}'
+PB[1536]{0}-2 CC49{33-43}'
+PB[1536]{0}-3 CC50{33-43}'
+PB[1536]{0}-4 CC51{33-43}'
+PB[1536]{0}-5 CC52{33-43}'
+PB[1536]{0}-6 CC53{33-43}'
+PB[1536]{0}-7 CC54{33-43}'
+PB[1536]{0}-8 CC55{33-43}'
