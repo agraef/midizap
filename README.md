@@ -143,7 +143,7 @@ Besides MIDI notes and control change (`CC`) messages, the midizap program also 
 
 # Jack-Related Options
 
-There are some additional directives (and corresponding command line options) to set midizap's Jack client name and the number of input and output ports it uses. If both the command line options and directives in the midizaprc file are used, the former take priority, so that it's always possible to override the configuration settings from the command line.
+There are some additional directives (and corresponding command line options) to set midizap's Jack client name and the number of input and output ports it uses. If both the command line options and directives in the midizaprc file are used, the former take priority, so that it's possible to override the configuration settings from the command line.
 
 Firstly, there's the `-j` option and the `JACK_NAME` directive which change the Jack client name from the default (`midizap`) to whatever you want it to be. To use this option, simply invoke midizap as `midizap -j client-name`, or put the following directive into your midizaprc file:
 
@@ -161,7 +161,24 @@ JACK_PORTS 1
 
 The given number of output ports must be 0, 1 or 2. Zero means that MIDI output is disabled (which is the default). You may want to use `JACK_PORTS 1` if the configuration is primarily aimed at doing MIDI translations, so you'd like to have MIDI output enabled by default. `JACK_PORTS 2` or the `-o2` option indicates that *two* pairs of input and output ports are to be created. The second port is typically used to deal with controller feedback from the application, see the *MIDI Feedback* section for details.
 
-Not very surprisingly, at least one output port is needed if you want to output any MIDI at all; otherwise MIDI messages on the right-hand side of translations will be silently ignored. Also note that midizap doesn't provide you with any options to actually connect the ports you created to other Jack MIDI clients. There already are plenty of excellent utilities specifically designed for this purpose, so there's no need to replicate that functionality in midizap. As already mentioned, we recommend using QjackCtl, which also offers a persistent MIDI patchbay, so that you can have the right connections automatically set up for you whenever you launch midizap. You then use the Jack client name option if you need to distinguish multiple midizap instances. (The examples folder in the sources contains a QjackCtl patchbay named midizap.xml which has been set up to work with any of the included examples. Use the "Load" button in QjackCtl's Patchbay dialog to load it, then hit the "Activate" button to have QjackCtl actually use it.)
+Not very surprisingly, at least one output port is needed if you want to output any MIDI at all; otherwise MIDI messages on the right-hand side of translations will be silently ignored.
+
+Setting up all the required connections can be a tedious and error-prone task, especially if you have to use two pairs of input and output ports, or if you're running multiple midizap instances with different configurations at the same time. To help with this, midizap offers some basic patchbay functionality using the `JACK_IN` and `JACK_OUT` directives, which let you specify which ports you want midizap to be connected to. (These are only available as directives, there are no corresponding command line options.) The directive is followed by an (extended) regular expression (see the regex(7) manual page) to be matched against the Jack MIDI ports of your devices and other Jack MIDI applications. The port number is tacked on to the directive, so, e.g., `JACK_IN2` connects the second input port (if the port number is omitted then the first port is assumed). For instance, the following lines (from the XTouchMini.midizaprc example) connect midizap to an X-Touch Mini device on one side and Ardour's Mackie control port on the other, which is a typical setup for bidirectional communication as described in the *MIDI Feedback* section.
+
+~~~
+JACK_IN1  X-TOUCH MINI MIDI 1
+JACK_IN2  ardour:mackie control out
+JACK_OUT1 ardour:mackie control in
+JACK_OUT2 X-TOUCH MINI MIDI 1
+~~~
+
+The regular expressions on the right-hand side of each directive will be matched against other Jack MIDI ports; a connection will be established automatically whenever a port matches the regular expression, as well as the port type and I/O direction. This also works dynamically at runtime, when new devices get added and new applications are launched.
+
+Of course, you can also achieve this with QjackCtl's persistent MIDI patchbay facility and a number of other utlities. But the above directives are convenient if you often use a configuration with the same Jack MIDI connections. You can then just specify these connections in the midizaprc file itself and be done with it, and don't have to juggle with different QjackCtl patchbays for each configuration. Note that only one directive can be specified for each port, but since midizap will connect to all ports matching the given regular expression, you can connect to more than one application or device by just listing all the alternatives. For instance, to have midizap's output connected to both Ardour and Pd, you might use a directive like:
+
+~~~
+JACK_OUT1 ardour:MIDI control in|Pure Data Midi-In 1
+~~~
 
 If at least one output port is available then it also becomes possible to pass through MIDI messages from input to output unchanged. Two options are available for this: `-t` which passes through any ordinary (non-system) message for which there are no translations (not even in the default section), and `-s` which passes through all system messages. The former is convenient if the incoming MIDI data only needs to be modified in a few places to deal with slight variations in the protocol. The latter may be needed when the input data may contain system messages; midizap cannot translate these, but it can pass them on unchanged when necessary. You can find examples for both use cases in the examples folder in the sources.
 
@@ -189,7 +206,7 @@ PB output                 # pitch bend
 
 The `#` character at the beginning of a line and after whitespace is special; it indicates that the rest of the line is a comment, which is skipped by the parser. Empty lines and lines containing nothing but whitespace are also ignored.
 
-Lines beginning with a `[`*name*`]` header are also special. Each such line introduces a translation class *name*, which may be followed by an extended regular expression *regex* (see the regex(7) manual page) to be matched against window class and title. A `CLASS` or `TITLE` token may precede *regex* to indicate that *only* the class or title is to be matched, respectively; otherwise both are matched. Note that the *regex* part is always taken verbatim, ignoring leading and trailing whitespace, but including embedded whitespace and `#` characters (so you can't place a comment on such lines).
+Lines beginning with a `[`*name*`]` header are also special. Each such line introduces a translation class *name*, which may be followed by an extended regular expression *regex* to be matched against window class and title. A `CLASS` or `TITLE` token may precede *regex* to indicate that *only* the class or title is to be matched, respectively; otherwise both are matched. Note that the *regex* part is always taken verbatim, ignoring leading and trailing whitespace, but including embedded whitespace and `#` characters (so you can't place a comment on such lines).
 
 To find a set of eligible translations, midizap matches class and/or title of the window with the keyboard focus against each section, in the order in which they are listed in the configuration file. If neither `CLASS` nor `TITLE` is specified, then both are tried; in this case, midizap first tries to match the window class (the `WM_CLASS` property), then the window title (the `WM_NAME` property). The first section which matches determines the translations to be used for that window. An empty *regex* for the last class will always match, allowing default translations. If a translation cannot be found in the matched section, it will be loaded from the default section if possible. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the given *name* is only used for debugging output and diagnostics, and needn't be unique.
 
@@ -878,6 +895,10 @@ translation ::= midi-token { key-token | midi-token }
 directive   ::= "DEBUG_REGEX" | "DEBUG_STROKES" | "DEBUG_KEYS" |
                 "DEBUG_MIDI" | "MIDI_OCTAVE" number |
 				"JACK_NAME" string | "JACK_PORTS" number |
+				"JACK_IN" regex | "JACK_OUT" regex |
+				"JACK_IN1" regex | "JACK_OUT1" regex |
+				"JACK_IN2" regex | "JACK_OUT2" regex |
+				"PASSTHROUGH" [ number ] |
 				"SYSTEM_PASSTHROUGH" [ number ]
 
 midi-token  ::= msg [ mod ] [ steps ] [ "-" number] [ flag ]

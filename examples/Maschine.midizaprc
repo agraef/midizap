@@ -12,6 +12,12 @@ JACK_NAME "midizap-Maschine"
 JACK_PORTS 2
 SYSTEM_PASSTHROUGH # pass through MCP feedback
 
+# automatic connections
+JACK_IN1  Ctlra Maschine Mk3
+JACK_IN2  ardour:mackie control out
+JACK_OUT1 ardour:mackie control in
+JACK_OUT2 Ctlra Maschine Mk3
+
 # NOTE: At present, this controller isn't properly supported by ALSA, but it
 # can be made to work in Linux with Harry van Haaren's Ctlra software.
 # Specifically, you'll need the ctlra_daemonx program from the
@@ -22,10 +28,11 @@ SYSTEM_PASSTHROUGH # pass through MCP feedback
 # branch, you can run the following to install the libctlra library along with
 # ctlra_daemonx: meson build && cd build && ninja && sudo ninja install
 
-# Then run ctlra_daemonx -fnm alongside with midizap, and connect the ports as
-# follows: Ctlra Maschine Mk3 -> midizap midi_in / midi_out -> Ardour mackie
-# control in / mackie control out -> midizap midi_in2 / midi_out2 -> Ctlra
-# Maschine Mk3.
+# Then run ctlra_daemonx -fnm alongside with midizap, and check that the ports
+# are connected as follows (the JACK_IN/OUT directives above should take care
+# of this automagically): Ctlra Maschine Mk3 -> midizap midi_in / midi_out ->
+# Ardour mackie control in / mackie control out -> midizap midi_in2 /
+# midi_out2 -> Ctlra Maschine Mk3.
 
 # Usage (executive summary):
 

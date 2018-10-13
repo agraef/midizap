@@ -60,7 +60,7 @@ int debug_midi = 0;
 
 int midi_octave = 0;
 
-char *jack_client_name = NULL;
+char *jack_client_name, *jack_in_regex[2], *jack_out_regex[2];
 
 char *
 allocate(size_t len)
@@ -1951,6 +1951,50 @@ read_config_file(void)
 	    fprintf(stderr, "invalid port number: %s, must be 0, 1 or 2\n", a);
 	  }
 	}
+	continue;
+      }
+      if (!strncmp(tok, "JACK_", 5)) {
+	// JACK_IN/OUT. The port number follows (default: 1), then a regex
+	// (taken verbatim from the rest of the line).
+        char *s = tok+5, *regex;
+	int is_input = strncmp(s, "IN", 2) == 0;
+	if (is_input)
+	  s += 2;
+	else if (strncmp(s, "OUT", 3) == 0)
+	  s += 3;
+	else {
+	  fprintf(stderr, "invalid token: %s, must be JACK_IN or JACK_OUT\n",
+		  tok);
+	  continue;
+	}
+	int portno = !*s||*s=='1'?0:*s=='2'?1:-1;
+	if (portno < 0) {
+	  fprintf(stderr, "invalid port number: %s, must be 1 or 2\n", s);
+	  continue;
+	}
+	if (*s && *++s) {
+	  // trailing garbage
+	  fprintf(stderr, "invalid token: %s, must be JACK_IN or JACK_OUT\n",
+		  tok);
+	  continue;
+	}
+	s = token_src;
+	while (*s && isspace(*s)) {
+	  s++;
+	}
+	regex = s;
+	while (*s) {
+	  s++;
+	}
+	s--;
+	while (s > regex && isspace(*s)) {
+	  s--;
+	}
+	s[1] = '\0';
+	if (is_input)
+	  jack_in_regex[portno] = strdup(regex);
+	else
+	  jack_out_regex[portno] = strdup(regex);
 	continue;
       }
       if (!strcmp(tok, "PASSTHROUGH")) { // -t
