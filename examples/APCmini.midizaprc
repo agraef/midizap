@@ -25,8 +25,8 @@ JACK_PORTS 2
 # the Mackie control ports.
 
 JACK_IN1  APC MINI MIDI 1
-JACK_IN2  ardour:mackie control out
 JACK_OUT1 ardour:mackie control in
+JACK_IN2  ardour:mackie control out
 JACK_OUT2 APC MINI MIDI 1
 
 # PROTOCOL DOCUMENTATION: The Mackie protocol is fairly ubiquitous, but since

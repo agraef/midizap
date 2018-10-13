@@ -15,8 +15,8 @@ JACK_PORTS 2
 
 # automatic connections
 JACK_IN1  nanoKONTROL2 MIDI 1
-JACK_IN2  ardour:mackie control out
 JACK_OUT1 ardour:mackie control in
+JACK_IN2  ardour:mackie control out
 JACK_OUT2 nanoKONTROL2 MIDI 1
 
 # Pass everything through (including feedback), except for the mappings below.

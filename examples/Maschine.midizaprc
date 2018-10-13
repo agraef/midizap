@@ -14,8 +14,8 @@ SYSTEM_PASSTHROUGH # pass through MCP feedback
 
 # automatic connections
 JACK_IN1  Ctlra Maschine Mk3
-JACK_IN2  ardour:mackie control out
 JACK_OUT1 ardour:mackie control in
+JACK_IN2  ardour:mackie control out
 JACK_OUT2 Ctlra Maschine Mk3
 
 # NOTE: At present, this controller isn't properly supported by ALSA, but it
