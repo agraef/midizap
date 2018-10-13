@@ -1,6 +1,12 @@
 
-# The X-Touch ONE is quite capable as it is, it just lacks a SHIFT key.
-# The sole purpose of this utterly trivial config is to provide one.
+# The X-Touch ONE is a very capable Mackie device as it is, but it can still
+# be improved a bit with some midizap magic. Most notably, the device lacks a
+# SHIFT key, so we remap one of the lesser-used keys to provide an extra
+# shifted layer which can be assigned freely to additional MC functions which
+# aren't readily available on the device.
+
+# NOTE: This config assumes that the X-Touch ONE is in its default Mackie
+# mode. Otherwise you will have to adjust the mapping accordingly.
 
 # Copyright (c) 2018 Albert Graef <aggraef@gmail.com>
 
@@ -12,23 +18,98 @@
 JACK_NAME "midizap-XTouchONE"
 JACK_PORTS 2
 
-# automatic connections
+# Automatic connections for the device and Ardour.
 JACK_IN1  X-Touch One MIDI 1
-JACK_IN2  ardour:mackie control out
 JACK_OUT1 ardour:mackie control in
+JACK_IN2  ardour:mackie control out
 JACK_OUT2 X-Touch One MIDI 1
 
-# Pass everything through, except for the one mapping below.
+# Pass everything through, except for the mappings below.
 PASSTHROUGH
 SYSTEM_PASSTHROUGH
 
-# NOTE: This assumes that you use the default Mackie mode of the ONE.
-# Otherwise you'll have to adjust the key mapping accordingly. I use the
-# SCRUB key as a replacement (F8 in MC mode), because Ardour doesn't use
-# it. If you do need that key, use another one that you can spare.
-
 [MIDI]
-F8 A#5
+
+# I use the SCRUB key (F8 in MC mode) as the SHIFT key, because Ardour doesn't
+# need it. YMMV, though, so if you need that key, you'll have to substitute
+# another one that you can spare in the rule below.
+
+F8 SHIFT ^F8 RELEASE SHIFT ^F8
+
+# Remap the shifted F1 .. F4 keys to do something useful. I have them bound to
+# the most important encoder assignment keys here, but of course you can
+# change them to anything you want.
+
+^F#4 E3   # Track (Trim in Ardour)
+^G4  F#3  # Pan
+^G#4 F3   # Send
+^A4  G3   # Plugin (not supported by Ardour)
+
+# Remap the shifted F5 and F6 keys to F7 and F8 which are missing on the ONE.
+
+^A#4 C5
+^B4  C#5
+
+# If you're using the encoder assignment keys, then most likely you also want
+# to have a FLIP button; we (rather arbitrarily) assign it to the shifted SOLO
+# button in the TRANSPORT section.
+
+^F#7 D4   # Flip
+
+# Since the X-Touch ONE is a single-channel controller, I like to have the
+# bank and channel keys linked up with channel SELECT, so that the current
+# channel is also selected in the DAW when switching banks. Therefore I have
+# bound these functions to the shifted bank and channel keys here, but of
+# course you can change them to anything you want.
+
+^A#3 A#3 C2   # BANK< SELECT
+^B3  B3  C2   # BANK> SELECT
+^C4  C4  C2   # CHAN< SELECT
+^C#4 C#4 C2   # CHAN> SELECT
+
+# With the translations below, the other shifted buttons are simply passed
+# through along with the MC SHIFT key (A#5). You can either assign these
+# combinations in the DAW (e.g., I have the shifted left/right keys bound to
+# the previous/next marker functions in Ardour), or just directly edit the
+# bindings below as you see fit.
+
+# NOTE: We use an explicit RELEASE sequence here, to prevent the MC SHIFT key
+# from being released too early. (Note that by default, midizap will release
+# MIDI key events in the same order in which they are pressed, which may not
+# work in some key combinations. At least I found that this confuses Ardour in
+# some cases.)
+
+^C8  A#5 C8  RELEASE C8  A#5 # Up
+^C#8 A#5 C#8 RELEASE C#8 A#5 # Down
+^D8  A#5 D8  RELEASE D8  A#5 # Left
+^D#8 A#5 D#8 RELEASE D#8 A#5 # Right
+^E8  A#5 E8  RELEASE E8  A#5 # Zoom
+
+^C0  A#5 C0  RELEASE C0  A#5 # SHIFT REC
+^G#0 A#5 G#0 RELEASE G#0 A#5 # SHIFT SOLO
+^E1  A#5 E1  RELEASE E1  A#5 # SHIFT MUTE
+^C2  A#5 C2  RELEASE C2  A#5 # SHIFT SELECT
+
+^C7  A#5 C7  RELEASE C7  A#5 # SHIFT MARKER
+^C#7 A#5 C#7 RELEASE C#7 A#5 # SHIFT NUDGE
+^D7  A#5 D7  RELEASE D7  A#5 # SHIFT CYCLE
+^D#7 A#5 D#7 RELEASE D#7 A#5 # SHIFT DROP
+^E7  A#5 E7  RELEASE E7  A#5 # SHIFT REPLACE
+^F7  A#5 F7  RELEASE F7  A#5 # SHIFT CLICK
+
+^G7  A#5 G7  RELEASE G7  A#5 # SHIFT REW
+^G#7 A#5 G#7 RELEASE G#7 A#5 # SHIFT FFWD
+^A7  A#5 A7  RELEASE A7  A#5 # SHIFT STOP
+^A#7 A#5 A#7 RELEASE A#7 A#5 # SHIFT PLAY
+^B7  A#5 B7  RELEASE B7  A#5 # SHIFT REC
 
 [MIDI2]
-A#5 F8
+
+# feedback for the (shifted) F1 .. F6 bindings and the remapped SOLO key
+E3  F#4
+F#3 G4
+F3  G#4
+A3  A4
+C5  A#4
+C#5 B4
+D4  F#7 # FLIP -> SOLO

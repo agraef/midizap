@@ -11,9 +11,9 @@ This folder contains a couple of sample midizap configurations for different con
 
 - [nanoKONTROL2.midizaprc](nanoKONTROL2.midizaprc): fix up the marker keys of the Korg nanoKONTROL2 in Cubase mode for use in Ardour
 
-- [XTouchONE.midizaprc](XTouchONE.midizaprc): map the SCRUB key to the more important SHIFT key which the X-Touch ONE lacks
+- [XTouchMini.midizaprc](XTouchMini.midizaprc): adds a bunch of Mackie control functions to make the device more useful in MC mode
 
-- [XTouchONE2.midizaprc](XTouchONE2.midizaprc): an improved config for the X-Touch ONE which turns the SCRUB key into an internal shift key, and offers more advanced configuration options
+- [XTouchONE.midizaprc](XTouchONE.midizaprc): adds a bunch of Mackie control functions to make the device more useful in MC mode
 
 Other interesting items:
 

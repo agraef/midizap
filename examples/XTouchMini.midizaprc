@@ -1,7 +1,12 @@
 
-# Mapping for the X-Touch Mini in MC mode which takes care of the most glaring
-# issues with this (rather nice) device: (1) no bank change keys, (2) no
-# channel selection, and (3) no faders (except for the master fader).
+# While the X-Touch Mini is very popular as a Lightroom controller, musicians
+# often complain that its Mackie control mode is just too basic. But midizap
+# makes it easy to add most of the essential MC functions that are missing, so
+# that the unit becomes really usable as a control surface.
+
+# NOTE: This configuration assumes that the X-Touch Mini is in MC mode, which
+# is the case if the MC MODE LED on the right side is lit. If necessary, you
+# can switch the device to MC mode by holding the MC key while powering it up.
 
 # Copyright (c) 2018 Albert Graef <aggraef@gmail.com>
 
@@ -15,8 +20,8 @@ JACK_PORTS 2
 
 # automatic connections
 JACK_IN1  X-TOUCH MINI MIDI 1
-JACK_IN2  ardour:mackie control out
 JACK_OUT1 ardour:mackie control in
+JACK_IN2  ardour:mackie control out
 JACK_OUT2 X-TOUCH MINI MIDI 1
 
 # Pass everything through, except for the translations below.
@@ -24,45 +29,77 @@ JACK_OUT2 X-TOUCH MINI MIDI 1
 PASSTHROUGH
 SYSTEM_PASSTHROUGH
 
-# The idea of this mapping is to leave the original bindings mostly untouched,
-# and just add few things on top of it. Note that the device, besides the
-# encoders and the master faders, has two rows of 8 buttons and 2 buttons on
-# the right which are laid out in MC mode as follows:
+# The idea of this mapping is to leave the original bindings mostly untouched.
+# In order to accommodate the missing MC functions, we add two shifted layers.
+# To access these layers, we reassign the first two keys in the bottom row as
+# internal shift keys, denoted SHIFT and ALT in the following.
 
-# [CLICK]  [SOLO]    [TRACK] [SEND] [PAN]  [PLUGIN] [EQ]   [INST]  [MARKER]
-# [DROP]   [REPLACE] [REW]   [FFWD] [LOOP] [STOP]   [PLAY] [REC]   [NUDGE]
+# Note that the device, besides the encoders and the master fader, has two
+# rows of 8 buttons and 2 buttons on the right which are laid out in MC mode
+# as follows:
 
-# We turn the MC/DROP key into an internal SHIFT key and remap the other keys
-# as follows (with the shifted bindings given above and below in parentheses;
-# these become active when holding down the MC/SHIFT key):
+# [CLICK]   [SOLO]    [TRACK] [SEND] [PAN]  [PLUGIN] [EQ]   [INST] [MARKER/A]
+# [DROP/MC] [REPLACE] [REW]   [FFWD] [LOOP] [STOP]   [PLAY] [REC]  [NUDGE/B]
 
-# (SELECT) (SELECT)  ...                                           (MARKER)
-# [CLICK]  [SOLO]    [TRACK] [SEND] [PAN]  [PLUGIN] [EQ]   [INST]  [BANK LEFT]
-# [SHIFT]  [REPLACE] [REW]   [FFWD] [LOOP] [STOP]   [PLAY] [REC]   [BANK RIGHT]
-#          (DROP)                                                  (NUDGE)
+# This midizap configuration remaps them as follows:
 
-# That is, the shifted REPLACE key makes up for the remapped DROP key, and the
-# MARKER and NUDGE keys must now be shifted to get these functions, while the
-# unshifted keys are used to change banks. In addition, the eight buttons in
-# the top row, when shifted, select the corresponding channel. And last but
-# not least, the encoders, when operated while holding down the MC/SHIFT key,
-# become the missing faders.
+# [CLICK]  [SOLO] [TRACK]  [SEND]  [PAN]  [PLUGIN] [EQ]   [INST] [BANK LEFT]
+# [SHIFT]  [ALT]  [REW]    [FFWD]  [LOOP] [STOP]   [PLAY] [REC]  [BANK RIGHT]
+
+# Note the two shift keys (SHIFT and ALT) in the lower button row, and the
+# bank switch keys on the right. Other than that, the unshifted layer is
+# unchanged. On the SHIFT layer, the bindings are as follows:
+
+# [SELECT] ...                                                   [CHAN LEFT]
+#                 [DROP] [REPLACE] [FLIP] [MARKER] [NUDGE]       [CHAN RIGHT]
+
+# Note that the remapped functions (DROP, REPLACE, MARKER, NUDGE) are now
+# available as shifted keys in the bottom row. We also added the FLIP key
+# there. The shifted keys in the top row are bound to the channel SELECT
+# functions. Moreover, our translations for the SHIFT layer also assign the
+# master fader to the first channel, like on the X-Touch ONE, and the encoders
+# become the eight channel faders.
+
+# Finally, since Ardour requires some of the keys to be combined with the MC
+# SHIFT key to get at some functions (SHIFT + SELECT/MARKER/NUDGE), we provide
+# a third ALT layer with those shifted bindings:
+
+# [^SELECT]  ...                                                 [UP]
+#                 [LEFT] [RIGHT]  [ZOOM] [^MARKER] [^NUDGE]      [DOWN]
+
+# We also threw in some other useful MC keys (cursor and zoom) there. You may
+# want to adjust this layer as needed for your DAW program. The SHIFT layer,
+# in contrast, should be pretty generic, and work fine as is with most DAWs.
 
 [MIDI]
 
-# MC = shift button, with direct feedback
+# Note that, as explained in the midizap manual, you can change the SHIFT and
+# ALT keys to CapsLock-style keys by removing the RELEASE part of the
+# sequence. They will then work as toggles. With the RELEASE sequence, they
+# work as momentary switches, i.e., you need to hold them down to invoke a
+# shifted function.
+
+# MC = SHIFT button, with direct feedback
 D#7 SHIFT ^D#7 RELEASE SHIFT ^D#7
+
+# ALT button
+E7 SHIFT2 ^E7 RELEASE SHIFT2 ^E7
 
 # A/B buttons on the right = bank left/right
 C7   A#3 # bank left
 C#7  B3  # bank right
 
-# shifted A/B buttons = MARKER/NUDGE
-^C7  C7
-^C#7 C#7
+# shifted A/B buttons = channel left/right
+^C7  C4  # channel left
+^C#7 C#4 # channel right
 
-# shifted REPLACE button = DROP
-^E7  D#7
+# other shifted buttons
+^G7  D#7 # REW  = DROP
+^G#7 E7  # FFWD = REPLACE
+^D7  D4  # LOOP = FLIP
+^A7  C7  # STOP = MARKER
+^A#7 C#7 # PLAY = NUDGE
+# ^B7  # REC, currently unassigned
 
 # shifted top row = SELECT
 ^F7  C2
@@ -84,21 +121,52 @@ C#7  B3  # bank right
 ^CC22~ PB[129]-7
 ^CC23~ PB[129]-8
 
+# fader goes to first channel in bank when shifted
+^PB[]-9 PB-1
+
+# ALT layer. This uses the same trick (the explicit RELEASE sequence) as in
+# XTouchONE.midizaprc to transmit the MC SHIFT key (A#5) in the right order.
+
+# ALT top row = SHIFT+SELECT
+2^F7  A#5 C2  RELEASE C2  A#5
+2^F#7 A#5 C#2 RELEASE C#2 A#5
+2^E3  A#5 D2  RELEASE D2  A#5
+2^F3  A#5 D#2 RELEASE D#2 A#5
+2^F#3 A#5 E2  RELEASE E2  A#5
+2^G3  A#5 F2  RELEASE F2  A#5
+2^G#3 A#5 F#2 RELEASE F#2 A#5
+2^A3  A#5 G2  RELEASE G2  A#5
+
+2^A7  A#5 C7 RELEASE  C7  A#5  # ALT+STOP = SHIFT+MARKER
+2^A#7 A#5 C#7 RELEASE C#7 A#5  # ALT+PLAY = SHIFT+NUDGE
+
+2^G7  D8  # ALT+REW  = LEFT
+2^G#7 D#8 # ALT+FFWD = RIGHT
+2^D7  E8  # ALT+LOOP = ZOOM
+2^C7  C8  # ALT+A    = UP
+2^C#7 C#8 # ALT+B    = DOWN
+
 [MIDI2]
 
 # feedback for the BANK LEFT/RIGHT buttons
 A#3  C7
 B3   C#7
 
-# dummy feedback for the faders, to take advantage of automatic feedback
-# (see the alternative XTouchMini2.midizaprc configuration for some more
-# comprehensive bindings which do some actual feedback using the LED rings
-# of the encoders)
-PB[]-1 NOP
-PB[]-2 NOP
-PB[]-3 NOP
-PB[]-4 NOP
-PB[]-5 NOP
-PB[]-6 NOP
-PB[]-7 NOP
-PB[]-8 NOP
+# We also provide feedback for the *faders* here, so that the current values
+# are shown on the LED rings of the encoders while the faders are being
+# operated. Note that the fader values are shown in "fan" mode (arc from zero
+# to the current value) so that they're distinguishable from pan values which
+# will be shown in "pan" mode (single tick indicating left/right position).
+
+# NOTE: This is still experimental. Overloading the encoders in this manner is
+# convenient and seems to work reasonably well in Ardour at least, but having
+# some encoders display pan and others volume may be confusing at times.
+
+PB[1536]{0}-1 CC48{33-43}'
+PB[1536]{0}-2 CC49{33-43}'
+PB[1536]{0}-3 CC50{33-43}'
+PB[1536]{0}-4 CC51{33-43}'
+PB[1536]{0}-5 CC52{33-43}'
+PB[1536]{0}-6 CC53{33-43}'
+PB[1536]{0}-7 CC54{33-43}'
+PB[1536]{0}-8 CC55{33-43}'
