@@ -1,7 +1,7 @@
 
 # This is essentially the same as XTouchMini.midizaprc, but it assigns the
 # shifted A/B keys to channel left/right, and also provides some other useful
-# additional bindings on the SHIFT layer.
+# additional bindings and feedback on the SHIFT layer.
 
 # Copyright (c) 2018 Albert Graef <aggraef@gmail.com>
 
@@ -13,14 +13,20 @@
 JACK_NAME "midizap-XTouchMini"
 JACK_PORTS 2
 
+# automatic connections
+JACK_IN1  X-TOUCH MINI MIDI 1
+JACK_IN2  ardour:mackie control out
+JACK_OUT1 ardour:mackie control in
+JACK_OUT2 X-TOUCH MINI MIDI 1
+
 # Pass everything through, except for the translations below.
 
 PASSTHROUGH
 SYSTEM_PASSTHROUGH
 
-# As with XTouchMini.midizaprc, [MC] is the shift key, holding it while
-# pressing a button or operating the encoders or the fader provides additional
-# MC functions. The other controls are assigned as usual in unshifted state,
+# As with XTouchMini.midizaprc, the MC button is the shift key, holding it
+# while pressing a button or operating the encoders provides additional MC
+# functions. The other controls are assigned as usual in unshifted state,
 # except that the A/B keys switch banks. When shifted, the master fader is
 # assigned to the first channel, like on the X-Touch ONE, and the encoders
 # become the eight channel faders. The bindings of the buttons are shown

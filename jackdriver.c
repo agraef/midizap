@@ -443,9 +443,103 @@ connect_callback(jack_port_id_t a, jack_port_id_t b, int yn, void *seqq)
 	   (yn ? "connected to" : "disconnected from"), aname);
 }
 
+// queue for pending connections, to be processed in the main thread
+#define CONN_SIZE 256
+static int n_inconn, n_outconn;
+
+static struct {
+  int portno;
+  char *name;
+} inconn[CONN_SIZE], outconn[CONN_SIZE];
+
+static void add_inconn(int portno, const char *name)
+{
+  if (n_inconn < CONN_SIZE) {
+    inconn[n_inconn].portno = portno;
+    inconn[n_inconn].name = strdup(name);
+    n_inconn++;
+  }
+}
+
+static void add_outconn(int portno, const char *name)
+{
+  if (n_outconn < CONN_SIZE) {
+    outconn[n_outconn].portno = portno;
+    outconn[n_outconn].name = strdup(name);
+    n_outconn++;
+  }
+}
+
+static void match_connections(JACK_SEQ* seq, jack_port_t *port)
+{
+  if (jack_port_is_mine(seq->jack_client, port)) return;
+  int flags = jack_port_flags(port);
+  const char *name = jack_port_name(port);
+  if (flags & JackPortIsInput) {
+    // Try to match the port name to one of our out regexes.
+    for (int i = 0; i < 2 && i < seq->n_out; i++) {
+      if (seq->out[i] && regexec(&seq->outre[i], name, 0, 0, 0) == 0 &&
+	  // check that port types are compatible
+	  jack_port_type(seq->output_port[i]) == jack_port_type(port) &&
+	  // check that we're not connected yet
+	  !jack_port_connected_to(seq->output_port[i], name)) {
+	// we can't connect right here, that has to be done in the main
+	// thread, so we simply store the request for later
+	add_outconn(i, name);
+      }
+    }
+  } else if (flags & JackPortIsOutput) {
+    // Try to match the port name to one of our in regexes.
+    for (int i = 0; i < 2 && i < seq->n_in; i++) {
+      if (seq->in[i] && regexec(&seq->inre[i], name, 0, 0, 0) == 0 &&
+	  // check that port types are compatible
+	  jack_port_type(seq->input_port[i]) == jack_port_type(port) &&
+	  // check that we're not connected yet
+	  !jack_port_connected_to(seq->input_port[i], name)) {
+	add_inconn(i, name);
+      }
+    }
+  }
+}
+
+void
+registration_callback(jack_port_id_t id, int reg, void *seqq)
+{
+  if (!reg) return;
+  JACK_SEQ* seq = (JACK_SEQ*)seqq;
+  jack_port_t *port = jack_port_by_id(seq->jack_client, id);
+  match_connections(seq, port);
+}
+
 ////////////////////////////////
 //this is run in the main thread
 ////////////////////////////////
+
+void process_connections(JACK_SEQ* seq)
+{
+  int i;
+  for (i = 0; i < n_inconn; i++)
+    if (inconn[i].name) {
+      if (jack_connect(seq->jack_client,
+		       inconn[i].name,
+		       jack_port_name(seq->input_port[inconn[i].portno])))
+	fprintf(stderr, "error trying to connect in%d to %s\n",
+		inconn[i].portno, inconn[i].name);
+      free(inconn[i].name);
+    }
+  n_inconn = 0;
+  for (i = 0; i < n_outconn; i++)
+    if (outconn[i].name) {
+      if (jack_connect(seq->jack_client,
+		       jack_port_name(seq->output_port[outconn[i].portno]),
+		       outconn[i].name))
+	fprintf(stderr, "error trying to connect out%d to %s\n",
+		outconn[i].portno, outconn[i].name);
+      free(outconn[i].name);
+    }
+  n_outconn = 0;
+}
+
 int
 init_jack(JACK_SEQ* seq, uint8_t verbose)
 {
@@ -453,6 +547,36 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
     char portname[100],
       *client_name = seq->client_name?seq->client_name:"midizap";
     jack_status_t status;
+
+    // compile the in/out connection regexes
+    for (int i = 0; i < 2; i++) {
+      if (seq->in[i] && *seq->in[i]) {
+	int err = regcomp(&seq->inre[i], seq->in[i], REG_EXTENDED|REG_NOSUB);
+	if (err) {
+	  char buf[1024];
+	  regerror(err, &seq->inre[i], buf, sizeof(buf));
+	  fprintf(stderr, "error compiling in%d regex: %s\n%s\n",
+		  i, seq->in[i], buf);
+	  regfree(&seq->inre[i]);
+	  seq->in[i] = 0;
+	}
+      } else {
+	seq->in[i] = 0;
+      }
+      if (seq->out[i] && *seq->out[i]) {
+	int err = regcomp(&seq->outre[i], seq->out[i], REG_EXTENDED|REG_NOSUB);
+	if (err) {
+	  char buf[1024];
+	  regerror(err, &seq->outre[i], buf, sizeof(buf));
+	  fprintf(stderr, "error compiling out%d regex: %s\n%s\n",
+		  i, seq->out[i], buf);
+	  regfree(&seq->outre[i]);
+	  seq->out[i] = 0;
+	}
+      } else {
+	seq->out[i] = 0;
+      }
+    }
 
     if(verbose)printf("opening client...\n");
     seq->jack_client = jack_client_open(client_name, JackNullOption, &status);
@@ -473,6 +597,7 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
 
     jack_on_shutdown(seq->jack_client, shutdown_callback, (void*)seq);
     jack_set_session_callback(seq->jack_client, session_callback, (void*)seq);
+    jack_set_port_registration_callback(seq->jack_client, registration_callback, (void*)seq);
     if (verbose) jack_set_port_connect_callback(seq->jack_client, connect_callback, (void*)seq);
 
     //if(verbose)printf("assigning process callback...\n");
@@ -571,6 +696,16 @@ init_jack(JACK_SEQ* seq, uint8_t verbose)
         fprintf(stderr, "Cannot activate JACK client.\n");
         return 0;
     }
+
+    // All done, set up the initial connections.
+    const char **ports = jack_get_ports(seq->jack_client, 0, 0, 0);
+    for (const char **name = ports; *name; ++name) {
+      jack_port_t *port = jack_port_by_name(seq->jack_client, *name);
+      match_connections(seq, port);
+    }
+    free(ports);
+    process_connections(seq);
+
     return 1;
 }
 

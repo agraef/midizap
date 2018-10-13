@@ -76,9 +76,9 @@ The midizap program is a command line application, so you typically run it from 
 
 Try `midizap -h` for a brief summary of the available options with which the program can be invoked.
 
-midizap uses [Jack][] for doing all its MIDI input and output, so you need to be able to run Jack and connect the Jack MIDI inputs and outputs of the program. We recommend using a Jack front-end and patchbay program like [QjackCtl][] for this purpose. In QjackCtl's setup, make sure that you have selected `seq` as the MIDI driver. This exposes the ALSA sequencer ports of your MIDI hardware and other non-Jack ALSA MIDI applications as Jack MIDI ports, so that they can easily be connected to midizap. As an alternative, you can also run [a2jmidid][] as a separate ALSA-Jack MIDI bridge. (The latter method will work with both Jack1 and Jack2, the former method is only recommended if you're using Jack1.)
+midizap uses [Jack][] for doing all its MIDI input and output, so you need to be able to run Jack and connect the Jack MIDI inputs and outputs of the program. We recommend using a Jack front-end and patchbay program like [QjackCtl][] for this purpose. In QjackCtl's setup, make sure that you have selected `seq` as the MIDI driver. This exposes the ALSA sequencer ports of your MIDI hardware and other non-Jack ALSA MIDI applications as Jack MIDI ports, so that they can easily be connected to midizap. As an alternative, you can also run [a2jmidid][] as a separate ALSA-Jack MIDI bridge. (The latter method works well with both Jack1 and Jack2. Jack's built-in ALSA-Jack MIDI bridge also works very well in Jack1, but in Jack2 it doesn't list the ALSA ports by their name, which makes it rather unusable there because you'll have to guess which port represents which device or application.)
 
-Having that set up, start Jack, make sure that your MIDI controller is connected, and try running `midizap` from the command line (without any arguments). In QjackCtl, open the Connections dialog and activate the second tab named "MIDI", which shows all available Jack MIDI inputs and outputs. On the right side of the MIDI tab, you should now see a client named `midizap` with one MIDI input port named `midi_in`. That's the one you need to connect to your MIDI controller, whose output port should be visible under the `alsa_midi` client on the left side of the dialog.
+Having that set up, start Jack, make sure that your MIDI controller is connected, and try running `midizap` from the command line (without any arguments). In QjackCtl, open the Connections dialog and activate the second tab named "MIDI", which shows all available Jack MIDI inputs and outputs. On the right side of the MIDI tab, you should now see a client named `midizap` with one MIDI input port named `midi_in`. That's the one you need to connect to your MIDI controller, whose output port should be visible under the `alsa_midi` client on the left side of the dialog (or the `a2j` client, if you're using a2jmidid).
 
 To test the waters, you can hook up just about any MIDI keyboard and give it a try with the default section in the distributed midizaprc file, which contains some basic translations for mouse and cursor key emulation. Here is the relevant excerpt from that section:
 
@@ -143,7 +143,11 @@ Besides MIDI notes and control change (`CC`) messages, the midizap program also 
 
 # Jack-Related Options
 
-There are some additional directives (and corresponding command line options) to set midizap's Jack client name and the number of input and output ports it uses. If both the command line options and directives in the midizaprc file are used, the former take priority, so that it's always possible to override the configuration settings from the command line.
+There are some additional directives (and corresponding command line options) to configure midizap's Jack setup in various ways. We take a look at these in the following. If both the command line options and directives in the midizaprc file are used, the former take priority, so that it's possible to override the configuration settings from the command line.
+
+Note that all these options can only be set at program startup. If you later edit the corresponding directives in the configuration file, the changes won't take effect until you restart the program.
+
+## Jack Client Name and MIDI Port Setup
 
 Firstly, there's the `-j` option and the `JACK_NAME` directive which change the Jack client name from the default (`midizap`) to whatever you want it to be. To use this option, simply invoke midizap as `midizap -j client-name`, or put the following directive into your midizaprc file:
 
@@ -161,15 +165,44 @@ JACK_PORTS 1
 
 The given number of output ports must be 0, 1 or 2. Zero means that MIDI output is disabled (which is the default). You may want to use `JACK_PORTS 1` if the configuration is primarily aimed at doing MIDI translations, so you'd like to have MIDI output enabled by default. `JACK_PORTS 2` or the `-o2` option indicates that *two* pairs of input and output ports are to be created. The second port is typically used to deal with controller feedback from the application, see the *MIDI Feedback* section for details.
 
-Not very surprisingly, at least one output port is needed if you want to output any MIDI at all; otherwise MIDI messages on the right-hand side of translations will be silently ignored. Also note that midizap doesn't provide you with any options to actually connect the ports you created to other Jack MIDI clients. There already are plenty of excellent utilities specifically designed for this purpose, so there's no need to replicate that functionality in midizap. As already mentioned, we recommend using QjackCtl, which also offers a persistent MIDI patchbay, so that you can have the right connections automatically set up for you whenever you launch midizap. You then use the Jack client name option if you need to distinguish multiple midizap instances. (The examples folder in the sources contains a QjackCtl patchbay named midizap.xml which has been set up to work with any of the included examples. Use the "Load" button in QjackCtl's Patchbay dialog to load it, then hit the "Activate" button to have QjackCtl actually use it.)
+Not very surprisingly, at least one output port is needed if you want to output any MIDI at all; otherwise MIDI messages on the right-hand side of translations will be silently ignored.
+
+## MIDI Connections
+
+Setting up all the required connections for the Jack MIDI ports can be a tedious and error-prone task, especially if you have to deal with complex setups involving feedback and/or multiple midizap instances. It's all to easy to mess this up when doing it manually, and either end up with a dysfunctional setup or, even worse, MIDI feedback loops crashing your Jack MIDI clients. While it's possible to automatize the MIDI connections, e.g., with QjackCtl's persistent MIDI patchbay facility, this is often inconvenient if you need to accommodate multiple midizap configurations and you already have a complicated studio setup which you don't want to mess with.
+
+As a remedy, midizap offers its own built-in patchbay functionality using the `JACK_IN` and `JACK_OUT` directives, which let you specify the required connections in the configuration itself and be done with it. The port number is tacked on to the directive, so, e.g., `JACK_IN2` connects the second input port (if the port number is omitted then the first port is assumed). The directive is followed by an (extended) regular expression (see the regex(7) manual page) to be matched against the Jack MIDI ports of your devices and applications. A connection will be established automatically by midizap whenever a Jack MIDI port matches the regular expression, as well as the port type and I/O direction. This also works dynamically, as new devices get added and new applications are launched at runtime.
+
+For instance, the following lines (from the XTouchONE.midizaprc example) connect midizap to an X-Touch One device on one side and Ardour's Mackie control port on the other:
+
+~~~
+JACK_IN1  X-Touch One MIDI 1
+JACK_OUT1 ardour:mackie control in
+JACK_IN2  ardour:mackie control out
+JACK_OUT2 X-Touch One MIDI 1
+~~~
+
+To break this down, the X-Touch One device will be connected to midizap's first input port, midizap's first output port to Ardour's Mackie control input, Ardour's Mackie control output to midizap's second input port, and midizap's second output port back to the device. This is a typical setup for bidirectional communication between controller and application as described in the *MIDI Feedback* section. The sample configurations in the examples folder in the sources have all been set up in this manner, so that they will create the required connections automatically.
+
+Please note that at this time, the built-in patchbay is only available through these directives, there are no corresponding command line options. Also, only one directive can be specified for each port, but since midizap will connect to all ports matching the given regular expression, you can connect to more than one application or device by just listing all the alternatives. For instance, to have midizap's output connected to both Ardour and Pd, you might use a directive like:
+
+~~~
+JACK_OUT1 ardour:MIDI control in|Pure Data Midi-In 1
+~~~
+
+## Pass-Through
 
 If at least one output port is available then it also becomes possible to pass through MIDI messages from input to output unchanged. Two options are available for this: `-t` which passes through any ordinary (non-system) message for which there are no translations (not even in the default section), and `-s` which passes through all system messages. The former is convenient if the incoming MIDI data only needs to be modified in a few places to deal with slight variations in the protocol. The latter may be needed when the input data may contain system messages; midizap cannot translate these, but it can pass them on unchanged when necessary. You can find examples for both use cases in the examples folder in the sources.
 
 The corresponding directives are named `PASSTHROUGH` and `SYSTEM_PASSTHROUGH`, respectively. In either case, you can optionally specify which port the pass-through should apply to (0 means none, 1 the first, 2 the second port; if no number is given, both ports are used). For instance, if you only need system pass-through on the feedback port, you might write `SYSTEM_PASSTHROUGH 2`, or use the `-s2` option on the command line; and to have unrecognized MIDI messages passed through in either direction, simply use `PASSTHROUGH`, or `-t`.
 
-Note that all these options can only be set at program startup. If you later edit the corresponding directives in the configuration file, the changes won't take effect until you restart the program.
+## Jack Sessions
 
-midizap also supports *Jack session management*, which makes it possible to record the options the program was invoked with, along with all the MIDI connections. QjackCtl has its own built-in Jack session manager which is available in its Session dialog. To use this, launch midizap and any other Jack applications you want to have in the session, use QjackCtl to set up all the connections as needed, and then hit the "Save" button in the Session dialog to have the session recorded. Now, at any later time you can rerun the recorded session with the "Load" button in the same dialog. Also, your most recent sessions are available in the "Recent" menu from where they can be launched quickly.
+midizap also supports *Jack session management* which provides a convenient alternative way to launch your midizap instances. Once you've finished a configuration, instead of running midizap manually each time you need it, you just invoke it once with the right command line options, and use a Jack session management program to record the session. The session manager can then be used to relaunch the program with the same options later.
+
+Various Jack session managers are available for Linux, but if you're running QjackCtl already, you might just as well use it to record your sessions, too. QjackCtl's built-in Jack session manager is available in its Session dialog. To use it, launch midizap and any other Jack applications you want to have in the session, use QjackCtl to set up all the connections as needed, and then hit the "Save" button in the Session dialog to have the session recorded. Now, at any later time you can rerun the recorded session with the "Load" button in the same dialog. Also, your most recent sessions are available in the "Recent" menu from where they can be launched quickly.
+
+## Realtime Priorities
 
 Finally, midizap also offers an option to run the program with *real-time priorities*. Jack itself usually does that anyway where needed, but midizap's main thread won't unless you run it with the `-P` option (`midizap -P`, or `midizap -P80` if you also want to specify the priority). Using this option, midizap should be able to get down to MIDI latencies in the 1 msec ballpark which should be good enough for most purposes. (Note that there's no need to use this option unless you actually notice high latencies or jitter in the MIDI output.)
 
@@ -189,7 +222,7 @@ PB output                 # pitch bend
 
 The `#` character at the beginning of a line and after whitespace is special; it indicates that the rest of the line is a comment, which is skipped by the parser. Empty lines and lines containing nothing but whitespace are also ignored.
 
-Lines beginning with a `[`*name*`]` header are also special. Each such line introduces a translation class *name*, which may be followed by an extended regular expression *regex* (see the regex(7) manual page) to be matched against window class and title. A `CLASS` or `TITLE` token may precede *regex* to indicate that *only* the class or title is to be matched, respectively; otherwise both are matched. Note that the *regex* part is always taken verbatim, ignoring leading and trailing whitespace, but including embedded whitespace and `#` characters (so you can't place a comment on such lines).
+Lines beginning with a `[`*name*`]` header are also special. Each such line introduces a translation class *name*, which may be followed by an extended regular expression *regex* to be matched against window class and title. A `CLASS` or `TITLE` token may precede *regex* to indicate that *only* the class or title is to be matched, respectively; otherwise both are matched. Note that the *regex* part is always taken verbatim, ignoring leading and trailing whitespace, but including embedded whitespace and `#` characters (so you can't place a comment on such lines).
 
 To find a set of eligible translations, midizap matches class and/or title of the window with the keyboard focus against each section, in the order in which they are listed in the configuration file. If neither `CLASS` nor `TITLE` is specified, then both are tried; in this case, midizap first tries to match the window class (the `WM_CLASS` property), then the window title (the `WM_NAME` property). The first section which matches determines the translations to be used for that window. An empty *regex* for the last class will always match, allowing default translations. If a translation cannot be found in the matched section, it will be loaded from the default section if possible. In addition, there are two special default sections labeled `[MIDI]` and `[MIDI2]` which are used specifically for MIDI translations, please see the *MIDI Output* and *MIDI Feedback* sections for details. If these sections are present, they should precede the main default section. All other sections, including the main default section, can be named any way you like; the given *name* is only used for debugging output and diagnostics, and needn't be unique.
 
@@ -878,6 +911,10 @@ translation ::= midi-token { key-token | midi-token }
 directive   ::= "DEBUG_REGEX" | "DEBUG_STROKES" | "DEBUG_KEYS" |
                 "DEBUG_MIDI" | "MIDI_OCTAVE" number |
 				"JACK_NAME" string | "JACK_PORTS" number |
+				"JACK_IN" regex | "JACK_OUT" regex |
+				"JACK_IN1" regex | "JACK_OUT1" regex |
+				"JACK_IN2" regex | "JACK_OUT2" regex |
+				"PASSTHROUGH" [ number ] |
 				"SYSTEM_PASSTHROUGH" [ number ]
 
 midi-token  ::= msg [ mod ] [ steps ] [ "-" number] [ flag ]

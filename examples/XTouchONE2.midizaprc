@@ -14,6 +14,12 @@
 JACK_NAME "midizap-XTouchONE"
 JACK_PORTS 2
 
+# automatic connections
+JACK_IN1  X-Touch One MIDI 1
+JACK_IN2  ardour:mackie control out
+JACK_OUT1 ardour:mackie control in
+JACK_OUT2 X-Touch One MIDI 1
+
 # Pass everything through, except for the mappings below.
 PASSTHROUGH
 SYSTEM_PASSTHROUGH
@@ -22,9 +28,9 @@ SYSTEM_PASSTHROUGH
 
 # NOTE: This assumes that you use the default Mackie mode of the ONE.
 # Otherwise you will have to adjust the mapping accordingly. I use the SCRUB
-# key (F8 in MC mode) as a SHIFT key replacement, because I don't need that
-# function (it's not available in Ardour yet). If you need that key, you'll
-# have to use another one that you can spare.
+# key (F8 in MC mode) as the SHIFT key, because I don't need that function
+# (it's not available in Ardour yet). If you need that key, you'll have to use
+# another one that you can spare.
 
 F8 SHIFT ^F8 RELEASE SHIFT ^F8
 
@@ -32,7 +38,7 @@ F8 SHIFT ^F8 RELEASE SHIFT ^F8
 # the most important encoder assignment keys here, but of course you can
 # change them to anything you want.
 
-^F#4 E3   # Track (Trim)
+^F#4 E3   # Track (Trim in Ardour)
 ^G4  F#3  # Pan
 ^G#4 F3   # Send
 ^A4  G3   # Plugin (not supported by Ardour)

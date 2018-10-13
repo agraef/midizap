@@ -19,7 +19,15 @@ JACK_PORTS 2
 
 # SETUP: In Ardour, enable the Mackie control surface, then connect Ardour's
 # Mackie control ports to midizap's midi_out and midi_in2 ports, and the
-# APCmini to midizap's midi_in and midi_out2 ports.
+# APCmini to midizap's midi_in and midi_out2 ports. The following lines will
+# take care of setting up all the connections automatically, but you still
+# need to enable the Mackie control surface in Ardour, so that Ardour exposes
+# the Mackie control ports.
+
+JACK_IN1  APC MINI MIDI 1
+JACK_IN2  ardour:mackie control out
+JACK_OUT1 ardour:mackie control in
+JACK_OUT2 APC MINI MIDI 1
 
 # PROTOCOL DOCUMENTATION: The Mackie protocol is fairly ubiquitous, but since
 # manufacturers can't be bothered to properly *document* their stuff these
@@ -206,8 +214,7 @@ CC69[] F7{0:49,1,0} E7{0:50,1,0} Eb7{0:51,1,0} D7{0:52,1,0}
 
 # no feedback for faders (faders aren't motorized)
 
-# NOTE: Feedback for rec/solo/mute/select also needs to be recognized in shift
-# mode, so that the (shifted) bank/channel left/right keys work as expected.
+# feedback for rec/solo/mute/select
 
 # rec: color = red (vel. 3)
 C0  C0[3]

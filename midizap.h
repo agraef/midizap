@@ -137,4 +137,4 @@ extern char *config_file_name;
 extern int jack_num_outputs, auto_feedback;
 extern int passthrough[2], system_passthrough[2];
 extern int midi_octave, shift;
-extern char *jack_client_name;
+extern char *jack_client_name, *jack_in_regex[2], *jack_out_regex[2];

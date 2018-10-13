@@ -1863,6 +1863,10 @@ main(int argc, char **argv)
   seq.n_out = jack_num_outputs>0?jack_num_outputs:0;
   seq.passthrough[0] = jack_num_outputs>0?system_passthrough[0]>0:0;
   seq.passthrough[1] = jack_num_outputs>1?system_passthrough[1]>0:0;
+  seq.in[0] = jack_in_regex[0];
+  seq.in[1] = jack_num_outputs>1?jack_in_regex[1]:0;
+  seq.out[0] = jack_num_outputs>0?jack_out_regex[0]:0;
+  seq.out[1] = jack_num_outputs>1?jack_out_regex[1]:0;
   if (!init_jack(&seq, debug_jack)) {
     exit(1);
   }
@@ -1892,6 +1896,7 @@ main(int argc, char **argv)
       close_jack(&seq);
       exit(0);
     }
+    process_connections(&seq);
     while (pop_midi(&seq, msg, &portno)) {
       handle_event(msg, portno, 0, 0);
       time_t t = time(0);

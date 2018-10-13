@@ -221,8 +221,11 @@ easily be connected to midizap.
 As an alternative, you can also run
 a2jmidid (http://repo.or.cz/a2jmidid.git) as a separate ALSA\-Jack MIDI
 bridge.
-(The latter method will work with both Jack1 and Jack2, the former
-method is only recommended if you're using Jack1.)
+(The latter method works well with both Jack1 and Jack2.
+Jack's built\-in ALSA\-Jack MIDI bridge also works very well in Jack1,
+but in Jack2 it doesn't list the ALSA ports by their name, which makes
+it rather unusable there because you'll have to guess which port
+represents which device or application.)
 .PP
 Having that set up, start Jack, make sure that your MIDI controller is
 connected, and try running \f[C]midizap\f[] from the command line
@@ -234,7 +237,8 @@ On the right side of the MIDI tab, you should now see a client named
 \f[C]midizap\f[] with one MIDI input port named \f[C]midi_in\f[].
 That's the one you need to connect to your MIDI controller, whose output
 port should be visible under the \f[C]alsa_midi\f[] client on the left
-side of the dialog.
+side of the dialog (or the \f[C]a2j\f[] client, if you're using
+a2jmidid).
 .PP
 To test the waters, you can hook up just about any MIDI keyboard and
 give it a try with the default section in the distributed midizaprc
@@ -394,11 +398,16 @@ option, see the following section for details.
 .SH Jack\-Related Options
 .PP
 There are some additional directives (and corresponding command line
-options) to set midizap's Jack client name and the number of input and
-output ports it uses.
+options) to configure midizap's Jack setup in various ways.
+We take a look at these in the following.
 If both the command line options and directives in the midizaprc file
-are used, the former take priority, so that it's always possible to
-override the configuration settings from the command line.
+are used, the former take priority, so that it's possible to override
+the configuration settings from the command line.
+.PP
+Note that all these options can only be set at program startup.
+If you later edit the corresponding directives in the configuration
+file, the changes won't take effect until you restart the program.
+.SS Jack Client Name and MIDI Port Setup
 .PP
 Firstly, there's the \f[C]\-j\f[] option and the \f[C]JACK_NAME\f[]
 directive which change the Jack client name from the default
@@ -443,22 +452,76 @@ the application, see the \f[I]MIDI Feedback\f[] section for details.
 Not very surprisingly, at least one output port is needed if you want to
 output any MIDI at all; otherwise MIDI messages on the right\-hand side
 of translations will be silently ignored.
-Also note that midizap doesn't provide you with any options to actually
-connect the ports you created to other Jack MIDI clients.
-There already are plenty of excellent utilities specifically designed
-for this purpose, so there's no need to replicate that functionality in
-midizap.
-As already mentioned, we recommend using QjackCtl, which also offers a
-persistent MIDI patchbay, so that you can have the right connections
-automatically set up for you whenever you launch midizap.
-You then use the Jack client name option if you need to distinguish
-multiple midizap instances.
-(The examples folder in the sources contains a QjackCtl patchbay named
-midizap.xml which has been set up to work with any of the included
-examples.
-Use the \[lq]Load\[rq] button in QjackCtl's Patchbay dialog to load it,
-then hit the \[lq]Activate\[rq] button to have QjackCtl actually use
-it.)
+.SS MIDI Connections
+.PP
+Setting up all the required connections for the Jack MIDI ports can be a
+tedious and error\-prone task, especially if you have to deal with
+complex setups involving feedback and/or multiple midizap instances.
+It's all to easy to mess this up when doing it manually, and either end
+up with a dysfunctional setup or, even worse, MIDI feedback loops
+crashing your Jack MIDI clients.
+While it's possible to automatize the MIDI connections, e.g., with
+QjackCtl's persistent MIDI patchbay facility, this is often inconvenient
+if you need to accommodate multiple midizap configurations and you
+already have a complicated studio setup which you don't want to mess
+with.
+.PP
+As a remedy, midizap offers its own built\-in patchbay functionality
+using the \f[C]JACK_IN\f[] and \f[C]JACK_OUT\f[] directives, which let
+you specify the required connections in the configuration itself and be
+done with it.
+The port number is tacked on to the directive, so, e.g.,
+\f[C]JACK_IN2\f[] connects the second input port (if the port number is
+omitted then the first port is assumed).
+The directive is followed by an (extended) regular expression (see the
+regex(7) manual page) to be matched against the Jack MIDI ports of your
+devices and applications.
+A connection will be established automatically by midizap whenever a
+Jack MIDI port matches the regular expression, as well as the port type
+and I/O direction.
+This also works dynamically, as new devices get added and new
+applications are launched at runtime.
+.PP
+For instance, the following lines (from the XTouchONE.midizaprc example)
+connect midizap to an X\-Touch One device on one side and Ardour's
+Mackie control port on the other:
+.IP
+.nf
+\f[C]
+JACK_IN1\ \ X\-Touch\ One\ MIDI\ 1
+JACK_OUT1\ ardour:mackie\ control\ in
+JACK_IN2\ \ ardour:mackie\ control\ out
+JACK_OUT2\ X\-Touch\ One\ MIDI\ 1
+\f[]
+.fi
+.PP
+To break this down, the X\-Touch One device will be connected to
+midizap's first input port, midizap's first output port to Ardour's
+Mackie control input, Ardour's Mackie control output to midizap's second
+input port, and midizap's second output port back to the device.
+This is a typical setup for bidirectional communication between
+controller and application as described in the \f[I]MIDI Feedback\f[]
+section.
+The sample configurations in the examples folder in the sources have all
+been set up in this manner, so that they will create the required
+connections automatically.
+.PP
+Please note that at this time, the built\-in patchbay is only available
+through these directives, there are no corresponding command line
+options.
+Also, only one directive can be specified for each port, but since
+midizap will connect to all ports matching the given regular expression,
+you can connect to more than one application or device by just listing
+all the alternatives.
+For instance, to have midizap's output connected to both Ardour and Pd,
+you might use a directive like:
+.IP
+.nf
+\f[C]
+JACK_OUT1\ ardour:MIDI\ control\ in|Pure\ Data\ Midi\-In\ 1
+\f[]
+.fi
+.SS Pass\-Through
 .PP
 If at least one output port is available then it also becomes possible
 to pass through MIDI messages from input to output unchanged.
@@ -484,17 +547,23 @@ port, you might write \f[C]SYSTEM_PASSTHROUGH\ 2\f[], or use the
 \f[C]\-s2\f[] option on the command line; and to have unrecognized MIDI
 messages passed through in either direction, simply use
 \f[C]PASSTHROUGH\f[], or \f[C]\-t\f[].
+.SS Jack Sessions
 .PP
-Note that all these options can only be set at program startup.
-If you later edit the corresponding directives in the configuration
-file, the changes won't take effect until you restart the program.
+midizap also supports \f[I]Jack session management\f[] which provides a
+convenient alternative way to launch your midizap instances.
+Once you've finished a configuration, instead of running midizap
+manually each time you need it, you just invoke it once with the right
+command line options, and use a Jack session management program to
+record the session.
+The session manager can then be used to relaunch the program with the
+same options later.
 .PP
-midizap also supports \f[I]Jack session management\f[], which makes it
-possible to record the options the program was invoked with, along with
-all the MIDI connections.
-QjackCtl has its own built\-in Jack session manager which is available
-in its Session dialog.
-To use this, launch midizap and any other Jack applications you want to
+Various Jack session managers are available for Linux, but if you're
+running QjackCtl already, you might just as well use it to record your
+sessions, too.
+QjackCtl's built\-in Jack session manager is available in its Session
+dialog.
+To use it, launch midizap and any other Jack applications you want to
 have in the session, use QjackCtl to set up all the connections as
 needed, and then hit the \[lq]Save\[rq] button in the Session dialog to
 have the session recorded.
@@ -502,6 +571,7 @@ Now, at any later time you can rerun the recorded session with the
 \[lq]Load\[rq] button in the same dialog.
 Also, your most recent sessions are available in the \[lq]Recent\[rq]
 menu from where they can be launched quickly.
+.SS Realtime Priorities
 .PP
 Finally, midizap also offers an option to run the program with
 \f[I]real\-time priorities\f[].
@@ -542,8 +612,8 @@ ignored.
 Lines beginning with a \f[C][\f[]\f[I]name\f[]\f[C]]\f[] header are also
 special.
 Each such line introduces a translation class \f[I]name\f[], which may
-be followed by an extended regular expression \f[I]regex\f[] (see the
-regex(7) manual page) to be matched against window class and title.
+be followed by an extended regular expression \f[I]regex\f[] to be
+matched against window class and title.
 A \f[C]CLASS\f[] or \f[C]TITLE\f[] token may precede \f[I]regex\f[] to
 indicate that \f[I]only\f[] the class or title is to be matched,
 respectively; otherwise both are matched.
@@ -2297,6 +2367,10 @@ translation\ ::=\ midi\-token\ {\ key\-token\ |\ midi\-token\ }
 directive\ \ \ ::=\ "DEBUG_REGEX"\ |\ "DEBUG_STROKES"\ |\ "DEBUG_KEYS"\ |
 \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "DEBUG_MIDI"\ |\ "MIDI_OCTAVE"\ number\ |
 \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "JACK_NAME"\ string\ |\ "JACK_PORTS"\ number\ |
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "JACK_IN"\ regex\ |\ "JACK_OUT"\ regex\ |
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "JACK_IN1"\ regex\ |\ "JACK_OUT1"\ regex\ |
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "JACK_IN2"\ regex\ |\ "JACK_OUT2"\ regex\ |
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "PASSTHROUGH"\ [\ number\ ]\ |
 \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "SYSTEM_PASSTHROUGH"\ [\ number\ ]
 
 midi\-token\ \ ::=\ msg\ [\ mod\ ]\ [\ steps\ ]\ [\ "\-"\ number]\ [\ flag\ ]

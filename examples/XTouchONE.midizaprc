@@ -12,6 +12,12 @@
 JACK_NAME "midizap-XTouchONE"
 JACK_PORTS 2
 
+# automatic connections
+JACK_IN1  X-Touch One MIDI 1
+JACK_IN2  ardour:mackie control out
+JACK_OUT1 ardour:mackie control in
+JACK_OUT2 X-Touch One MIDI 1
+
 # Pass everything through, except for the one mapping below.
 PASSTHROUGH
 SYSTEM_PASSTHROUGH

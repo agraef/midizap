@@ -13,6 +13,12 @@
 JACK_NAME "midizap-XTouchMini"
 JACK_PORTS 2
 
+# automatic connections
+JACK_IN1  X-TOUCH MINI MIDI 1
+JACK_IN2  ardour:mackie control out
+JACK_OUT1 ardour:mackie control in
+JACK_OUT2 X-TOUCH MINI MIDI 1
+
 # Pass everything through, except for the translations below.
 
 PASSTHROUGH
@@ -30,7 +36,7 @@ SYSTEM_PASSTHROUGH
 # as follows (with the shifted bindings given above and below in parentheses;
 # these become active when holding down the MC/SHIFT key):
 
-# (SELECT) ...                                                     (MARKER)
+# (SELECT) (SELECT)  ...                                           (MARKER)
 # [CLICK]  [SOLO]    [TRACK] [SEND] [PAN]  [PLUGIN] [EQ]   [INST]  [BANK LEFT]
 # [SHIFT]  [REPLACE] [REW]   [FFWD] [LOOP] [STOP]   [PLAY] [REC]   [BANK RIGHT]
 #          (DROP)                                                  (NUDGE)
@@ -84,11 +90,10 @@ C#7  B3  # bank right
 A#3  C7
 B3   C#7
 
-# NOTE: We might also want to provide some actual feedback for the *shifted*
-# faders here in the future, so that the current values are shown in the LED
-# rings of the encoders while the faders are being operated.
-
 # dummy feedback for the faders, to take advantage of automatic feedback
+# (see the alternative XTouchMini2.midizaprc configuration for some more
+# comprehensive bindings which do some actual feedback using the LED rings
+# of the encoders)
 PB[]-1 NOP
 PB[]-2 NOP
 PB[]-3 NOP

@@ -11,14 +11,17 @@
 JACK_NAME "midizap-MPKmini2"
 JACK_PORTS 1
 
+# Auto-connect to the MPKMini2 on the input, and Ardour's Mackie control input
+# on the output side.
+
+JACK_IN  MPKmini2 MIDI 1
+JACK_OUT ardour:mackie control in
+
 # This configuration assumes that the MPKmini2 is set to factory defaults.
 # The device doesn't provide much feedback possibilities, so we don't even
-# try.  Connections: Controller goes into midizap midi_in, midi_out into the
-# Mackie control input of your DAW.
-
-# Controls: The joystick can be used as a shuttle control (push to the left
-# for rewind, to the right for fast forward).  The eight knobs are mapped to
-# the channel volume controls.  The drum pads are assigned as follows, with
+# try.  Controls: The joystick can be used as a shuttle control (push to the
+# left for rewind, to the right for fast forward).  The eight knobs are mapped
+# to the channel volume controls.  The drum pads are assigned as follows, with
 # the transport section on bank A and the cursor and bank controls on bank B:
 
 # Bank A: Pad 1-4: Stop Play Rec Cycle; Pad 5-8: Rew FFwd Click Marker
