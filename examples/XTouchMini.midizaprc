@@ -20,8 +20,8 @@ JACK_PORTS 2
 
 # automatic connections
 JACK_IN1  X-TOUCH MINI MIDI 1
-JACK_OUT1 ardour:mackie control in
-JACK_IN2  ardour:mackie control out
+JACK_OUT1 ardour:mackie control in|ardour:MIDI control in
+JACK_IN2  ardour:mackie control out|ardour:MIDI control out
 JACK_OUT2 X-TOUCH MINI MIDI 1
 
 # Pass everything through, except for the translations below.
@@ -60,16 +60,22 @@ SYSTEM_PASSTHROUGH
 # master fader to the first channel, like on the X-Touch ONE, and the encoders
 # become the eight channel faders.
 
-# Finally, since Ardour requires some of the keys to be combined with the MC
-# SHIFT key to get at some functions (SHIFT + SELECT/MARKER/NUDGE), we provide
-# a third ALT layer with those shifted bindings:
+# Finally, the ALT layer. Since Ardour requires some of the keys to be
+# combined with the MC SHIFT key to get at some functions (in particular,
+# SHIFT + SELECT/MARKER/NUDGE), we provide those shifted bindings on this
+# layer. We also throw in some more MC keys (cursor and zoom):
 
 # [^SELECT]  ...                                                 [UP]
 #                 [LEFT] [RIGHT]  [ZOOM] [^MARKER] [^NUDGE]      [DOWN]
 
-# We also threw in some other useful MC keys (cursor and zoom) there. You may
-# want to adjust this layer as needed for your DAW program. The SHIFT layer,
-# in contrast, should be pretty generic, and work fine as is with most DAWs.
+# Moreover, the encoders and the master fader are assigned to standard MIDI
+# controls CC1..CC9 on this layer. These aren't used by MC, so you can assign
+# them freely with Ardour's MIDI learn facility. This makes up for Ardour's
+# lack of MC plugin controls.
+
+# Note that the way I've configured this layer is somewhat tailored to Ardour,
+# so you may want to adjust it to your liking. The SHIFT layer, in contrast,
+# should be pretty generic, and work fine as is with most DAWs.
 
 [MIDI]
 
@@ -146,6 +152,28 @@ C#7  B3  # bank right
 2^C7  C8  # ALT+A    = UP
 2^C#7 C#8 # ALT+B    = DOWN
 
+# ALT encoders and fader = CC1..CC9, with direct feedback
+2^CC16~ CC1 $M1
+2^CC17~ CC2 $M2
+2^CC18~ CC3 $M3
+2^CC19~ CC4 $M4
+2^CC20~ CC5 $M5
+2^CC21~ CC6 $M6
+2^CC22~ CC7 $M7
+2^CC23~ CC8 $M8
+
+2^PB[128]{0}-9 CC9'
+
+# macros handling direct feedback for CC1..CC8
+M1[12]{0} !CC48{33-43}'
+M2[12]{0} !CC49{33-43}'
+M3[12]{0} !CC50{33-43}'
+M4[12]{0} !CC51{33-43}'
+M5[12]{0} !CC52{33-43}'
+M6[12]{0} !CC53{33-43}'
+M7[12]{0} !CC54{33-43}'
+M8[12]{0} !CC55{33-43}'
+
 [MIDI2]
 
 # feedback for the BANK LEFT/RIGHT buttons
@@ -170,3 +198,13 @@ PB[1536]{0}-5 CC52{33-43}'
 PB[1536]{0}-6 CC53{33-43}'
 PB[1536]{0}-7 CC54{33-43}'
 PB[1536]{0}-8 CC55{33-43}'
+
+# Also provide some feedback for the encoders on the ALT layer (CC1..CC8).
+2^CC1[12]{0} CC48{33-43}'
+2^CC2[12]{0} CC49{33-43}'
+2^CC3[12]{0} CC50{33-43}'
+2^CC4[12]{0} CC51{33-43}'
+2^CC5[12]{0} CC52{33-43}'
+2^CC6[12]{0} CC53{33-43}'
+2^CC7[12]{0} CC54{33-43}'
+2^CC8[12]{0} CC55{33-43}'
