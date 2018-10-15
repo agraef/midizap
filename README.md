@@ -6,7 +6,7 @@ midizap -- control your multimedia applications with MIDI
 
 # Synopsis
 
-midizap [-hkn] [-d[rskmj]] [-j *name*] [-ost[*n*]] [-P[*prio*]] [-r *rcfile*]
+midizap [-hkn] [-d[rskmj]] [-j *name*] [-ost[*n*]] [-P[*prio*]] [[-r] *rcfile*]
 
 # Options
 
@@ -31,8 +31,8 @@ midizap [-hkn] [-d[rskmj]] [-j *name*] [-ost[*n*]] [-P[*prio*]] [-r *rcfile*]
 -P[*prio*]
 :   Run with the given real-time priority (default: 90). See Section *Jack-Related Options*.
 
--r *rcfile*
-:   Set the configuration file name. Default: taken from the MIDIZAP_CONFIG_FILE environment variable if it exists, or ~/.midizaprc if it exists, /etc/midizaprc otherwise. See Section *Configuration File*.
+[-r] *rcfile*
+:   Set the configuration file name. The `-r` is optional, but still supported for backward compatibility. Default: taken from the MIDIZAP_CONFIG_FILE environment variable if it exists, or ~/.midizaprc if it exists, /etc/midizaprc otherwise. See Section *Configuration File*.
 
 -s[*n*]
 :   Pass through system messages from MIDI input to output; *n* optionally specifies the port (0 = none, 1 = first, 2 = second port only), default is pass-through on both ports (if available). This overrides the corresponding directive in the configuration file. See Section *Jack-Related Options*.
@@ -42,13 +42,11 @@ midizap [-hkn] [-d[rskmj]] [-j *name*] [-ost[*n*]] [-P[*prio*]] [-r *rcfile*]
 
 # Description
 
-midizap lets you control your multimedia applications using [MIDI][], the Musical Instrument Digital Interface. Modern MIDI controllers are often USB class devices which can be connected to computers without any ado. midizap makes it possible to use this gear with just about any X11-based application. To these ends, it translates Jack MIDI input into X keyboard and mouse events, and optionally MIDI output. It does this by matching the `WM_CLASS` and `WM_NAME` properties of the window that has the keyboard focus against the regular expressions for each application section in its configuration (midizaprc) file. If a regex matches, the corresponding set of translations is used. If a matching section cannot be found, or if it doesn't define a suitable translation, the program falls back to a set of translations in a default section at the end of the file, if available.
+midizap lets you control your multimedia applications using [MIDI][], the venerable "Musical Instrument Digital Interface" protocol which has been around since the 1980s. Modern MIDI controllers are usually USB class devices which don't require any special interface or driver, and they are often much cheaper than more specialized gear. With midizap you can leverage these devices to control just about any X11-based application. To these ends, it translates Jack MIDI input into X keyboard and mouse events, and optionally MIDI output. It does this by matching the class and title of the focused window against the regular expressions for each application section in its configuration (midizaprc) file. If a regex matches, the corresponding set of translations is used. If a matching section cannot be found, or if it doesn't define a suitable translation, the program falls back to a set of default translations.
 
-The midizaprc file is just an ordinary text file which you can edit to configure the program. The configuration language is fairly straightforward, basically the file is just a list of MIDI messages (denoted with familiar human-readable mnemonics, no hex numbers!) and their translations, which is divided into sections for different applications. An example.midizaprc file is included in the sources to get you started, and you can find some more examples of configuration files for various purposes in the examples directory.
+The midizaprc file is just an ordinary text file which you can edit to configure the program. The configuration language is fairly straightforward, basically the file is just a list of MIDI messages (denoted with familiar human-readable mnemonics, no hex numbers!) and their translations. An example.midizaprc file is included in the sources to get you started, and you can find more examples of configuration files for various purposes in the examples subdirectory.
 
-midizap provides you with a way to hook up just about any MIDI controller to your applications. Even if your target application already supports MIDI, midizap's MIDI output option will be useful if your controller can't work directly with the application because of protocol incompatibilities. In particular, you can use midizap to turn pretty much any MIDI controller with enough faders and buttons into a Mackie-compatible mixing console ready to be used with most DAW (digital audio workstation) programs. Another common use case is video editing software, which rarely offers built-in MIDI support. midizap allows you to map the faders, encoders and buttons of your MIDI controller to keyboard commands of your video editor for cutting, marking, playback, scrolling, zooming, etc.
-
-In other words, as long as the target application can be controlled with simple keyboard shortcuts and/or MIDI commands, chances are that midizap can make it work (at least to some extent) with your controller.
+Even if your target application already supports MIDI, midizap's MIDI output option will be useful if your controller can't work directly with the application because of protocol incompatibilities. In particular, you can use midizap to turn any MIDI controller with enough faders and buttons into a Mackie-compatible device ready to be used with most DAW (digital audio workstation) programs. Another common use case is photo and video editing software. This kind of software often lacks built-in MIDI support, and midizap can then be used to map the faders, encoders and buttons of your MIDI controller to keyboard commands for adjusting colors, cutting, marking, playback, scrolling, zooming, etc. In other words, as long as the target application can be controlled with simple keyboard shortcuts and/or MIDI commands, chances are that midizap can make it work (at least to some extent) with your controller.
 
 # Installation
 
@@ -66,7 +64,11 @@ After installation the system-wide default configuration file will be in /etc/mi
 
 The ~/.midizaprc file, if it exists, takes priority over /etc/midizaprc, so it becomes your personal default midizap configuration. The midizaprc file included in the distribution is really just an example; you're expected to edit this file to adjust the bindings for the MIDI controllers and the applications that you use.
 
-It is also possible to specify the configuration file to be used, by invoking midizap with the `-r` option followed by the name of the midizaprc file on the command line. This is often used with more specialized configurations dealing with specific applications or MIDI controllers. E.g., to try one of sample configurations in the sources: `midizap -r examples/MPKmini2.midizaprc`
+It is also possible to specify the configuration file to be used, by invoking midizap with the name of the midizaprc file on the command line. This is often used with more specialized configurations dealing with specific applications or MIDI controllers. E.g., to try one of sample configurations in the sources:
+
+~~~
+midizap examples/APCmini.midizaprc
+~~~
 
 The program automatically reloads the midizaprc file whenever it notices that the file has been changed. Thus you can edit the file while the program keeps running, and have the changes take effect immediately without having to restart the program. When working on new translations, you may want to run the program in a terminal, and employ some or all of the debugging options explained below to see exactly how your translations are being processed.
 
@@ -76,7 +78,7 @@ The midizap program is a command line application, so you typically run it from 
 
 Try `midizap -h` for a brief summary of the available options with which the program can be invoked.
 
-midizap uses [Jack][] for doing all its MIDI input and output, so you need to be able to run Jack and connect the Jack MIDI inputs and outputs of the program. We recommend using a Jack front-end and patchbay program like [QjackCtl][] for this purpose. In QjackCtl's setup, make sure that you have selected `seq` as the MIDI driver. This exposes the ALSA sequencer ports of your MIDI hardware and other non-Jack ALSA MIDI applications as Jack MIDI ports, so that they can easily be connected to midizap. As an alternative, you can also run [a2jmidid][] as a separate ALSA-Jack MIDI bridge. (The latter method works well with both Jack1 and Jack2. Jack's built-in ALSA-Jack MIDI bridge also works very well in Jack1, but in Jack2 it doesn't list the ALSA ports by their name, which makes it rather unusable there because you'll have to guess which port represents which device or application.)
+midizap uses [Jack][] for doing all its MIDI input and output, so you need to be able to run Jack and connect the Jack MIDI inputs and outputs of the program. We recommend using a Jack front-end and patchbay program like [QjackCtl][] for this purpose. In QjackCtl's setup, make sure that you have selected `seq` as the MIDI driver. This exposes the ALSA sequencer ports of your MIDI hardware and other non-Jack ALSA MIDI applications as Jack MIDI ports, so that they can easily be connected to midizap. As an alternative, you can also run [a2jmidid][] as a separate ALSA-Jack MIDI bridge. The latter method works well with both Jack1 and Jack2. Jack's built-in bridge also does the job in Jack1, but in Jack2 it doesn't list the ALSA ports by their name, so it's better to use a2jmidid in that case. When in doubt, just use a2jmidid. You can have QJackCtl autostart a2jmidid by placing the command `a2jmidid -e &` into the "Execute script after Startup" field which can be found under "Options" in QJackctl's Setup dialog.
 
 Having that set up, start Jack, make sure that your MIDI controller is connected, and try running `midizap` from the command line (without any arguments). In QjackCtl, open the Connections dialog and activate the second tab named "MIDI", which shows all available Jack MIDI inputs and outputs. On the right side of the MIDI tab, you should now see a client named `midizap` with one MIDI input port named `midi_in`. That's the one you need to connect to your MIDI controller, whose output port should be visible under the `alsa_midi` client on the left side of the dialog (or the `a2j` client, if you're using a2jmidid).
 
@@ -143,9 +145,7 @@ Besides MIDI notes and control change (`CC`) messages, the midizap program also 
 
 # Jack-Related Options
 
-There are some additional directives (and corresponding command line options) to configure midizap's Jack setup in various ways. We take a look at these in the following. If both the command line options and directives in the midizaprc file are used, the former take priority, so that it's possible to override the configuration settings from the command line.
-
-Note that all these options can only be set at program startup. If you later edit the corresponding directives in the configuration file, the changes won't take effect until you restart the program.
+There are some additional directives (and corresponding command line options) to configure midizap's Jack setup in various ways. If both the command line options and directives in the midizaprc file are used, the former take priority, so that it's possible to override the configuration settings from the command line. Note that all these options can only be set at program startup. If you later edit the corresponding directives in the configuration file, the changes won't take effect until you restart the program.
 
 ## Jack Client Name and MIDI Port Setup
 
@@ -169,9 +169,11 @@ Not very surprisingly, at least one output port is needed if you want to output 
 
 ## MIDI Connections
 
-Setting up all the required connections for the Jack MIDI ports can be a tedious and error-prone task, especially if you have to deal with complex setups involving feedback and/or multiple midizap instances. It's all to easy to mess this up when doing it manually, and either end up with a dysfunctional setup or, even worse, MIDI feedback loops crashing your Jack MIDI clients. While it's possible to automatize the MIDI connections, e.g., with QjackCtl's persistent MIDI patchbay facility, this is often inconvenient if you need to accommodate multiple midizap configurations and you already have a complicated studio setup which you don't want to mess with.
+Setting up all the required connections for the Jack MIDI ports can be a tedious and error-prone task, especially if you have to deal with complex setups involving feedback and/or multiple midizap instances. It's all to easy to mess this up when doing it manually, and end up with a dysfunctional setup or, even worse, MIDI feedback loops crashing your Jack MIDI clients. While it's possible to automatize the MIDI connections, e.g., with QjackCtl's persistent MIDI patchbay facility, this is often inconvenient if you need to accommodate multiple midizap configurations and you already have a complicated studio setup which you don't want to mess with.
 
-As a remedy, midizap offers its own built-in patchbay functionality using the `JACK_IN` and `JACK_OUT` directives, which let you specify the required connections in the configuration itself and be done with it. The port number is tacked on to the directive, so, e.g., `JACK_IN2` connects the second input port (if the port number is omitted then the first port is assumed). The directive is followed by an (extended) regular expression (see the regex(7) manual page) to be matched against the Jack MIDI ports of your devices and applications. A connection will be established automatically by midizap whenever a Jack MIDI port matches the regular expression, as well as the port type and I/O direction. This also works dynamically, as new devices get added and new applications are launched at runtime.
+As a remedy, midizap offers its own built-in patchbay functionality using the `JACK_IN` and `JACK_OUT` directives, which let you specify the required connections in the configuration itself and be done with it. The port number is tacked on to the directive, so, e.g., `JACK_IN2` connects the second input port. If the port number is omitted then it defaults to 1, so both `JACK_OUT1` and just `JACK_OUT` connect the first output port. The directive is followed by a regular expression to be matched against the Jack MIDI ports of your devices and applications. Please see the regex(7) manual page for a discussion of the syntax and meaning of regular expressions. Note that regular expressions come in two different flavors, "basic" and "extended"; midizap uses the latter kind.
+
+A connection will be established automatically by midizap whenever a MIDI port belonging to another Jack client matches the regular expression, as well as the port type and I/O direction. This also works dynamically, as new devices get added and new applications are launched at runtime.
 
 For instance, the following lines (from the XTouchONE.midizaprc example) connect midizap to an X-Touch One device on one side and Ardour's Mackie control port on the other:
 
@@ -184,10 +186,16 @@ JACK_OUT2 X-Touch One MIDI 1
 
 To break this down, the X-Touch One device will be connected to midizap's first input port, midizap's first output port to Ardour's Mackie control input, Ardour's Mackie control output to midizap's second input port, and midizap's second output port back to the device. This is a typical setup for bidirectional communication between controller and application as described in the *MIDI Feedback* section. The sample configurations in the examples folder in the sources have all been set up in this manner, so that they will create the required connections automatically.
 
-Please note that at this time, the built-in patchbay is only available through these directives, there are no corresponding command line options. Also, only one directive can be specified for each port, but since midizap will connect to all ports matching the given regular expression, you can connect to more than one application or device by just listing all the alternatives. For instance, to have midizap's output connected to both Ardour and Pd, you might use a directive like:
+Please note that in the present implementation, the built-in patchbay is only available through these directives, there are no corresponding command line options. Also, only one directive can be specified for each port, but since midizap will connect to all ports matching the given regular expression, you can connect to more than one application or device by just listing all the alternatives. For instance, to have midizap's output connected to both Ardour and Pd, you might use a directive like:
 
 ~~~
 JACK_OUT1 ardour:MIDI control in|Pure Data Midi-In 1
+~~~
+
+All matches are done against full port names including the *client-name*`:` prefix, so you can specify exactly which ports of which clients should be connected. However, note that in contrast to the QJackCtl patchbay, midizap does substring matches by default, so that, e.g., `MIDI control` will match *any* Ardour MIDI control port, in any instance of the program (and also ports with the same name in other programs). If you want to specify an exact match, you need to use the `^` and `$` anchors as follows:
+
+~~~
+JACK_OUT1 ^ardour:MIDI control in$
 ~~~
 
 ## Pass-Through
@@ -848,7 +856,7 @@ CC1[128] $CC0 # don't do this!
 
 midizap *will* catch such mishaps after a few iterations, but it's better to avoid them in the first place. We mention in passing that in theory, recursive macro calls in conjunction with value lists and change detection make the configuration language Turing-complete. However, there's a quite stringent limit on the number of recursive calls, and there are no variables and no iteration constructs, so these facilities aren't really suitable for general-purpose programming.
 
-But there's still a lot of fun to be had with macros despite their limitations. Here's another instructive example which spits out the individual bits of a controller value, using the approach that we discussed earlier in the context of nibble extraction. Input comes from `CC7` in the example, and bit #*i* of the controller value becomes `CC`*i* in the output, where *i* runs from 0 to 6. Note that each of these rules uses a successively smaller power of 2 as modulus and passes on the remainder to the next rule, while transposition is used to extract and output the topmost bit in the quotient.
+But there's still a lot of fun to be had with macros despite their limitations. Here's another instructive example which spits out the individual bits of a controller value, using the approach that we discussed earlier in the context of nibble extraction. Input comes from `CC7` in the example, and bit #*i* of the controller value becomes `CC`*i* in the output, where *i* runs from 0 to 6. Note that each of these rules uses a successively smaller power of 2 as modulus and passes on the remainder to the next rule, while transposition is used to extract and output the topmost bit in the quotient. (You may want to run this example with debugging enabled to see what exactly is going on there.)
 
 ~~~
 CC7[64]{0} $CC6 CC6'
@@ -859,9 +867,7 @@ CC3[4]{0}  $CC2 CC2'
 CC2[2]{0}  CC0  CC1'
 ~~~
 
-You may want to run this example with debugging enabled to see what exactly is going on there.
-
-The "naming" of macros is another issue worth discussing here. In principle, any message which can occur on the left-hand side of a mod translation (i.e., everything but `PC`) can also be used as a macro. Unfortunately, in general you can't be sure which messages might show up in *real* MIDI input. For instance, in the example above the macro translations for `CC2` to `CC6` might also be triggered by real MIDI input instead of macro calls. While this may be useful at times, e.g., for testing purposes, it is most likely going to confuse unsuspecting end users. As a remedy, midizap also provides a special kind of *macro event*, denoted `M0` to `M127`. These "synthetic" messages work exactly like `CC` messages, but they are guaranteed to never occur as real input, and they can *only* be used in macro calls and on the left-hand side of mod translations. We can rewrite the previous example using macro events as follows:
+In principle, any message which can occur on the left-hand side of a mod translation (i.e., everything but `PC`) can also be used as a macro. Unfortunately, in general you can't be sure which messages might show up in *real* MIDI input. For instance, in the example above the macro translations for `CC2` to `CC6` might also be triggered by real MIDI input instead of macro calls. While this may be useful at times, e.g., for testing purposes, it is most likely going to confuse unsuspecting end users. As a remedy, midizap also provides a special kind of *macro event*, denoted `M0` to `M127`. These "synthetic" messages work exactly like `CC` messages, but they are guaranteed to never occur as real input, and they can *only* be used in macro calls and on the left-hand side of mod translations. We can rewrite the previous example using macro events as follows:
 
 ~~~
 CC7[64]{0} $M6 CC6'
@@ -911,9 +917,7 @@ translation ::= midi-token { key-token | midi-token }
 directive   ::= "DEBUG_REGEX" | "DEBUG_STROKES" | "DEBUG_KEYS" |
                 "DEBUG_MIDI" | "MIDI_OCTAVE" number |
 				"JACK_NAME" string | "JACK_PORTS" number |
-				"JACK_IN" regex | "JACK_OUT" regex |
-				"JACK_IN1" regex | "JACK_OUT1" regex |
-				"JACK_IN2" regex | "JACK_OUT2" regex |
+				"JACK_IN" [number] regex | "JACK_OUT" [number] regex |
 				"PASSTHROUGH" [ number ] |
 				"SYSTEM_PASSTHROUGH" [ number ]
 

@@ -8,7 +8,7 @@ midizap \[en] control your multimedia applications with MIDI
 .SH Synopsis
 .PP
 midizap [\-hkn] [\-d[rskmj]] [\-j \f[I]name\f[]] [\-ost[\f[I]n\f[]]]
-[\-P[\f[I]prio\f[]]] [\-r \f[I]rcfile\f[]]
+[\-P[\f[I]prio\f[]]] [[\-r] \f[I]rcfile\f[]]
 .SH Options
 .TP
 .B \-h
@@ -69,8 +69,10 @@ See Section \f[I]Jack\-Related Options\f[].
 .RS
 .RE
 .TP
-.B \-r \f[I]rcfile\f[]
+.B [\-r] \f[I]rcfile\f[]
 Set the configuration file name.
+The \f[C]\-r\f[] is optional, but still supported for backward
+compatibility.
 Default: taken from the MIDIZAP_CONFIG_FILE environment variable if it
 exists, or ~/.midizaprc if it exists, /etc/midizaprc otherwise.
 See Section \f[I]Configuration File\f[].
@@ -97,47 +99,43 @@ See Section \f[I]Jack\-Related Options\f[].
 .SH Description
 .PP
 midizap lets you control your multimedia applications using
-MIDI (https://www.midi.org/), the Musical Instrument Digital Interface.
-Modern MIDI controllers are often USB class devices which can be
-connected to computers without any ado.
-midizap makes it possible to use this gear with just about any
+MIDI (https://www.midi.org/), the venerable \[lq]Musical Instrument
+Digital Interface\[rq] protocol which has been around since the 1980s.
+Modern MIDI controllers are usually USB class devices which don't
+require any special interface or driver, and they are often much cheaper
+than more specialized gear.
+With midizap you can leverage these devices to control just about any
 X11\-based application.
 To these ends, it translates Jack MIDI input into X keyboard and mouse
 events, and optionally MIDI output.
-It does this by matching the \f[C]WM_CLASS\f[] and \f[C]WM_NAME\f[]
-properties of the window that has the keyboard focus against the regular
-expressions for each application section in its configuration
-(midizaprc) file.
+It does this by matching the class and title of the focused window
+against the regular expressions for each application section in its
+configuration (midizaprc) file.
 If a regex matches, the corresponding set of translations is used.
 If a matching section cannot be found, or if it doesn't define a
-suitable translation, the program falls back to a set of translations in
-a default section at the end of the file, if available.
+suitable translation, the program falls back to a set of default
+translations.
 .PP
 The midizaprc file is just an ordinary text file which you can edit to
 configure the program.
 The configuration language is fairly straightforward, basically the file
 is just a list of MIDI messages (denoted with familiar human\-readable
-mnemonics, no hex numbers!) and their translations, which is divided
-into sections for different applications.
+mnemonics, no hex numbers!) and their translations.
 An example.midizaprc file is included in the sources to get you started,
-and you can find some more examples of configuration files for various
-purposes in the examples directory.
+and you can find more examples of configuration files for various
+purposes in the examples subdirectory.
 .PP
-midizap provides you with a way to hook up just about any MIDI
-controller to your applications.
 Even if your target application already supports MIDI, midizap's MIDI
 output option will be useful if your controller can't work directly with
 the application because of protocol incompatibilities.
-In particular, you can use midizap to turn pretty much any MIDI
-controller with enough faders and buttons into a Mackie\-compatible
-mixing console ready to be used with most DAW (digital audio
-workstation) programs.
-Another common use case is video editing software, which rarely offers
-built\-in MIDI support.
-midizap allows you to map the faders, encoders and buttons of your MIDI
-controller to keyboard commands of your video editor for cutting,
-marking, playback, scrolling, zooming, etc.
-.PP
+In particular, you can use midizap to turn any MIDI controller with
+enough faders and buttons into a Mackie\-compatible device ready to be
+used with most DAW (digital audio workstation) programs.
+Another common use case is photo and video editing software.
+This kind of software often lacks built\-in MIDI support, and midizap
+can then be used to map the faders, encoders and buttons of your MIDI
+controller to keyboard commands for adjusting colors, cutting, marking,
+playback, scrolling, zooming, etc.
 In other words, as long as the target application can be controlled with
 simple keyboard shortcuts and/or MIDI commands, chances are that midizap
 can make it work (at least to some extent) with your controller.
@@ -182,12 +180,17 @@ example; you're expected to edit this file to adjust the bindings for
 the MIDI controllers and the applications that you use.
 .PP
 It is also possible to specify the configuration file to be used, by
-invoking midizap with the \f[C]\-r\f[] option followed by the name of
-the midizaprc file on the command line.
+invoking midizap with the name of the midizaprc file on the command
+line.
 This is often used with more specialized configurations dealing with
 specific applications or MIDI controllers.
 E.g., to try one of sample configurations in the sources:
-\f[C]midizap\ \-r\ examples/MPKmini2.midizaprc\f[]
+.IP
+.nf
+\f[C]
+midizap\ examples/APCmini.midizaprc
+\f[]
+.fi
 .PP
 The program automatically reloads the midizaprc file whenever it notices
 that the file has been changed.
@@ -221,11 +224,15 @@ easily be connected to midizap.
 As an alternative, you can also run
 a2jmidid (http://repo.or.cz/a2jmidid.git) as a separate ALSA\-Jack MIDI
 bridge.
-(The latter method works well with both Jack1 and Jack2.
-Jack's built\-in ALSA\-Jack MIDI bridge also works very well in Jack1,
-but in Jack2 it doesn't list the ALSA ports by their name, which makes
-it rather unusable there because you'll have to guess which port
-represents which device or application.)
+The latter method works well with both Jack1 and Jack2.
+Jack's built\-in bridge also does the job in Jack1, but in Jack2 it
+doesn't list the ALSA ports by their name, so it's better to use
+a2jmidid in that case.
+When in doubt, just use a2jmidid.
+You can have QJackCtl autostart a2jmidid by placing the command
+\f[C]a2jmidid\ \-e\ &\f[] into the \[lq]Execute script after
+Startup\[rq] field which can be found under \[lq]Options\[rq] in
+QJackctl's Setup dialog.
 .PP
 Having that set up, start Jack, make sure that your MIDI controller is
 connected, and try running \f[C]midizap\f[] from the command line
@@ -399,11 +406,9 @@ option, see the following section for details.
 .PP
 There are some additional directives (and corresponding command line
 options) to configure midizap's Jack setup in various ways.
-We take a look at these in the following.
 If both the command line options and directives in the midizaprc file
 are used, the former take priority, so that it's possible to override
 the configuration settings from the command line.
-.PP
 Note that all these options can only be set at program startup.
 If you later edit the corresponding directives in the configuration
 file, the changes won't take effect until you restart the program.
@@ -457,9 +462,9 @@ of translations will be silently ignored.
 Setting up all the required connections for the Jack MIDI ports can be a
 tedious and error\-prone task, especially if you have to deal with
 complex setups involving feedback and/or multiple midizap instances.
-It's all to easy to mess this up when doing it manually, and either end
-up with a dysfunctional setup or, even worse, MIDI feedback loops
-crashing your Jack MIDI clients.
+It's all to easy to mess this up when doing it manually, and end up with
+a dysfunctional setup or, even worse, MIDI feedback loops crashing your
+Jack MIDI clients.
 While it's possible to automatize the MIDI connections, e.g., with
 QjackCtl's persistent MIDI patchbay facility, this is often inconvenient
 if you need to accommodate multiple midizap configurations and you
@@ -471,14 +476,20 @@ using the \f[C]JACK_IN\f[] and \f[C]JACK_OUT\f[] directives, which let
 you specify the required connections in the configuration itself and be
 done with it.
 The port number is tacked on to the directive, so, e.g.,
-\f[C]JACK_IN2\f[] connects the second input port (if the port number is
-omitted then the first port is assumed).
-The directive is followed by an (extended) regular expression (see the
-regex(7) manual page) to be matched against the Jack MIDI ports of your
-devices and applications.
+\f[C]JACK_IN2\f[] connects the second input port.
+If the port number is omitted then it defaults to 1, so both
+\f[C]JACK_OUT1\f[] and just \f[C]JACK_OUT\f[] connect the first output
+port.
+The directive is followed by a regular expression to be matched against
+the Jack MIDI ports of your devices and applications.
+Please see the regex(7) manual page for a discussion of the syntax and
+meaning of regular expressions.
+Note that regular expressions come in two different flavors,
+\[lq]basic\[rq] and \[lq]extended\[rq]; midizap uses the latter kind.
+.PP
 A connection will be established automatically by midizap whenever a
-Jack MIDI port matches the regular expression, as well as the port type
-and I/O direction.
+MIDI port belonging to another Jack client matches the regular
+expression, as well as the port type and I/O direction.
 This also works dynamically, as new devices get added and new
 applications are launched at runtime.
 .PP
@@ -506,9 +517,9 @@ The sample configurations in the examples folder in the sources have all
 been set up in this manner, so that they will create the required
 connections automatically.
 .PP
-Please note that at this time, the built\-in patchbay is only available
-through these directives, there are no corresponding command line
-options.
+Please note that in the present implementation, the built\-in patchbay
+is only available through these directives, there are no corresponding
+command line options.
 Also, only one directive can be specified for each port, but since
 midizap will connect to all ports matching the given regular expression,
 you can connect to more than one application or device by just listing
@@ -519,6 +530,22 @@ you might use a directive like:
 .nf
 \f[C]
 JACK_OUT1\ ardour:MIDI\ control\ in|Pure\ Data\ Midi\-In\ 1
+\f[]
+.fi
+.PP
+All matches are done against full port names including the
+\f[I]client\-name\f[]\f[C]:\f[] prefix, so you can specify exactly which
+ports of which clients should be connected.
+However, note that in contrast to the QJackCtl patchbay, midizap does
+substring matches by default, so that, e.g., \f[C]MIDI\ control\f[] will
+match \f[I]any\f[] Ardour MIDI control port, in any instance of the
+program (and also ports with the same name in other programs).
+If you want to specify an exact match, you need to use the \f[C]^\f[]
+and \f[C]$\f[] anchors as follows:
+.IP
+.nf
+\f[C]
+JACK_OUT1\ ^ardour:MIDI\ control\ in$
 \f[]
 .fi
 .SS Pass\-Through
@@ -2243,6 +2270,8 @@ Note that each of these rules uses a successively smaller power of 2 as
 modulus and passes on the remainder to the next rule, while
 transposition is used to extract and output the topmost bit in the
 quotient.
+(You may want to run this example with debugging enabled to see what
+exactly is going on there.)
 .IP
 .nf
 \f[C]
@@ -2255,10 +2284,6 @@ CC2[2]{0}\ \ CC0\ \ CC1\[aq]
 \f[]
 .fi
 .PP
-You may want to run this example with debugging enabled to see what
-exactly is going on there.
-.PP
-The \[lq]naming\[rq] of macros is another issue worth discussing here.
 In principle, any message which can occur on the left\-hand side of a
 mod translation (i.e., everything but \f[C]PC\f[]) can also be used as a
 macro.
@@ -2367,9 +2392,7 @@ translation\ ::=\ midi\-token\ {\ key\-token\ |\ midi\-token\ }
 directive\ \ \ ::=\ "DEBUG_REGEX"\ |\ "DEBUG_STROKES"\ |\ "DEBUG_KEYS"\ |
 \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "DEBUG_MIDI"\ |\ "MIDI_OCTAVE"\ number\ |
 \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "JACK_NAME"\ string\ |\ "JACK_PORTS"\ number\ |
-\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "JACK_IN"\ regex\ |\ "JACK_OUT"\ regex\ |
-\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "JACK_IN1"\ regex\ |\ "JACK_OUT1"\ regex\ |
-\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "JACK_IN2"\ regex\ |\ "JACK_OUT2"\ regex\ |
+\ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "JACK_IN"\ [number]\ regex\ |\ "JACK_OUT"\ [number]\ regex\ |
 \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "PASSTHROUGH"\ [\ number\ ]\ |
 \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ \ "SYSTEM_PASSTHROUGH"\ [\ number\ ]
 
