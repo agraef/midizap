@@ -1609,7 +1609,7 @@ handle_event(uint8_t *msg, uint8_t portno, int depth, int recursive)
 
 void help(char *progname)
 {
-  fprintf(stderr, "Usage: %s [-hkn] [-d[rskmj]] [-ost[n]] [-j name] [-P[prio]] [-r rcfile]\n", progname);
+  fprintf(stderr, "Usage: %s [-hkn] [-d[rskmj]] [-ost[n]] [-j name] [-P[prio]] [[-r] rcfile]\n", progname);
   fprintf(stderr, "-h print this message\n");
   fprintf(stderr, "-d debug (r = regex, s = strokes, k = keys, m = midi, j = jack; default: all)\n");
   fprintf(stderr, "-j jack client name (default: midizap)\n");
@@ -1842,9 +1842,14 @@ main(int argc, char **argv)
     }
   }
 
-  if (optind < argc) {
+  if (optind+1 < argc) {
     help(argv[0]);
     exit(1);
+  }
+
+  if (optind < argc) {
+      config_file_name = argv[optind];
+      add_command(absolute_path(argv[optind]), 1);
   }
 
   if (command_line) jack_command_line = command_line;
