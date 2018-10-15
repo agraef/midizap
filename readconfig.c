@@ -1380,7 +1380,8 @@ static void dup_stroke_data(stroke_data **sd, uint16_t *n, uint16_t *a,
 {
   for (int i = 0; i < n1; i++) {
     if (sd1[i].anyshift) {
-      for (int index = 0; index < 2; index++) {
+      int nindex = sd1[i].mod?1:2; // no release seq in mod translations
+      for (int index = 0; index < nindex; index++) {
 	stroke **t =
 	  sd0 && check_stroke_data(sd0, sd1[i].chan, sd1[i].data, n0) ? 0 :
 	  find_stroke_data(sd, sd1[i].chan, sd1[i].data, index,
