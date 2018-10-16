@@ -64,7 +64,7 @@ After installation the system-wide default configuration file will be in /etc/mi
 
 The ~/.midizaprc file, if it exists, takes priority over /etc/midizaprc, so it becomes your personal default midizap configuration. The midizaprc file included in the distribution is really just an example; you're expected to edit this file to adjust the bindings for the MIDI controllers and the applications that you use.
 
-It is also possible to specify the configuration file to be used, by invoking midizap with the name of the midizaprc file on the command line. This is often used with more specialized configurations dealing with specific applications or MIDI controllers. E.g., to try one of sample configurations in the sources:
+It is also possible to specify the configuration file to be used, by invoking midizap with the name of the midizaprc file on the command line. This is often used with more specialized configurations dealing with specific applications or MIDI controllers. E.g., to try one of the sample configurations in the sources:
 
 ~~~
 midizap examples/APCmini.midizaprc
