@@ -435,10 +435,10 @@ connect_callback(jack_port_id_t a, jack_port_id_t b, int yn, void *seqq)
   const char *aname = jack_port_name(ap);
   const char *bname = jack_port_name(bp);
   size_t l = strlen(seq->client_name);
-  if (!strncmp(seq->client_name, aname, l))
+  if (jack_port_is_mine(seq->jack_client, ap))
     printf("%-*s %s: %s\n", (int)l+10, aname,
 	   (yn ? "connected to" : "disconnected from"), bname);
-  else if (!strncmp(seq->client_name, bname, l))
+  else if (jack_port_is_mine(seq->jack_client, bp))
     printf("%-*s %s: %s\n", (int)l+10, bname,
 	   (yn ? "connected to" : "disconnected from"), aname);
 }
