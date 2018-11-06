@@ -261,7 +261,7 @@ The header is followed by a list of translations which define what output should
 Example:
 
 ~~~
-[Terminal] CLASS ^.*-terminal.*|konsole|xterm$
+[Terminal] CLASS ^(.*-terminal.*|konsole|xterm)$
  F5    XK_Up
  F#5   "pwd"
  G5    XK_Down

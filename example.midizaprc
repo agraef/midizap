@@ -150,7 +150,7 @@
 # WM_CLASS).  These have very similar key bindings, see e.g.:
 # https://www.shotcut.org/howtos/keyboard-shortcuts/
 
-[Kdenlive/Shotcut] ^shotcut|kdenlive$
+[Kdenlive/Shotcut] ^(shotcut|kdenlive)$
 
 # Both Kdenlive and Shotcut use the J-K-L shortcuts, where each
 # successive J or L key decrements or increments the playback speed.  We
