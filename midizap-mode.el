@@ -1,0 +1,116 @@
+;;; midizap-mode.el --- midizap syntax highlighting for Emacs.
+
+;;; Commentary:
+
+;;; This is a simple mode for editing midizaprc files which provides basic
+;;; syntax highlighting and a command which lets you quickly launch a midizap
+;;; session (with options) on the edited midizaprc file in an Emacs buffer.
+
+;;; The mode also supports auto-completion of midizaprc keywords using the
+;;; auto-complete package available from MELPA, see:
+;;; https://github.com/auto-complete/auto-complete.
+
+;;; Install this anywhere where Emacs finds it (e.g., in the Emacs site-lisp
+;;; directory -- usually under /usr/share/emacs/site-lisp on Un*x systems, or
+;;; in any directory on the Emacs load-path) and load it in your .emacs as
+;;; follows:
+
+;;; (require 'midizap-mode)
+
+;;; Code:
+
+(require 'comint)
+
+(defconst midizap-keywords
+  (list
+    "DEBUG_REGEX" "DEBUG_STROKES" "DEBUG_KEYS" "DEBUG_MIDI"
+    "MIDI_OCTAVE" "JACK_NAME" "JACK_PORTS"
+    "JACK_IN" "JACK_IN1" "JACK_IN2"
+    "JACK_OUT" "JACK_OUT1" "JACK_OUT2"
+    "PASSTHROUGH" "SYSTEM_PASSTHROUGH"
+    "RELEASE" "SHIFT" "SHIFT1" "SHIFT2" "SHIFT3" "SHIFT4"
+    "CLASS" "TITLE"
+    ))
+
+;;;###autoload
+(define-generic-mode 'midizap-mode
+   nil
+   midizap-keywords
+   '(("^[[:blank:]]*\\(#.*\\)" 1 'font-lock-comment-face t)
+     ("[[:blank:]]+\\(#.*\\)" 1 'font-lock-comment-face t)
+     ("^[[:blank:]]*\\[\\([^\n[]+\\)\\]\\(.*\\)"
+      1 'font-lock-variable-name-face)
+     ("\\<\\(\\([Kk][Pp]:\\)?[A-Ga-g][#Bb]?-?[0-9]+\\|\\([Mm]\\|[Cc][Hh]\\|[Pp][Bb]\\|[Pp][Cc]\\|[Cc][Cc]\\|[Cc][Pp]\\)[0-9]*\\|XK_[A-Za-z_0-9]+\\(/[UDH]\\)?\\)\\>" 1 'default)
+     ("\\<\\([0-9]+\\)\\>" 1 'font-lock-constant-face))
+   (list "\\.midizaprc\\'")
+   (list 'midizap-mode-setup-function)
+   "Generic mode for midizap configuration files.")
+
+(defvar midizap-mode-syntax-table nil
+  "Syntax table in use in midizap-mode buffers.")
+
+(defvar midizap-mode-keymap (make-sparse-keymap)
+  "Keymap for midizap-mode.")
+
+(defvar midizap-command "midizap -drk ")
+
+(defvar ac-sources)
+
+(defvar midizap-mode-ac-source
+  '((candidates . midizap-keywords)))
+
+(defun midizap-mode-run (command)
+  "Run the current midizaprc file with COMMAND in a comint buffer."
+  (interactive
+   (list
+    (let ((command (eval midizap-command)))
+      (read-string "Run midizap with: " command))))
+  (unless (equal command (eval midizap-command))
+    (setq midizap-command command))
+  (save-some-buffers)
+  (let* ((file (buffer-file-name))
+	 (buf-name (concat "*" file "*")))
+    (with-current-buffer (get-buffer-create buf-name)
+      (erase-buffer)
+      (comint-mode)
+      (comint-exec
+       buf-name
+       file
+       shell-file-name
+       nil
+       (list "-c" (concat command " " file)))
+      (display-buffer buf-name))))
+
+(define-key midizap-mode-keymap "\C-c\C-c" 'midizap-mode-run)
+
+;; Count hash and dollar characters as word constituents.
+(if midizap-mode-syntax-table
+    nil
+  (setq midizap-mode-syntax-table (make-syntax-table))
+  (modify-syntax-entry ?#  "w"  midizap-mode-syntax-table)
+  (modify-syntax-entry ?$  "w"  midizap-mode-syntax-table))
+
+(defun midizap-mode-setup-function ()
+  "Custom setup function for midizap-mode."
+  (make-local-variable	     'parse-sexp-ignore-comments)
+  (make-local-variable	     'comment-start)
+  (make-local-variable	     'comment-start-skip)
+  (make-local-variable	     'comment-end)
+  (setq parse-sexp-ignore-comments t
+	comment-end                ""
+	comment-start		   "# "
+	comment-start-skip	   "# *"
+	)
+  (if (boundp 'ac-sources)
+      (progn
+        (add-to-list 'ac-modes 'midizap-mode)
+        (add-to-list 'ac-sources 'midizap-mode-ac-source))
+    (message "You may want to install and use auto-complete"))
+  (set-syntax-table	      midizap-mode-syntax-table)
+  (use-local-map midizap-mode-keymap)
+  )
+
+(provide 'midizap-mode)
+
+;; End:
+;;; midizap-mode.el ends here
