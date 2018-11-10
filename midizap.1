@@ -160,6 +160,14 @@ Usually this will be under /usr/local, but the installation prefix can
 be changed with the \f[C]prefix\f[] variable in the Makefile.
 Also, package maintainers can use the \f[C]DESTDIR\f[] variable to
 install into a staging directory for packaging purposes.
+.PP
+For users of the Emacs text editor we provide a midizap mode which does
+syntax\-highlighting of midizaprc files and also lets you launch a
+midizap session in an Emacs buffer.
+The mode isn't installed automatically, but you can do this manually by
+copying the midizap\-mode.el file to a directory on your Emacs
+load\-path; please check midizap\-mode.el in the sources for more
+detailed instructions.
 .SH Configuration File
 .PP
 After installation the system\-wide default configuration file will be
@@ -207,6 +215,9 @@ However, it is also possible to launch it from your Jack session manager
 (see \f[I]Jack\-Related Options\f[] below) or from your desktop
 environment's startup files once you've set up everything to your
 liking.
+If you're an Emacs user, you can conveniently edit and launch midizap
+configurations using midizap's Emacs mode; please check the
+midizap\-mode.el file included in the sources for details.
 .PP
 Try \f[C]midizap\ \-h\f[] for a brief summary of the available options
 with which the program can be invoked.
@@ -603,9 +614,7 @@ menu from where they can be launched quickly.
 Finally, midizap also offers an option to run the program with
 \f[I]real\-time priorities\f[].
 Jack itself usually does that anyway where needed, but midizap's main
-thread won't unless you run it with the \f[C]\-P\f[] option
-(\f[C]midizap\ \-P\f[], or \f[C]midizap\ \-P80\f[] if you also want to
-specify the priority).
+thread won't unless you run it with the \f[C]\-P\f[] option.
 Using this option, midizap should be able to get down to MIDI latencies
 in the 1 msec ballpark which should be good enough for most purposes.
 (Note that there's no need to use this option unless you actually notice
@@ -751,7 +760,7 @@ Example:
 .IP
 .nf
 \f[C]
-[Terminal]\ CLASS\ ^.*\-terminal.*|konsole|xterm$
+[Terminal]\ CLASS\ ^(.*\-terminal.*|konsole|xterm)$
 \ F5\ \ \ \ XK_Up
 \ F#5\ \ \ "pwd"
 \ G5\ \ \ \ XK_Down
@@ -2476,12 +2485,9 @@ Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)
 .PD
 Copyright 2018 Albert Graef (<aggraef@gmail.com>)
 .PP
-This is a version of Eric Messick's ShuttlePRO program which has been
-redesigned to work with Jack MIDI instead of the Contour Design Shuttle
-devices.
-ShuttlePRO was written in 2013 by Eric Messick, based on earlier code by
-Trammell Hudson and Arendt David.
-The MIDI support was added by Albert Gräf.
+midizap is a heavily modified version of the ShuttlePRO program which
+was written in 2013 by Eric Messick, based on earlier code by Trammell
+Hudson and Arendt David.
 All the key and mouse translation features of the original program still
 work as before, but it goes without saying that the configuration
 language and the translation code have undergone some substantial

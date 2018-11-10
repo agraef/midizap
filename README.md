@@ -56,6 +56,8 @@ First, make sure that you have the required dependencies installed. The program 
 
 Then just run `make` and `sudo make install`. This installs the example.midizaprc file as /etc/midizaprc, and the midizap program and the manual page in the default install location. Usually this will be under /usr/local, but the installation prefix can be changed with the `prefix` variable in the Makefile. Also, package maintainers can use the `DESTDIR` variable to install into a staging directory for packaging purposes.
 
+For users of the Emacs text editor we provide a midizap mode which does syntax-highlighting of midizaprc files and also lets you launch a midizap session in an Emacs buffer. The mode isn't installed automatically, but you can do this manually by copying the midizap-mode.el file to a directory on your Emacs load-path; please check midizap-mode.el in the sources for more detailed instructions.
+
 # Configuration File
 
 After installation the system-wide default configuration file will be in /etc/midizaprc, where the program will be able to find it. We recommend copying this file to your home directory, renaming it to .midizaprc:
@@ -74,7 +76,7 @@ The program automatically reloads the midizaprc file whenever it notices that th
 
 # Basic Usage
 
-The midizap program is a command line application, so you typically run it from the terminal. However, it is also possible to launch it from your Jack session manager (see *Jack-Related Options* below) or from your desktop environment's startup files once you've set up everything to your liking.
+The midizap program is a command line application, so you typically run it from the terminal. However, it is also possible to launch it from your Jack session manager (see *Jack-Related Options* below) or from your desktop environment's startup files once you've set up everything to your liking. If you're an Emacs user, you can conveniently edit and launch midizap configurations using midizap's Emacs mode; please check the midizap-mode.el file included in the sources for details.
 
 Try `midizap -h` for a brief summary of the available options with which the program can be invoked.
 
@@ -212,7 +214,7 @@ Various Jack session managers are available for Linux, but if you're running Qja
 
 ## Realtime Priorities
 
-Finally, midizap also offers an option to run the program with *real-time priorities*. Jack itself usually does that anyway where needed, but midizap's main thread won't unless you run it with the `-P` option (`midizap -P`, or `midizap -P80` if you also want to specify the priority). Using this option, midizap should be able to get down to MIDI latencies in the 1 msec ballpark which should be good enough for most purposes. (Note that there's no need to use this option unless you actually notice high latencies or jitter in the MIDI output.)
+Finally, midizap also offers an option to run the program with *real-time priorities*. Jack itself usually does that anyway where needed, but midizap's main thread won't unless you run it with the `-P` option. Using this option, midizap should be able to get down to MIDI latencies in the 1 msec ballpark which should be good enough for most purposes. (Note that there's no need to use this option unless you actually notice high latencies or jitter in the MIDI output.)
 
 # Translation Syntax
 
@@ -965,7 +967,7 @@ midizap is free and open source software licensed under the GPLv3, please see th
 Copyright 2013 Eric Messick (FixedImagePhoto.com/Contact)  
 Copyright 2018 Albert Graef (<aggraef@gmail.com>)
 
-This is a version of Eric Messick's ShuttlePRO program which has been redesigned to work with Jack MIDI instead of the Contour Design Shuttle devices. ShuttlePRO was written in 2013 by Eric Messick, based on earlier code by Trammell Hudson and Arendt David. The MIDI support was added by Albert Gräf. All the key and mouse translation features of the original program still work as before, but it goes without saying that the configuration language and the translation code have undergone some substantial changes to accommodate the MIDI input and output facilities. The Jack MIDI backend is based on code from Spencer Jackson's osc2midi utility, and on the simple_session_client.c example available in the Jack git repository.
+midizap is a heavily modified version of the ShuttlePRO program which was written in 2013 by Eric Messick, based on earlier code by Trammell Hudson and Arendt David. All the key and mouse translation features of the original program still work as before, but it goes without saying that the configuration language and the translation code have undergone some substantial changes to accommodate the MIDI input and output facilities. The Jack MIDI backend is based on code from Spencer Jackson's osc2midi utility, and on the simple_session_client.c example available in the Jack git repository.
 
 [MIDI]: https://www.midi.org/
 [OSC]: http://opensoundcontrol.org/
