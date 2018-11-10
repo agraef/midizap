@@ -3,12 +3,9 @@
 ;;; Commentary:
 
 ;;; This is a simple mode for editing midizaprc files which provides basic
-;;; syntax highlighting and a command which lets you quickly launch a midizap
-;;; session (with options) on the edited midizaprc file in an Emacs buffer.
-
-;;; The mode also supports auto-completion of midizaprc keywords using the
-;;; auto-complete package available from MELPA, see:
-;;; https://github.com/auto-complete/auto-complete.
+;;; syntax highlighting, and a command midizap-mode-run, bound to C-c C-c,
+;;; which lets you quickly launch a midizap session (with options) on the
+;;; edited midizaprc file in an Emacs buffer.
 
 ;;; Install this anywhere where Emacs finds it (e.g., in the Emacs site-lisp
 ;;; directory -- usually under /usr/share/emacs/site-lisp on Un*x systems, or
@@ -16,6 +13,10 @@
 ;;; follows:
 
 ;;; (require 'midizap-mode)
+
+;;; The mode also supports auto-completion of midizaprc keywords, to make this
+;;; work you'll need the auto-complete package available from MELPA, please
+;;; check: https://github.com/auto-complete/auto-complete.
 
 ;;; Code:
 
