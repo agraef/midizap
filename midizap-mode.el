@@ -47,9 +47,6 @@
    (list 'midizap-mode-setup-function)
    "Generic mode for midizap configuration files.")
 
-(defvar midizap-mode-syntax-table nil
-  "Syntax table in use in midizap-mode buffers.")
-
 (defvar midizap-mode-keymap (make-sparse-keymap)
   "Keymap for midizap-mode.")
 
@@ -84,13 +81,6 @@
 
 (define-key midizap-mode-keymap "\C-c\C-c" 'midizap-mode-run)
 
-;; Count hash and dollar characters as word constituents.
-(if midizap-mode-syntax-table
-    nil
-  (setq midizap-mode-syntax-table (make-syntax-table))
-  (modify-syntax-entry ?#  "w"  midizap-mode-syntax-table)
-  (modify-syntax-entry ?$  "w"  midizap-mode-syntax-table))
-
 (defun midizap-mode-setup-function ()
   "Custom setup function for midizap-mode."
   (make-local-variable	     'parse-sexp-ignore-comments)
@@ -107,7 +97,6 @@
         (add-to-list 'ac-modes 'midizap-mode)
         (add-to-list 'ac-sources 'midizap-mode-ac-source))
     (message "You may want to install and use auto-complete"))
-  (set-syntax-table	      midizap-mode-syntax-table)
   (use-local-map midizap-mode-keymap)
   )
 
