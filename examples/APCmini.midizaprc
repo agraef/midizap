@@ -1,6 +1,12 @@
 
 # Mackie emulation for the AKAI APCmini
 
+# This turns the APCmini into a Mackie-compatible controller, so that it can
+# be used with Linux DAW programs like Ardour.  The emulation is complicated
+# by the APCmini having no encoders, no motorized faders, and not nearly as
+# many dedicated buttons as a Mackie device.  But it offers enough controls to
+# be usable as a basic DAW controller.  Tested with Ardour.
+
 # Copyright (c) 2018 Albert Graef <aggraef@gmail.com>
 
 # Copying and distribution of this file, with or without modification, are
@@ -11,39 +17,28 @@
 JACK_NAME "midizap-APCmini"
 JACK_PORTS 2
 
-# This turns the APCmini into a Mackie-compatible controller, so that it can
-# be used with Linux DAW programs like Ardour.  The emulation is complicated
-# by the APCmini having no encoders, no motorized faders, and not nearly as
-# many dedicated buttons as a Mackie device.  But it offers enough controls to
-# be usable as a basic DAW controller.  I tested it with Ardour.
-
-# SETUP: In Ardour, enable the Mackie control surface, then connect Ardour's
-# Mackie control ports to midizap's midi_out and midi_in2 ports, and the
-# APCmini to midizap's midi_in and midi_out2 ports. The following lines will
-# take care of setting up all the connections automatically, but you still
-# need to enable the Mackie control surface in Ardour, so that Ardour exposes
-# the Mackie control ports.
+# SETUP: The following lines will take care of setting up all the connections
+# automatically, but you still need to enable the Mackie control surface in
+# Ardour, so that Ardour exposes the Mackie control ports.
 
 JACK_IN1  APC MINI MIDI 1
 JACK_OUT1 ardour:mackie control in
 JACK_IN2  ardour:mackie control out
 JACK_OUT2 APC MINI MIDI 1
 
-# PROTOCOL DOCUMENTATION: The Mackie protocol is fairly ubiquitous, but since
-# manufacturers can't be bothered to properly *document* their stuff these
-# days, we have to rely on volunteers who do their work using some reverse
-# engineering.  Here are the links that I found most useful:
+# PROTOCOL DOCUMENTATION: The Mackie Control (MC) protocol is fairly
+# ubiquitous, but since manufacturers can't be bothered to properly document
+# their stuff these days, we have to rely on volunteers who do their work
+# using some reverse engineering.  Here are the links that I found most
+# useful:
 
-# http://www.budgetfeatures.com/XctlDOC/Xctl Protocol for X-Touch V1.0.pdf
-
-# (This chart really is a piece of art.  It's actually about the Behringer
-# X-Touch, but since that device is Mackie-compatible, there's a wealth of
-# useful information in there; just ignore the bits which pertain to Xctl.)
-
-# There's another fairly comprehensive one here (lacks the feedback messages,
-# though):
-
+# This is fairly comprehensive, but lacks the feedback messages:
 # http://www.jjlee.com/qlab/Mackie Control MIDI Map.pdf
+
+# This chart really is a piece of art.  It's actually about the Behringer
+# X-Touch and its Xctl protocol, but there's useful information about MC in
+# there as well:
+# http://www.budgetfeatures.com/XctlDOC/Xctl Protocol for X-Touch V1.0.pdf
 
 # Information about the APCmini can be found in the Akai forums here:
 # http://community.akaipro.com/akai_professional/topics/midi-information-for-apc-mini
