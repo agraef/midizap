@@ -1,0 +1,5 @@
+# -*- mode: snippet -*-
+# name: section header
+# key: [
+# --
+[${1:name}] ${2:regex}

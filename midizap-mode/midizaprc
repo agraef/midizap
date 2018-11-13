@@ -1,0 +1,27 @@
+# -*- mode: snippet -*-
+# name: midizaprc template
+# key: #
+# --
+
+# midizap configuration template for Emacs (requires yasnippet)
+
+# Jack client name and ports/connections
+
+# NOTE: Remove the JACK_PORTS and JACK_OUT lines if you don't need MIDI
+# output. For bidirectional setups, use JACK_PORTS 2 and add JACK_IN2,
+# JACK_OUT2 and a [MIDI2] section for the feedback connection.
+
+JACK_NAME  "${1:client-name}"
+JACK_PORTS 1
+JACK_IN    ${2:controller-regex}
+JACK_OUT   ${3:application-regex}
+
+# common debugging options (uncomment as needed)
+
+#DEBUG_REGEX
+#DEBUG_KEYS
+#DEBUG_MIDI
+
+# translations go here
+
+[MIDI]

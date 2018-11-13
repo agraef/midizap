@@ -18,6 +18,10 @@
 ;;; work you'll need the auto-complete package available from MELPA, please
 ;;; check: https://github.com/auto-complete/auto-complete.
 
+;;; In the midizap-mode subdirectory you'll find some snippets to be used with
+;;; yasnippet (https://github.com/joaotavora/yasnippet); to use these, copy
+;;; the entire folder to your ~/.emacs.d/snippets directory.
+
 ;;; Code:
 
 (require 'comint)
