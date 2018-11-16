@@ -18,7 +18,7 @@ INSTALL_TARGETS = midizap $(wildcard midizap.1)
 
 .PHONY: all world install uninstall man pdf clean realclean
 
-all: midizap
+all: midizap midizap-mode.el
 
 # This also creates the manual page (see below).
 world: all man
@@ -56,13 +56,19 @@ midizap.pdf: midizap.1
 	man -Tpdf ./midizap.1 > $@
 
 clean:
-	rm -f midizap keys.h $(OBJ)
+	rm -f midizap keys.h keys.el midizap-mode.el $(OBJ)
 
 realclean:
 	rm -f midizap midizap.1 midizap.pdf keys.h $(OBJ)
 
 keys.h: keys.sed /usr/include/X11/keysymdef.h
 	sed -f keys.sed < /usr/include/X11/keysymdef.h > keys.h
+
+keys.el: keywords.sed /usr/include/X11/keysymdef.h
+	sed -f keywords.sed < /usr/include/X11/keysymdef.h | tr '\n' ' ' > keys.el
+
+midizap-mode.el: midizap-mode.el.in keys.el
+	sed '/;; keysyms/r keys.el' < midizap-mode.el.in > midizap-mode.el
 
 readconfig.o: midizap.h keys.h
 midizap.o: midizap.h jackdriver.h
