@@ -7,6 +7,12 @@ bindir=$(DESTDIR)$(prefix)/bin
 mandir=$(DESTDIR)$(prefix)/share/man/man1
 datadir=$(DESTDIR)/etc
 
+# See whether emacs is installed and try to guess its installation prefix.
+emacs_prefix = $(patsubst %/bin/emacs,%,$(shell which emacs 2>/dev/null))
+ifneq ($(strip $(emacs_prefix)),)
+elispdir = $(emacs_prefix)/share/emacs/site-lisp
+endif
+
 # Check to see whether we have Jack installed. Needs pkg-config.
 JACK := $(shell pkg-config --libs jack 2>/dev/null)
 
@@ -27,6 +33,12 @@ install: all
 	install -d $(bindir) $(datadir) $(mandir)
 	install midizap $(bindir)
 	install -m 0644 example.midizaprc $(datadir)/midizaprc
+ifneq ($(elispdir),)
+# If emacs was found, or elispdir was specified manually, install
+# midizap-mode.el into the elispdir directory.
+	install -d $(DESTDIR)$(elispdir)
+	install -m 0644 midizap-mode.el $(DESTDIR)$(elispdir)
+endif
 # If present, the manual page will be installed along with the program.
 ifneq ($(findstring midizap.1, $(INSTALL_TARGETS)),)
 	install -m 0644 midizap.1 $(mandir)

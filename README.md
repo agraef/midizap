@@ -56,7 +56,7 @@ First, make sure that you have the required dependencies installed. The program 
 
 Then just run `make` and `sudo make install`. This installs the example.midizaprc file as /etc/midizaprc, and the midizap program and the manual page in the default install location. Usually this will be under /usr/local, but the installation prefix can be changed with the `prefix` variable in the Makefile. Also, package maintainers can use the `DESTDIR` variable to install into a staging directory for packaging purposes.
 
-For users of the Emacs text editor we provide a midizap mode which does syntax-highlighting of midizaprc files and also lets you launch a midizap session in an Emacs buffer. The mode isn't installed automatically, but you can do this manually by copying the midizap-mode.el file to a directory on your Emacs load-path; please check midizap-mode.el in the sources for more detailed instructions.
+For users of the Emacs text editor we provide a midizap mode which does syntax-highlighting of midizaprc files and also lets you launch a midizap session in an Emacs buffer. If Emacs was found during installation, the midizap-mode.el file is installed into the share/emacs/site-lisp directory along with the other files. The Makefile tries to guess the proper installation prefix, but if necessary you can also set the `elispdir` variable or copy the file manually to a directory on your Emacs load-path. Please check midizap-mode.el for more detailed instructions.
 
 # Configuration File
 

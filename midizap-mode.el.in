@@ -27,20 +27,17 @@
 (require 'comint)
 
 (defconst midizap-keywords
-  (append
-   (list
-    "DEBUG_REGEX" "DEBUG_STROKES" "DEBUG_KEYS" "DEBUG_MIDI"
-    "MIDI_OCTAVE" "JACK_NAME" "JACK_PORTS"
-    "JACK_IN" "JACK_IN1" "JACK_IN2"
-    "JACK_OUT" "JACK_OUT1" "JACK_OUT2"
-    "PASSTHROUGH" "SYSTEM_PASSTHROUGH"
-    "RELEASE" "SHIFT" "SHIFT1" "SHIFT2" "SHIFT3" "SHIFT4"
-    "CLASS" "TITLE"
-    )
-   (list
+  (list
+   "DEBUG_REGEX" "DEBUG_STROKES" "DEBUG_KEYS" "DEBUG_MIDI"
+   "MIDI_OCTAVE" "JACK_NAME" "JACK_PORTS"
+   "JACK_IN" "JACK_IN1" "JACK_IN2"
+   "JACK_OUT" "JACK_OUT1" "JACK_OUT2"
+   "PASSTHROUGH" "SYSTEM_PASSTHROUGH"
+   "RELEASE" "SHIFT" "SHIFT1" "SHIFT2" "SHIFT3" "SHIFT4"
+   "CLASS" "TITLE"
     ;; keysyms
 
-    )))
+   ))
 
 ;;;###autoload
 (define-generic-mode 'midizap-mode
