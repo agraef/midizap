@@ -1,0 +1,59 @@
+
+# Minimal Mackie emulation for the Harley Benton MP-100 a.k.a. MeloAudio MIDI
+# Commander foot controller (https://meloaudio.com)
+
+# This device is rather limited in what it can do as a Mackie controller (no
+# feedback, just 4 switches, 4 toggles, and 2 continuous controllers), but it
+# may still come in handy to guitarists for basic hands-free DAW control. Note
+# that we can't make good use of the bank switches on the device (the two
+# extra switches on the right), since these always emit a PC message, which
+# interferes with our use of the PC messages for the transport controls. It
+# may be possible to do something better by configuring a custom mode on the
+# device, but here we stick to what's available in the factory settings.
+
+# Copyright (c) 2019 Albert Graef <aggraef@gmail.com>
+
+# Copying and distribution of this file, with or without modification, are
+# permitted in any medium without royalty provided the copyright notice and
+# this notice are preserved.  This file is offered as-is, without any
+# warranty.
+
+JACK_NAME "midizap-MP100"
+JACK_PORTS 1
+
+# Auto-connect to the MP-100 on the input, and Ardour's Mackie control input
+# on the output side.
+
+JACK_IN  TSMIDI.* MIDI 1
+JACK_OUT ardour:mackie control in
+
+# The following configuration assumes that the MP-100 is set to mode 1 (JAMP),
+# which is the default. Note that the controller numbers for the top row and
+# the expression pedal inputs are specific to JAMP mode, so you will have to
+# adjust these if you run the device in a different host mode. As implemented
+# below, the controls are laid out as follows:
+
+# top row:    [mute] [solo] [rec]   [select]  EXP1: volume (current channel)
+# bottom row: [stop] [play] [chan<] [chan>]   EXP2: volume (master)
+
+[MIDI]
+
+# Note that MCP expects a note-on/off pair for each activation of the
+# mure/solo/rec/select switches, while the MP-100 top switches act as toggles,
+# so we have to use suitable mod translations for the top row.
+
+# top row (mute/solo/rec/select for current channel)
+CC22[] E1{127} E1{0}   # Mute
+CC25[] G#0{127} G#0{0} # Solo
+CC24[] C0{127} C0{0}   # Rec
+CC26[] C2{127} C2{0}   # Select
+
+# bottom row (basic transport and bank controls)
+PC0 A7  # Stop
+PC1 A#7 # Play
+PC2 C4  # Channel Left
+PC3 C#4 # Channel Right
+
+# EXP-1 and EXP-2 (current channel and master volume)
+CC4[] PB[129]-1 # Volume
+CC7[] PB[129]-9 # Master
